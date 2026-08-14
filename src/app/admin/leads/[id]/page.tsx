@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { addLeadNote, updateLead } from "@/app/admin/leads/actions";
+import { convertLead } from "@/app/admin/clientes/actions";
 import { calcularComplementar, LEAD_STATUSES } from "@/lib/leads";
 import { createClient } from "@/lib/supabase/server";
 
@@ -105,14 +106,17 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
               <FileText className="size-4" />
               Proposta
             </button>
-            <button
-              disabled
-              title="Será habilitado junto ao módulo de Clientes"
-              className="flex items-center gap-2 rounded-full border bg-white px-4 py-2.5 text-sm font-bold opacity-50"
-            >
-              <LockKeyhole className="size-4" />
-              Converter em cliente
-            </button>
+            <form action={convertLead.bind(null, params.id)}>
+              <button
+                disabled={Boolean(lead.cliente_id)}
+                className="flex items-center gap-2 rounded-full border bg-white px-4 py-2.5 text-sm font-bold disabled:opacity-50"
+              >
+                <LockKeyhole className="size-4" />
+                {lead.cliente_id
+                  ? "Cliente convertido"
+                  : "Converter em cliente"}
+              </button>
+            </form>
           </div>
         </div>
         {searchParams?.saved && (
