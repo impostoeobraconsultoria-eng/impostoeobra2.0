@@ -342,7 +342,10 @@ begin
     where email = auth.jwt()->>'email' and ativo = true
   );
 end;
-$$ language plpgsql security definer stable;
+$$ language plpgsql
+   security definer
+   stable
+   set search_path = public, pg_temp;
 
 create or replace function public.is_admin() returns boolean as $$
 begin
@@ -351,7 +354,35 @@ begin
     where email = auth.jwt()->>'email' and ativo = true and perfil = 'admin'
   );
 end;
-$$ language plpgsql security definer stable;
+$$ language plpgsql
+   security definer
+   stable
+   set search_path = public, pg_temp;
+
+-- EXECUTE restrito a authenticated/anon (não PUBLIC — hardening)
+revoke execute on function public.is_active_user() from public;
+revoke execute on function public.is_admin() from public;
+grant execute on function public.is_active_user() to authenticated, anon;
+grant execute on function public.is_admin() to authenticated, anon;
+
+-- RPC para atualizar ultimo_acesso do próprio usuário (chamada no callback OAuth)
+-- SECURITY DEFINER porque UPDATE em users é restrito a admin pela policy geral,
+-- mas queremos permitir que qualquer usuário ativo atualize apenas o próprio
+-- ultimo_acesso (nada mais).
+create or replace function public.registrar_ultimo_acesso() returns void as $$
+begin
+  update public.users
+     set ultimo_acesso = now()
+   where email = auth.jwt()->>'email'
+     and ativo = true;
+end;
+$$ language plpgsql
+   security definer
+   volatile
+   set search_path = public, pg_temp;
+
+revoke execute on function public.registrar_ultimo_acesso() from public;
+grant execute on function public.registrar_ultimo_acesso() to authenticated;
 
 -- =============================================================================
 -- 14. ROW LEVEL SECURITY
@@ -396,10 +427,10 @@ create policy config_write_admin on public.config
   for all using (public.is_admin()) with check (public.is_admin());
 
 -- -------- LEADS --------
--- INSERT liberado para anon (webhook público da calculadora)
-create policy leads_insert_public on public.leads
-  for insert to anon with check (true);
--- SELECT/UPDATE/DELETE só para usuários ativos
+-- IMPORTANTE: inserts em leads NÃO usam RLS.
+-- Todos passam pelo endpoint /api/leads (Next.js), que valida com Zod e usa
+-- SUPABASE_SERVICE_ROLE_KEY (bypassa RLS). Não criamos policy INSERT anon aqui
+-- pra evitar chamadas diretas à Data API sem validação.
 create policy leads_select_active on public.leads
   for select using (public.is_active_user());
 create policy leads_update_active on public.leads
@@ -431,7 +462,9 @@ create policy contratos_delete_admin on public.contratos
 create policy atividades_select_active on public.atividades
   for select using (public.is_active_user());
 create policy atividades_insert_active on public.atividades
-  for insert with check (public.is_active_user() or auth.role() = 'anon');  -- webhook pode logar criação
+  for insert to authenticated with check (public.is_active_user());
+-- Nota: inserts vindos do webhook /api/leads passam pela SUPABASE_SERVICE_ROLE_KEY
+-- (bypassa RLS), então não é necessário permitir anon aqui.
 create policy atividades_update_admin on public.atividades
   for update using (public.is_admin()) with check (public.is_admin());
 create policy atividades_delete_admin on public.atividades
