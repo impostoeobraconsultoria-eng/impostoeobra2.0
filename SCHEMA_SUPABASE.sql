@@ -1,0 +1,538 @@
+-- =============================================================================
+-- SCHEMA SUPABASE — Plataforma Imposto & Obra
+-- Execute este arquivo no SQL Editor do Supabase (dashboard.supabase.com)
+-- Ordem: extensões → tabelas → triggers → RLS policies → seeds
+-- =============================================================================
+
+-- =============================================================================
+-- 1. EXTENSÕES
+-- =============================================================================
+
+create extension if not exists "uuid-ossp";
+create extension if not exists "pgcrypto";
+
+-- =============================================================================
+-- 2. TABELA users (equipe interna)
+-- =============================================================================
+
+create table public.users (
+  id            uuid primary key default gen_random_uuid(),
+  email         text unique not null,
+  nome          text,
+  perfil        text not null check (perfil in ('admin', 'consultor')),
+  ativo         boolean not null default true,
+  criado_em     timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  ultimo_acesso timestamptz
+);
+
+create index idx_users_email on public.users(email);
+create index idx_users_ativo on public.users(ativo) where ativo = true;
+
+-- =============================================================================
+-- 3. TABELA vau (tabela por UF/destinação)
+-- =============================================================================
+
+create table public.vau (
+  uf           text primary key,
+  casa_popular numeric(10,2),
+  comercial    numeric(10,2),
+  conj_pop     numeric(10,2),
+  galpao       numeric(10,2),
+  res_multi    numeric(10,2),
+  res_uni      numeric(10,2),
+  garagens     numeric(10,2),
+  vigencia     text,
+  updated_at   timestamptz not null default now()
+);
+
+-- =============================================================================
+-- 4. TABELA config (chave/valor)
+-- =============================================================================
+
+create table public.config (
+  chave     text primary key,
+  valor     text,
+  descricao text,
+  updated_at timestamptz not null default now()
+);
+
+-- =============================================================================
+-- 5. TABELA leads
+-- =============================================================================
+
+create table public.leads (
+  id                       uuid primary key default gen_random_uuid(),
+  data_hora                timestamptz not null default now(),
+  origem                   text default 'simulador',
+
+  -- Dados pessoais
+  nome                     text not null,
+  ddd                      text,
+  whatsapp                 text,
+  email                    text,
+  uf                       text,
+  cidade                   text,
+
+  -- Comercial
+  produto                  text,
+  status                   text not null default 'Novo Lead',
+  responsavel_id           uuid references public.users(id) on delete set null,
+  valor_potencial          numeric(12,2),
+  observacoes              text,
+
+  -- Inputs da obra (simulador)
+  resp                     text,
+  dest                     text,
+  tipo                     text,
+  categoria                text,
+  concreto                 text,
+  prefab                   text,
+  a_construcao             numeric(10,2),
+  a_reforma                numeric(10,2),
+  a_demolicao              numeric(10,2),
+  a_pcoberta               numeric(10,2),
+  a_pdescoberta            numeric(10,2),
+  area_total               numeric(10,2),
+  area_total_calculo       numeric(10,2),
+  area_principal_bruta     numeric(10,2),
+  area_principal_equiv     numeric(10,2),
+  pct_equivalencia         numeric(5,2),
+
+  -- Cálculos (outputs)
+  vau                      numeric(10,2),
+  co                       numeric(12,2),
+  rmt                      numeric(12,2),
+  cmo_pct                  numeric(5,2),
+  pct_categoria            numeric(5,2),
+  fator_social_pct         numeric(5,2),
+  aliquota_pct             numeric(6,3),
+  reducao_pre_fab_pct      numeric(5,2),
+  ded_concreto_usinado     numeric(12,2),
+  pct_uso_usinado          numeric(5,2),
+  pct_abat_usinado_cat     numeric(5,2),
+  inss_direto              numeric(12,2),
+  inss_reduzido            numeric(12,2),
+  economia                 numeric(12,2),
+
+  -- Informações complementares (Fase 2B — consultor preenche)
+  cmpl_folha_mensal        numeric(12,2) default 0,
+  cmpl_meses_folha         numeric(5,2)  default 0,
+  cmpl_nf_concreto_usinado numeric(12,2) default 0,
+  cmpl_nf_prefabricado     numeric(12,2) default 0,
+
+  -- Conversão em cliente
+  cliente_id               uuid,  -- FK criada depois (referência circular)
+
+  -- Sistema
+  legacy_id                text,  -- id da planilha antiga (para rastrear migração)
+  deleted_at               timestamptz,
+  updated_at               timestamptz not null default now(),
+  updated_by               uuid references public.users(id) on delete set null
+);
+
+create index idx_leads_status on public.leads(status) where deleted_at is null;
+create index idx_leads_responsavel on public.leads(responsavel_id) where deleted_at is null;
+create index idx_leads_data on public.leads(data_hora desc) where deleted_at is null;
+create index idx_leads_uf on public.leads(uf) where deleted_at is null;
+
+-- =============================================================================
+-- 6. TABELA clientes
+-- =============================================================================
+
+create table public.clientes (
+  id                    uuid primary key default gen_random_uuid(),
+  lead_id_origem        uuid references public.leads(id) on delete set null,
+
+  -- Identificação
+  nome                  text not null,
+  cpf                   text,
+  cnpj                  text,
+  rg                    text,
+  data_nascimento       date,
+  estado_civil          text,
+  profissao             text,
+
+  -- Contato
+  ddd                   text,
+  telefone              text,
+  email                 text,
+
+  -- Endereço residencial
+  end_logradouro        text,
+  end_bairro            text,
+  end_cidade            text,
+  end_uf                text,
+  end_cep               text,
+
+  -- Endereço da obra
+  obra_end_logradouro   text,
+  obra_end_bairro       text,
+  obra_end_cidade       text,
+  obra_end_uf           text,
+  obra_matricula        text,
+  obra_iptu             text,
+  obra_tipo             text,
+  obra_descricao        text,
+
+  -- Dados bancários (para reembolsos, se aplicável)
+  banco                 text,
+  agencia               text,
+  conta                 text,
+  tipo_conta            text,
+  pix                   text,
+
+  obs_contrato          text,
+  legacy_id             text,
+  criado_em             timestamptz not null default now(),
+  criado_por            uuid references public.users(id) on delete set null,
+  updated_at            timestamptz not null default now(),
+  deleted_at            timestamptz
+);
+
+create index idx_clientes_nome on public.clientes(nome) where deleted_at is null;
+create index idx_clientes_cpf on public.clientes(cpf) where deleted_at is null;
+
+-- Agora que clientes existe, adiciona FK em leads
+alter table public.leads
+  add constraint fk_leads_cliente_id
+  foreign key (cliente_id) references public.clientes(id) on delete set null;
+
+-- =============================================================================
+-- 7. TABELA contratos
+-- =============================================================================
+
+create table public.contratos (
+  id                uuid primary key default gen_random_uuid(),
+  cliente_id        uuid not null references public.clientes(id) on delete restrict,
+  numero            text,
+  produto           text,
+  status            text not null default 'em vigor',  -- em vigor, concluído, cancelado
+  valor_total       numeric(12,2),
+  valor_pago        numeric(12,2) default 0,
+  forma_pagamento   text,
+  parcelas          integer,
+  data_assinatura   date,
+  data_inicio       date,
+  data_conclusao    date,
+  observacoes       text,
+  legacy_id         text,
+  criado_em         timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
+  deleted_at        timestamptz
+);
+
+create index idx_contratos_cliente on public.contratos(cliente_id) where deleted_at is null;
+create index idx_contratos_status on public.contratos(status) where deleted_at is null;
+
+-- =============================================================================
+-- 8. TABELA atividades (timeline unificada)
+-- =============================================================================
+
+create table public.atividades (
+  id              uuid primary key default gen_random_uuid(),
+  ref_tipo        text not null check (ref_tipo in ('lead', 'cliente', 'contrato', 'sistema')),
+  ref_id          uuid not null,
+  tipo            text not null,  -- criacao, edicao, contato, nota, mudanca_status, etc
+  descricao       text,
+  metadata_json   jsonb,
+  data_hora       timestamptz not null default now(),
+  autor_id        uuid references public.users(id) on delete set null,
+  legacy_id       text
+);
+
+create index idx_atividades_ref on public.atividades(ref_tipo, ref_id, data_hora desc);
+create index idx_atividades_autor on public.atividades(autor_id);
+
+-- =============================================================================
+-- 9. TABELA artigos (blog)
+-- =============================================================================
+
+create table public.artigos (
+  id                uuid primary key default gen_random_uuid(),
+  slug              text unique not null,
+  titulo            text not null,
+  subtitulo         text,
+  meta_description  text,
+  og_image_url      text,
+  conteudo_html     text not null,  -- HTML sanitizado gerado pelo editor Tiptap
+  faq               jsonb default '[]'::jsonb,  -- [{pergunta, resposta}]
+  schema_type       text default 'Article',
+  prioridade_seo    numeric(2,1) default 0.8,
+  categoria         text,
+  tags              text[] default '{}',
+  publicado         boolean not null default false,
+  data_publicacao   timestamptz,
+  autor_id          uuid references public.users(id) on delete set null,
+  criado_em         timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
+  updated_by        uuid references public.users(id) on delete set null
+);
+
+create index idx_artigos_slug on public.artigos(slug);
+create index idx_artigos_publicado on public.artigos(publicado, data_publicacao desc);
+create index idx_artigos_tags on public.artigos using gin(tags);
+
+-- =============================================================================
+-- 10. TABELA cases (casos de sucesso)
+-- =============================================================================
+
+create table public.cases (
+  id                uuid primary key default gen_random_uuid(),
+  cliente_display   text not null,  -- nome ou apelido pra exibir
+  tipo_obra         text,
+  economia_valor    numeric(12,2),
+  economia_pct      numeric(5,2),
+  descricao         text,
+  imagem_url        text,
+  publicado         boolean not null default false,
+  ordem             integer default 100,
+  criado_em         timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+
+create index idx_cases_publicado on public.cases(publicado, ordem);
+
+-- =============================================================================
+-- 11. TABELA faq (perguntas frequentes gerais)
+-- =============================================================================
+
+create table public.faq (
+  id         uuid primary key default gen_random_uuid(),
+  pergunta   text not null,
+  resposta   text not null,
+  ordem      integer default 100,
+  categoria  text,
+  publicado  boolean not null default true,
+  criado_em  timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index idx_faq_publicado on public.faq(publicado, ordem);
+
+-- =============================================================================
+-- 12. TRIGGERS — updated_at automático
+-- =============================================================================
+
+create or replace function public.set_updated_at() returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger trg_users_updated       before update on public.users        for each row execute function public.set_updated_at();
+create trigger trg_leads_updated       before update on public.leads        for each row execute function public.set_updated_at();
+create trigger trg_clientes_updated    before update on public.clientes     for each row execute function public.set_updated_at();
+create trigger trg_contratos_updated   before update on public.contratos    for each row execute function public.set_updated_at();
+create trigger trg_artigos_updated     before update on public.artigos      for each row execute function public.set_updated_at();
+create trigger trg_cases_updated       before update on public.cases        for each row execute function public.set_updated_at();
+create trigger trg_faq_updated         before update on public.faq          for each row execute function public.set_updated_at();
+create trigger trg_vau_updated         before update on public.vau          for each row execute function public.set_updated_at();
+create trigger trg_config_updated      before update on public.config       for each row execute function public.set_updated_at();
+
+-- =============================================================================
+-- 13. FUNÇÃO helper: is_admin() e is_active_user()
+-- =============================================================================
+
+create or replace function public.is_active_user() returns boolean as $$
+begin
+  return exists (
+    select 1 from public.users
+    where email = auth.jwt()->>'email' and ativo = true
+  );
+end;
+$$ language plpgsql security definer stable;
+
+create or replace function public.is_admin() returns boolean as $$
+begin
+  return exists (
+    select 1 from public.users
+    where email = auth.jwt()->>'email' and ativo = true and perfil = 'admin'
+  );
+end;
+$$ language plpgsql security definer stable;
+
+-- =============================================================================
+-- 14. ROW LEVEL SECURITY
+-- =============================================================================
+
+-- Habilita RLS em todas as tabelas
+alter table public.users        enable row level security;
+alter table public.vau          enable row level security;
+alter table public.config       enable row level security;
+alter table public.leads        enable row level security;
+alter table public.clientes     enable row level security;
+alter table public.contratos    enable row level security;
+alter table public.atividades   enable row level security;
+alter table public.artigos      enable row level security;
+alter table public.cases        enable row level security;
+alter table public.faq          enable row level security;
+
+-- -------- USERS --------
+-- Só admin pode gerenciar usuários
+create policy users_select_active on public.users
+  for select using (public.is_active_user());
+create policy users_insert_admin on public.users
+  for insert with check (public.is_admin());
+create policy users_update_admin on public.users
+  for update using (public.is_admin());
+create policy users_delete_admin on public.users
+  for delete using (public.is_admin());
+
+-- -------- VAU --------
+-- SELECT liberado para todo mundo (público lê da calculadora)
+create policy vau_select_public on public.vau
+  for select to anon, authenticated using (true);
+-- Só admin edita
+create policy vau_write_admin on public.vau
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- -------- CONFIG --------
+-- SELECT só para usuários ativos; edição só admin
+create policy config_select_active on public.config
+  for select using (public.is_active_user());
+create policy config_write_admin on public.config
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- -------- LEADS --------
+-- INSERT liberado para anon (webhook público da calculadora)
+create policy leads_insert_public on public.leads
+  for insert to anon with check (true);
+-- SELECT/UPDATE/DELETE só para usuários ativos
+create policy leads_select_active on public.leads
+  for select using (public.is_active_user());
+create policy leads_update_active on public.leads
+  for update using (public.is_active_user()) with check (public.is_active_user());
+create policy leads_delete_admin on public.leads
+  for delete using (public.is_admin());
+
+-- -------- CLIENTES --------
+create policy clientes_select_active on public.clientes
+  for select using (public.is_active_user());
+create policy clientes_insert_active on public.clientes
+  for insert with check (public.is_active_user());
+create policy clientes_update_active on public.clientes
+  for update using (public.is_active_user()) with check (public.is_active_user());
+create policy clientes_delete_admin on public.clientes
+  for delete using (public.is_admin());
+
+-- -------- CONTRATOS --------
+create policy contratos_select_active on public.contratos
+  for select using (public.is_active_user());
+create policy contratos_insert_active on public.contratos
+  for insert with check (public.is_active_user());
+create policy contratos_update_active on public.contratos
+  for update using (public.is_active_user()) with check (public.is_active_user());
+create policy contratos_delete_admin on public.contratos
+  for delete using (public.is_admin());
+
+-- -------- ATIVIDADES --------
+create policy atividades_select_active on public.atividades
+  for select using (public.is_active_user());
+create policy atividades_insert_active on public.atividades
+  for insert with check (public.is_active_user() or auth.role() = 'anon');  -- webhook pode logar criação
+create policy atividades_update_admin on public.atividades
+  for update using (public.is_admin()) with check (public.is_admin());
+create policy atividades_delete_admin on public.atividades
+  for delete using (public.is_admin());
+
+-- -------- ARTIGOS --------
+-- SELECT: público lê só publicados; usuário ativo lê tudo
+create policy artigos_select_public on public.artigos
+  for select to anon using (publicado = true);
+create policy artigos_select_active on public.artigos
+  for select to authenticated using (public.is_active_user());
+create policy artigos_write_active on public.artigos
+  for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
+
+-- -------- CASES --------
+create policy cases_select_public on public.cases
+  for select to anon using (publicado = true);
+create policy cases_select_active on public.cases
+  for select to authenticated using (public.is_active_user());
+create policy cases_write_active on public.cases
+  for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
+
+-- -------- FAQ --------
+create policy faq_select_public on public.faq
+  for select to anon using (publicado = true);
+create policy faq_select_active on public.faq
+  for select to authenticated using (public.is_active_user());
+create policy faq_write_active on public.faq
+  for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
+
+-- =============================================================================
+-- 15. SEEDS — dados iniciais
+-- =============================================================================
+
+-- Usuário admin inicial (Paulo). SUBSTITUA o email pelo seu real antes de rodar.
+insert into public.users (email, nome, perfil, ativo)
+values ('pauloricardos@me.com', 'Paulo Ricardo', 'admin', true)
+on conflict (email) do nothing;
+
+-- Config default
+insert into public.config (chave, valor, descricao) values
+  ('etapas_funil', 'Novo Lead,Contato iniciado,Em negociacao,Proposta enviada,Aguardando resposta,Fechado — ganho,Fechado — perdido,Sem retorno', 'Etapas do Kanban (separadas por vírgula)'),
+  ('msg_whatsapp_padrao', 'Ola {nome}! Sou consultor da Imposto & Obra. Vimos sua simulacao de INSS e podemos te ajudar a regularizar a obra. Posso te enviar uma proposta?', 'Mensagem padrão de WhatsApp'),
+  ('produtos', 'obra_andamento,obra_finalizada', 'Produtos ativos do CRM'),
+  ('vau_vigencia', 'Maio/2026', 'Vigência atual da tabela VAU')
+on conflict (chave) do nothing;
+
+-- Tabela VAU inicial (Maio/2026)
+insert into public.vau (uf, casa_popular, comercial, conj_pop, galpao, res_multi, res_uni, garagens, vigencia) values
+  ('AC', 2086.46, 3865.27, 2086.46, 1786.91, 3490.36, 4129.57, 3865.27, 'Maio/2026'),
+  ('AL', 1326.26, 2400.63, 1326.26, 1121.31, 2146.17, 2490.35, 2400.63, 'Maio/2026'),
+  ('AM', 2086.46, 3865.27, 2086.46, 1786.91, 3490.36, 4129.57, 3865.27, 'Maio/2026'),
+  ('AP', 1851.74, 3296.17, 1851.74, 1566.69, 2903.45, 3287.40, 3296.17, 'Maio/2026'),
+  ('BA', 1448.29, 2572.22, 1448.29, 1167.02, 2245.86, 2679.67, 2572.22, 'Maio/2026'),
+  ('CE', 1650.76, 2769.59, 1650.76, 1312.04, 2433.20, 2801.99, 2769.59, 'Maio/2026'),
+  ('DF', 1546.41, 2803.27, 1546.41, 1253.78, 2449.56, 2826.93, 2803.27, 'Maio/2026'),
+  ('ES', 1865.69, 3140.88, 1865.69, 1423.27, 2818.57, 3312.94, 3140.88, 'Maio/2026'),
+  ('GO', 1477.94, 2633.19, 1477.94, 1230.56, 2312.98, 2770.41, 2633.19, 'Maio/2026'),
+  ('MA', 1277.75, 2233.21, 1277.75, 1065.62, 2186.92, 2286.30, 2233.21, 'Maio/2026'),
+  ('MG', 1680.14, 2912.20, 1680.14, 1281.12, 2593.71, 2989.71, 2912.20, 'Maio/2026'),
+  ('MS', 1258.32, 2283.21, 1258.32, 1029.23, 1836.95, 2193.11, 2283.21, 'Maio/2026'),
+  ('MT', 2163.37, 3852.54, 2163.37, 1694.16, 3390.30, 3901.07, 3852.54, 'Maio/2026'),
+  ('PA', 1611.44, 2793.12, 1611.44, 1320.85, 2480.80, 2839.89, 2793.12, 'Maio/2026'),
+  ('PB', 1105.26, 2034.41, 1105.26,  935.03, 1809.84, 2042.34, 2034.41, 'Maio/2026'),
+  ('PE', 1511.88, 2586.33, 1511.88, 1183.59, 2278.99, 2725.06, 2586.33, 'Maio/2026'),
+  ('PI', 1277.75, 2233.21, 1277.75, 1065.62, 1971.74, 2286.30, 2233.21, 'Maio/2026'),
+  ('PR', 1778.84, 3166.84, 1778.84, 1419.42, 2769.46, 3251.41, 3166.84, 'Maio/2026'),
+  ('RJ', 1685.83, 2955.88, 1685.83, 1342.15, 2598.80, 3018.81, 2955.88, 'Maio/2026'),
+  ('RN', 1490.31, 2465.68, 1490.31, 1185.36, 2215.72, 2580.83, 2465.68, 'Maio/2026'),
+  ('RO', 1692.90, 2964.04, 1692.90, 1321.58, 2620.71, 2880.01, 2964.04, 'Maio/2026'),
+  ('RR', 1862.65, 3500.38, 1862.65, 1677.86, 3072.41, 3584.71, 3500.38, 'Maio/2026'),
+  ('RS', 1805.49, 3543.36, 1805.49, 1374.90, 2987.99, 3375.12, 3543.36, 'Maio/2026'),
+  ('SC', 1942.00, 3320.29, 1942.00, 1535.94, 2889.50, 3405.28, 3320.29, 'Maio/2026'),
+  ('SE', 1359.52, 2516.85, 1359.52, 1157.20, 2247.24, 2480.88, 2516.85, 'Maio/2026'),
+  ('SP', 1476.87, 2614.71, 1476.87, 1231.83, 2296.89, 2633.50, 2614.71, 'Maio/2026'),
+  ('TO', 1477.94, 2633.19, 1477.94, 1230.56, 2312.98, 2770.41, 2633.19, 'Maio/2026')
+on conflict (uf) do nothing;
+
+-- =============================================================================
+-- 16. STORAGE — bucket para imagens de artigos e OG
+-- =============================================================================
+
+-- Executar via dashboard Supabase (Storage > Create Bucket):
+--   nome: og-images
+--   public: true (imagens OG precisam ser públicas)
+--   file size limit: 5 MB
+--   allowed MIME types: image/png, image/jpeg, image/webp
+--
+-- Policies (SQL para depois de criar o bucket):
+-- insert into storage.buckets (id, name, public) values ('og-images', 'og-images', true);
+-- create policy "og_images_public_read" on storage.objects for select to anon using (bucket_id = 'og-images');
+-- create policy "og_images_admin_write" on storage.objects for insert to authenticated with check (bucket_id = 'og-images' and public.is_active_user());
+-- create policy "og_images_admin_update" on storage.objects for update to authenticated using (bucket_id = 'og-images' and public.is_active_user());
+-- create policy "og_images_admin_delete" on storage.objects for delete to authenticated using (bucket_id = 'og-images' and public.is_active_user());
+
+-- =============================================================================
+-- FIM DO SCHEMA
+-- =============================================================================
+
+-- Após executar tudo, rodar no dashboard Supabase:
+--   1. Authentication > Providers > Google (habilitar OAuth)
+--   2. Storage > New bucket 'og-images' (público, 5MB max)
+--   3. Adicionar policies do storage (comentadas acima)
+--   4. Copiar SUPABASE_URL e SUPABASE_ANON_KEY para o .env do projeto Next.js

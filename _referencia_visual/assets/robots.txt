@@ -1,0 +1,12 @@
+# robots.txt - Imposto & Obra Consultoria
+# https://impostoeobra.com.br/
+
+User-agent: *
+Allow: /
+
+# Não indexar pastas internas administrativas
+Disallow: /propostas/
+Disallow: /CRM/
+
+# Sitemap
+Sitemap: https://impostoeobra.com.br/sitemap.xml
