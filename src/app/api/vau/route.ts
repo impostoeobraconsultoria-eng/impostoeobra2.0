@@ -1,18 +1,16 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedVau } from "@/lib/vau";
 
 export const revalidate = 1800;
 
 export async function GET() {
-  const { data, error } = await createClient()
-    .from("vau")
-    .select(
-      "uf,casa_popular,comercial,conj_pop,galpao,res_multi,res_uni,garagens,vigencia",
-    )
-    .order("uf");
-
-  if (error) {
-    console.error("Falha ao consultar VAU", { code: error.code });
+  let data;
+  try {
+    data = await getCachedVau();
+  } catch (error) {
+    console.error("Falha ao consultar VAU", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
     return NextResponse.json(
       { ok: false, error: "Tabela VAU indisponível." },
       { status: 503, headers: { "Cache-Control": "no-store" } },
