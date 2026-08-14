@@ -95,4 +95,37 @@
   .institutional-content strong {
     @apply font-bold text-slate-950;
   }
+
+  .article-html > p {
+    @apply mb-4 text-[17px] leading-relaxed text-slate-700;
+  }
+
+  .article-html h2 {
+    @apply mb-3 mt-8 scroll-mt-28 text-2xl font-bold tracking-tight text-slate-950;
+  }
+
+  .article-html h3 {
+    @apply mb-2 mt-6 text-xl font-bold text-slate-950;
+  }
+
+  .article-html ul,
+  .article-html ol {
+    @apply mb-5 ml-5 space-y-2 text-base leading-relaxed text-slate-700;
+  }
+
+  .article-html ul {
+    @apply list-disc;
+  }
+
+  .article-html ol {
+    @apply list-decimal;
+  }
+
+  .article-html a {
+    @apply font-semibold text-primary hover:underline;
+  }
+
+  .article-html img {
+    @apply my-6 h-auto max-w-full rounded-xl;
+  }
 }
