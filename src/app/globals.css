@@ -58,4 +58,41 @@
   .site-container {
     @apply mx-auto w-full max-w-[1200px] px-6;
   }
+
+  .institutional-content > p {
+    @apply mb-4 text-[17px] leading-relaxed text-slate-700;
+  }
+
+  .institutional-content > .lead {
+    @apply mb-7 text-[19px] leading-relaxed;
+  }
+
+  .institutional-content h2 {
+    @apply mb-3 mt-8 text-2xl font-bold tracking-tight text-slate-950;
+  }
+
+  .institutional-content h3 {
+    @apply mb-2 mt-6 text-xl font-bold text-slate-950;
+  }
+
+  .institutional-content ul,
+  .institutional-content ol {
+    @apply mb-5 ml-5 space-y-2 text-base leading-relaxed text-slate-700;
+  }
+
+  .institutional-content ul {
+    @apply list-disc;
+  }
+
+  .institutional-content ol {
+    @apply list-decimal;
+  }
+
+  .institutional-content a:not([class]) {
+    @apply font-semibold text-primary hover:underline;
+  }
+
+  .institutional-content strong {
+    @apply font-bold text-slate-950;
+  }
 }
