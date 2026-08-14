@@ -1,0 +1,380 @@
+import {
+  InstitutionalPage,
+  FinalCta,
+} from "@/components/public/institutional-page";
+
+export const metadata = {
+  title: "Guia completo do INSS de obra: CNO, SERO e ARO",
+  description:
+    "Guia completo para regularizar o INSS de construção civil: CNO, SERO, aferição, reduções legais, ARO, CND e averbação.",
+  alternates: { canonical: "/guia-inss-de-obra" },
+  openGraph: {
+    title: "Guia completo do INSS de obra: CNO, SERO e ARO",
+    description:
+      "Entenda como regularizar uma obra, reduzir o INSS legalmente e obter a CND.",
+    url: "/guia-inss-de-obra",
+    type: "article",
+  },
+};
+
+export default function Layout({ children }) {
+  return (
+    <InstitutionalPage
+      eyebrow="Guia completo · Atualizado em 28 de maio de 2026"
+      title="Guia completo do INSS de obra: CNO, SERO, ARO e como regularizar pagando o justo"
+    >
+      {children}
+    </InstitutionalPage>
+  );
+}
+
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline:
+        "Guia completo do INSS de obra: CNO, SERO, ARO e como regularizar pagando o justo",
+      description: metadata.description,
+      dateModified: "2026-05-28",
+      inLanguage: "pt-BR",
+      author: { "@type": "Organization", name: "Imposto & Obra Consultoria" },
+      publisher: {
+        "@type": "Organization",
+        name: "Imposto & Obra Consultoria",
+      },
+      mainEntityOfPage: "https://impostoeobra.com.br/guia-inss-de-obra",
+    }),
+  }}
+/>
+<p className="lead">
+  Este é o guia mais completo em português sobre INSS de construção civil. Cobre
+  desde o conceito básico até as estratégias avançadas de redução do valor
+  cobrado — todas previstas em lei. Use o sumário para navegar diretamente ao
+  que precisa ou leia do começo ao fim para dominar o tema.
+</p>
+<div className="my-6 rounded-lg border-l-4 border-amber-700 bg-orange-50 px-5 py-4 text-[15px] leading-relaxed text-slate-900">
+  <strong className="!text-amber-700">Resumo em 30 segundos.</strong> Quem
+  constrói no Brasil deve recolher INSS sobre a mão de obra empregada. O cálculo
+  é feito pelo SERO, com base no CNO da obra. Sem o pagamento, não é possível
+  obter a CND nem averbar a construção. Aplicar corretamente Fator de Ajuste,
+  notas de materiais e contribuições já pagas reduz de 40% a 70% em casos
+  típicos.
+</div>
+<nav className="my-8 rounded-xl bg-slate-50 p-6" aria-label="Sumário do guia">
+  <strong>Sumário</strong>
+  <ol className="!mb-0 !mt-4">
+    <li>
+      <a href="#o-que-e">O que é o INSS de obra</a>
+    </li>
+    <li>
+      <a href="#quem-paga">Quem precisa pagar</a>
+    </li>
+    <li>
+      <a href="#cno">CNO: o cadastro inicial obrigatório</a>
+    </li>
+    <li>
+      <a href="#sero">SERO: como funciona o cálculo</a>
+    </li>
+    <li>
+      <a href="#afericao">Aferição indireta vs. contábil</a>
+    </li>
+    <li>
+      <a href="#reducao">Como reduzir o valor cobrado</a>
+    </li>
+    <li>
+      <a href="#aro">Aviso de Regularização (ARO)</a>
+    </li>
+    <li>
+      <a href="#passo-a-passo">Passo a passo da regularização</a>
+    </li>
+    <li>
+      <a href="#multas">Multas e consequências</a>
+    </li>
+    <li>
+      <a href="#cnd">Como obter a CND e averbar</a>
+    </li>
+    <li>
+      <a href="#erros">Erros comuns</a>
+    </li>
+    <li>
+      <a href="#faq">Perguntas frequentes</a>
+    </li>
+  </ol>
+</nav>
+<h2 id="o-que-e">1. O que é o INSS de obra</h2>O INSS de obra é a contribuição
+previdenciária devida sobre a mão de obra empregada na construção civil. Toda
+obra — edificação nova, reforma com aumento de área, demolição ou ampliação —
+envolve trabalhadores cuja remuneração deve gerar recolhimento previdenciário. O
+proprietário, condomínio ou empresa responde por esse recolhimento perante a
+Receita Federal, mesmo quando contrata uma construtora. A base legal está no
+artigo 22, inciso I, da Lei nº 8.212/1991 e nas normas da Receita Federal, em
+especial a **IN RFB nº 2.021/2021**, que disciplina o CNO e a aferição. O
+sistema cruza dados de prefeituras, construtoras e do próprio CNO para
+identificar pendências.
+<h2 id="quem-paga">2. Quem precisa pagar INSS de obra</h2>- **Pessoa física que
+construiu, reformou ou ampliou imóvel próprio:** o proprietário figura como
+responsável tributário e geralmente recolhe por aferição indireta. - **Pessoa
+jurídica que executou obra própria:** empresas com contabilidade regular podem
+usar a aferição contábil. - **Condomínio que executou obra estrutural:**
+ampliação ou intervenção que modifique a matrícula exige CNO próprio.
+Construtoras normalmente recolhem pela folha e por retenções nas notas, mas isso
+não dispensa o dono da obra de regularizar. Esses valores entram como créditos
+no SERO.
+<h2 id="cno">3. CNO: o cadastro inicial obrigatório</h2>O **Cadastro Nacional de
+Obras (CNO)** é o primeiro passo. A obra deve ser inscrita em até 30 dias do
+início, com endereço, área, tipo construtivo, categoria, datas e responsável
+tributário. O cadastro é feito no e-CAC. Erros de endereço, área, categoria,
+tipo construtivo ou datas são causas frequentes de cobrança superior à devida. A
+área precisa coincidir com os documentos da prefeitura, e alvenaria, construção
+mista e madeira têm fatores diferentes. Veja também [erros comuns de CNO e como
+corrigir](/artigos/erro-cno-receita).
+<h2 id="sero">4. SERO: como funciona o cálculo</h2>O **SERO (Serviço Eletrônico
+para Aferição de Obras)** é o sistema da Receita onde a obra concluída é
+declarada e o INSS é calculado. Ele exige CNO ativo e inclui identificação,
+área, método de aferição, deduções, DCTFWeb e DARF. O cálculo é paramétrico:
+cada campo afeta o resultado. Uma área incorreta, o método de aferição errado ou
+uma dedução esquecida pode elevar muito a cobrança. Se houver falha operacional,
+consulte [o que fazer quando o SERO não finaliza](/artigos/erro-sero).
+<h2 id="afericao">5. Aferição indireta vs. contábil</h2>
+**Aferição indireta (presumida).** Usada para pessoa física ou empresa sem
+contabilidade regular. O sistema estima o custo por metro quadrado e presume uma
+parcela de mão de obra a partir do VAU e de parâmetros oficiais. **Aferição com
+contabilidade regular.** Empresas com escrituração regular podem informar folha
+real, serviços terceirizados e recolhimentos efetuados. Costuma refletir melhor
+o custo efetivo, mas exige documentação completa e participação do contador.
+Leia mais sobre [aferição indireta da
+Receita](/artigos/afericao-indireta-receita).
+<h2 id="reducao">6. Como reduzir o valor cobrado</h2>
+Há mecanismos legais que podem reduzir o valor: - **Fator de Ajuste:** previsto
+na IN RFB nº 2.021/2021, é um dos itens de maior impacto na aferição indireta. -
+**Notas fiscais de materiais industrializados:** concreto usinado, pré-moldados,
+esquadrias prontas, estruturas metálicas e outros itens elegíveis. -
+**Contribuições já recolhidas:** pagamentos e retenções vinculados à obra entram
+como crédito quando corretamente comprovados. - **Decadência parcial:** parcelas
+antigas podem estar alcançadas pelo prazo decadencial, conforme as
+circunstâncias e a documentação. - **Categoria correta:** o enquadramento
+construtivo equivocado pode inflar o cálculo. Em casos típicos, a combinação
+correta pode produzir reduções de 40% a 70%; casos específicos com decadência
+podem alcançar percentuais maiores. Cada situação exige análise individual.
+<h2 id="aro">7. Aviso de Regularização de Obra (ARO)</h2>O ARO é a comunicação
+emitida quando a Receita identifica obra concluída sem regularização ou com
+inconsistências entre CNO, prefeitura e SERO. Ele abre prazo para providências e
+não deve ser ignorado. A ausência de resposta pode levar ao lançamento de
+ofício, multas e juros. Quem recebe um aviso deve organizar a documentação e
+responder dentro do prazo, aplicando as reduções cabíveis. Consulte o guia sobre
+[notificação da Receita Federal](/artigos/artigo-notificacao-inss-obra).
+<h2 id="passo-a-passo">8. Passo a passo da regularização</h2>
+1. **Verificar ou criar o CNO**, conferindo endereço, área, datas, categoria e
+tipo construtivo. 2. **Reunir documentos:** alvará, habite-se, projeto, IPTU,
+matrícula, notas fiscais, folhas e recolhimentos. 3. **Iniciar o SERO** e
+escolher o método de aferição adequado. 4. **Aplicar as reduções legais** e os
+créditos comprovados. 5. **Revisar a memória de cálculo** antes da confirmação e
+da DCTFWeb. 6. **Pagar ou parcelar** o débito conforme as regras vigentes. 7.
+**Obter a CND** quando a situação fiscal estiver regular. 8. **Averbar a
+construção** no cartório de registro de imóveis. Veja o roteiro detalhado em
+[como regularizar o INSS da obra](/artigos/artigo-regularizar-inss-obra) e a
+[lista de documentos](/artigos/documentos-regularizacao-obra).
+<h2 id="multas">9. Multas e consequências de não regularizar</h2>- Lançamento de
+ofício com multa e juros; - perda da possibilidade de regularização espontânea
+sem multa de ofício; - bloqueio da CND e, consequentemente, da averbação; -
+inscrição do débito em dívida ativa e cobrança judicial; - restrições fiscais no
+CPF ou CNPJ; - atualização do débito pela taxa aplicável. O custo de ignorar
+tende a ser maior que o de regularizar. Saiba [como consultar pendências da
+obra](/artigos/consultar-pendencias-obra).
+<h2 id="cnd">10. Como obter a CND e averbar a obra</h2>A **Certidão Negativa de
+Débitos da obra (CND)** pode ser emitida quando as obrigações relacionadas à
+aferição estiverem regularizadas. Com ela, o proprietário apresenta ao cartório
+os documentos exigidos, como habite-se, certidão municipal, ART/RRT, planta
+aprovada e matrícula atual. A averbação registra oficialmente a construção na
+matrícula. Sem ela, o imóvel pode permanecer formalmente como terreno ou com uma
+edificação antiga, dificultando venda, financiamento e escritura.
+<h2 id="erros">11. Erros comuns que aumentam o INSS</h2>- CNO desatualizado ou
+divergente da prefeitura; - método de aferição inadequado; - não aplicar
+corretamente o Fator de Ajuste; - esquecer documentos de materiais
+industrializados; - não computar contribuições já recolhidas; - confirmar o SERO
+sem revisar a memória de cálculo; - deixar de analisar a decadência em obras
+antigas.
+<h2 id="faq">12. Perguntas frequentes</h2>
+<div className="my-5 space-y-3">
+  <details className="rounded-xl border border-slate-200 p-5">
+    <summary className="cursor-pointer font-semibold">
+      O que é INSS de obra, em uma frase?
+    </summary>
+    <p className="mt-3">
+      É a contribuição previdenciária sobre a mão de obra empregada na
+      construção civil, regularizada pelo responsável da obra por meio do CNO e
+      do SERO.
+    </p>
+  </details>
+  <details className="rounded-xl border border-slate-200 p-5">
+    <summary className="cursor-pointer font-semibold">
+      Toda obra precisa pagar INSS?
+    </summary>
+    <p className="mt-3">
+      Construção, ampliação, demolição e reformas enquadradas nas normas
+      precisam ser avaliadas. Reparos puramente cosméticos, sem alteração de
+      área, têm tratamento diferente.
+    </p>
+  </details>
+  <details className="rounded-xl border border-slate-200 p-5">
+    <summary className="cursor-pointer font-semibold">
+      Como sei se minha obra tem INSS pendente?
+    </summary>
+    <p className="mt-3">
+      Consulte no e-CAC as obras vinculadas ao CPF ou CNPJ e verifique a
+      situação do CNO e da aferição.
+    </p>
+  </details>
+  <details className="rounded-xl border border-slate-200 p-5">
+    <summary className="cursor-pointer font-semibold">
+      Qual a diferença entre CNO e SERO?
+    </summary>
+    <p className="mt-3">
+      CNO é o cadastro da obra; SERO é o serviço usado para aferir e declarar as
+      contribuições. O CNO é pré-requisito do SERO.
+    </p>
+  </details>
+  <details className="rounded-xl border border-slate-200 p-5">
+    <summary className="cursor-pointer font-semibold">Posso parcelar?</summary>
+    <p className="mt-3">
+      Débitos declarados podem ser parcelados conforme as modalidades, limites e
+      condições vigentes na Receita Federal.
+    </p>
+  </details>
+  <details className="rounded-xl border border-slate-200 p-5">
+    <summary className="cursor-pointer font-semibold">
+      Quanto tempo o processo leva?
+    </summary>
+    <p className="mt-3">
+      O prazo depende da documentação, das correções no CNO, do pagamento e do
+      cartório. Casos sem inconsistências costumam avançar em semanas;
+      impugnações podem levar meses.
+    </p>
+  </details>
+  <details className="rounded-xl border border-slate-200 p-5">
+    <summary className="cursor-pointer font-semibold">
+      O INSS pode ser reduzido legalmente?
+    </summary>
+    <p className="mt-3">
+      Sim. Fator de Ajuste, créditos comprovados, materiais elegíveis e
+      decadência podem reduzir o cálculo, conforme o caso.
+    </p>
+  </details>
+  <details className="rounded-xl border border-slate-200 p-5">
+    <summary className="cursor-pointer font-semibold">
+      Posso regularizar antes de receber notificação?
+    </summary>
+    <p className="mt-3">
+      Sim. A regularização espontânea costuma ser mais segura e econômica do que
+      aguardar uma cobrança de ofício.
+    </p>
+  </details>
+  <details className="rounded-xl border border-slate-200 p-5">
+    <summary className="cursor-pointer font-semibold">
+      E se a obra for antiga e faltarem documentos?
+    </summary>
+    <p className="mt-3">
+      Parte dos documentos pode ser recuperada em cartório, prefeitura, e-CAC e
+      instituições financeiras. Ainda é possível avaliar a regularização, embora
+      a falta de comprovação possa limitar créditos e métodos.
+    </p>
+  </details>
+  <details className="rounded-xl border border-slate-200 p-5">
+    <summary className="cursor-pointer font-semibold">
+      Vale a pena contratar consultoria?
+    </summary>
+    <p className="mt-3">
+      Depende do valor, da documentação e da complexidade. Uma análise
+      especializada ajuda a identificar o método correto, evitar erros e aplicar
+      as reduções legais cabíveis.
+    </p>
+  </details>
+</div>
+<FinalCta
+  title="Quer regularizar sua obra com economia?"
+  highlight="Simule o INSS da sua obra em 2 minutos."
+  description="Atendimento 100% remoto em todo o Brasil."
+  href="/#calculadora"
+  label="Simular agora"
+/>
+<section
+  className="my-8 rounded-xl border border-slate-200 bg-slate-50 p-6"
+  aria-label="Referências normativas"
+>
+  <h2 className="!mt-0 !text-lg">Referências normativas e bases legais</h2>
+  <ol className="!mb-0">
+    <li>
+      Lei nº 8.212/1991, art. 22, I —{" "}
+      <a
+        href="https://www.planalto.gov.br/ccivil_03/leis/l8212cons.htm"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        acessar
+      </a>
+      .
+    </li>
+    <li>
+      Instrução Normativa RFB nº 2.021/2021 —{" "}
+      <a
+        href="https://normas.receita.fazenda.gov.br/sijut2consulta/link.action?idAto=117730"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        acessar
+      </a>
+      .
+    </li>
+    <li>
+      Manual do SERO, Receita Federal —{" "}
+      <a
+        href="https://www.gov.br/receitafederal/pt-br/assuntos/construcao-civil/sero/afericao"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        acessar
+      </a>
+      .
+    </li>
+    <li>
+      Decreto nº 3.048/1999 —{" "}
+      <a
+        href="https://www.planalto.gov.br/ccivil_03/decreto/d3048.htm"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        acessar
+      </a>
+      .
+    </li>
+    <li>
+      Decreto nº 70.235/1972 —{" "}
+      <a
+        href="https://www.planalto.gov.br/ccivil_03/decreto/d70235cons.htm"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        acessar
+      </a>
+      .
+    </li>
+    <li>
+      Código Tributário Nacional, Lei nº 5.172/1966 —{" "}
+      <a
+        href="https://www.planalto.gov.br/ccivil_03/leis/l5172compilado.htm"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        acessar
+      </a>
+      .
+    </li>
+  </ol>
+</section>
+<p className="rounded-xl bg-slate-50 px-5 py-4 text-[15px]">
+  Conteúdo elaborado e revisado pela equipe editorial da Imposto & Obra
+  Consultoria, especializada em direito tributário aplicado à construção civil.
+  Última atualização: 28 de maio de 2026.
+</p>
