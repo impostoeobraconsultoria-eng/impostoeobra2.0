@@ -128,4 +128,12 @@
   .article-html img {
     @apply my-6 h-auto max-w-full rounded-xl;
   }
+
+  .field {
+    @apply text-sm font-semibold text-slate-700;
+  }
+
+  .input {
+    @apply mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal text-slate-950 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15;
+  }
 }
