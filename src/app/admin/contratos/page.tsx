@@ -10,9 +10,7 @@ export default async function Page({
   const s = createClient();
   let q = s
     .from("contratos")
-    .select(
-      "id,numero,produto,status,valor_total,valor_pago,data_assinatura,cliente:clientes(id,nome)",
-    )
+    .select("*,cliente:clientes(id,nome,cpf,cnpj)")
     .is("deleted_at", null)
     .order("criado_em", { ascending: false });
   if (searchParams?.status) q = q.eq("status", searchParams.status);
@@ -70,20 +68,40 @@ export default async function Page({
               </tr>
             </thead>
             <tbody className="divide-y">
-              {data?.map((c) => (
-                <tr key={c.id}>
-                  <td className="p-4 font-semibold">
-                    <Link href={`/admin/contratos/${c.id}`}>
-                      {c.numero || "Sem número"}
-                    </Link>
-                  </td>
-                  <td>{c.cliente?.[0]?.nome || "—"}</td>
-                  <td>{c.produto || "—"}</td>
-                  <td>{c.status}</td>
-                  <td>{money(c.valor_total)}</td>
-                  <td>{money(c.valor_pago)}</td>
-                </tr>
-              ))}
+              {data?.map((c) => {
+                const cliente = relatedClient(c.cliente);
+                const document = cliente?.cpf || cliente?.cnpj;
+                return (
+                  <tr key={c.id}>
+                    <td className="p-4 font-semibold">
+                      <Link href={`/admin/contratos/${c.id}`}>
+                        {c.numero || "Sem número"}
+                      </Link>
+                    </td>
+                    <td>
+                      {cliente ? (
+                        <Link
+                          className="font-semibold text-slate-900 hover:text-primary"
+                          href={`/admin/clientes/${cliente.id}`}
+                        >
+                          <span className="block">{cliente.nome}</span>
+                          {document && (
+                            <span className="mt-0.5 block text-xs font-normal text-slate-500">
+                              {formatDocument(document)}
+                            </span>
+                          )}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td>{c.produto || "—"}</td>
+                    <td>{c.status}</td>
+                    <td>{money(c.valor_total)}</td>
+                    <td>{money(c.valor_pago)}</td>
+                  </tr>
+                );
+              })}
               {!data?.length && (
                 <tr>
                   <td colSpan={6} className="p-10 text-center">
@@ -102,3 +120,26 @@ const money = (v: unknown) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
     Number(v ?? 0),
   );
+
+type ClientRelation = {
+  id: string;
+  nome: string;
+  cpf: string | null;
+  cnpj: string | null;
+};
+
+function relatedClient(value: ClientRelation | ClientRelation[] | null) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function formatDocument(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 11)
+    return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  if (digits.length === 14)
+    return digits.replace(
+      /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+      "$1.$2.$3/$4-$5",
+    );
+  return value;
+}

@@ -43,7 +43,8 @@ export default async function FaqPage({
             <p className="text-sm font-semibold text-primary">Conteúdo</p>
             <h1 className="text-3xl font-bold">Perguntas frequentes</h1>
             <p className="mt-2 text-sm text-slate-500">
-              Organize as respostas exibidas nas páginas públicas.
+              As perguntas publicadas aparecem no fim da página Guia INSS de
+              Obra.
             </p>
           </div>
           <Link
