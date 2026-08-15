@@ -1,29 +1,48 @@
+import Image from "next/image";
 import Link from "next/link";
-import { getWhatsAppUrl } from "@/lib/whatsapp";
 
-export function PublicFooter() {
+import { getSiteConfig } from "@/lib/site-config";
+
+export async function PublicFooter() {
+  const config = await getSiteConfig();
+
   return (
-    <footer className="border-t border-border py-7 text-[13px] text-muted-foreground">
-      <div className="site-container flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
-        <p>
-          © {new Date().getFullYear()} – Imposto&amp;Obra Consultoria. Todos os
-          direitos reservados.
-        </p>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-          <Link
-            href="/politica/aviso-de-privacidade"
-            className="text-muted-foreground hover:text-primary"
+    <footer className="bg-text text-white">
+      <div className="site-container">
+        <div className="flex flex-col justify-between gap-8 border-b border-white/20 py-9 md:flex-row md:items-center">
+          <Image
+            alt="Imposto & Obra Consultoria"
+            height={44}
+            src="/logo/logo-horizontal-negativo.svg"
+            width={164}
+          />
+          <nav
+            aria-label="Links do rodapé"
+            className="flex flex-wrap gap-x-7 gap-y-3 text-xs font-semibold"
           >
-            Aviso de Privacidade
-          </Link>
-          <a
-            href={getWhatsAppUrl()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-full bg-accent px-4 py-2 font-bold text-accent-foreground hover:no-underline hover:brightness-95"
-          >
-            Fale conosco
-          </a>
+            <Link className="hover:text-[#7EC0F0]" href="/guia-inss-de-obra">
+              Guia INSS de obra
+            </Link>
+            <Link className="hover:text-[#7EC0F0]" href="/artigos">
+              Artigos
+            </Link>
+            <Link className="hover:text-[#7EC0F0]" href="/sobre">
+              Sobre
+            </Link>
+            <Link
+              className="hover:text-[#7EC0F0]"
+              href="/politica/aviso-de-privacidade"
+            >
+              Aviso de privacidade
+            </Link>
+          </nav>
+        </div>
+        <div className="flex flex-col justify-between gap-2 py-5 text-[11px] text-white/70 sm:flex-row">
+          <p>
+            © {new Date().getFullYear()} Imposto &amp; Obra Consultoria. Todos
+            os direitos reservados.
+          </p>
+          {config.empresa_cnpj && <p>CNPJ {config.empresa_cnpj}</p>}
         </div>
       </div>
     </footer>

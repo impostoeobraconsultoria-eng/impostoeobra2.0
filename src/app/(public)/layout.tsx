@@ -4,7 +4,7 @@ import { PublicHeader } from "@/components/public/public-header";
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="public-v2 flex min-h-screen flex-col bg-page text-text">
       <PublicHeader />
       <div className="flex-1">{children}</div>
       <PublicFooter />

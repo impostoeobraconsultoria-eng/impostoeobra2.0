@@ -1,6 +1,7 @@
-import { getWhatsAppUrl } from "@/lib/whatsapp";
+import { getConfiguredWhatsAppUrl, getSiteConfig } from "@/lib/site-config";
 import { HeaderNavigation } from "./header-navigation";
 
-export function PublicHeader() {
-  return <HeaderNavigation whatsAppUrl={getWhatsAppUrl()} />;
+export async function PublicHeader() {
+  const config = await getSiteConfig();
+  return <HeaderNavigation whatsAppUrl={getConfiguredWhatsAppUrl(config)} />;
 }

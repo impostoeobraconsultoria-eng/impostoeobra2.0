@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
+import { Montserrat } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-sans",
+  display: "swap",
+});
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://impostoeobra.com.br";
@@ -40,6 +48,7 @@ export function generateMetadata(): Metadata {
     },
     icons: {
       icon: [
+        { url: "/favicon.svg", type: "image/svg+xml" },
         { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
         { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       ],
@@ -55,7 +64,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
+    <html className={montserrat.variable} lang="pt-BR">
       <head>
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${ga4Id}`}
