@@ -10,6 +10,10 @@ import {
   type DocumentHistoryItem,
 } from "@/components/admin/document-history";
 import {
+  RelatedEvents,
+  type RelatedEvent,
+} from "@/components/admin/related-events";
+import {
   dateBr,
   dateExtenso,
   getConfigMap,
@@ -40,6 +44,7 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
     { data: users },
     { data: documents },
     { data: funnelStages },
+    { data: relatedEvents },
     config,
   ] = await Promise.all([
     supabase
@@ -64,6 +69,14 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
       .order("gerado_em", { ascending: false })
       .limit(10),
     supabase.from("funil_etapas").select("nome").order("ordem"),
+    supabase
+      .from("eventos_agenda")
+      .select("id,titulo,tipo,data_hora_inicio,status")
+      .eq("ref_tipo", "lead")
+      .eq("ref_id", params.id)
+      .is("deleted_at", null)
+      .order("data_hora_inicio", { ascending: false })
+      .limit(10),
     getConfigMap(),
   ]);
   if (error || !lead) notFound();
@@ -412,6 +425,10 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
             </ol>
           </aside>
         </div>
+        <RelatedEvents
+          events={(relatedEvents ?? []) as RelatedEvent[]}
+          className="mt-6"
+        />
         <DocumentHistory items={(documents ?? []) as DocumentHistoryItem[]} />
       </div>
     </main>

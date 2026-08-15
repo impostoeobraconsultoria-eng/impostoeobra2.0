@@ -221,6 +221,30 @@ create index idx_cliente_notas_cliente
   on public.cliente_notas(cliente_id, criado_em desc)
   where deleted_at is null;
 
+create table public.eventos_agenda (
+  id uuid primary key default gen_random_uuid(),
+  titulo text not null,
+  descricao text,
+  tipo text not null check (tipo in ('reuniao','follow_up','prazo','tarefa_interna')),
+  data_hora_inicio timestamptz not null,
+  data_hora_fim timestamptz,
+  dia_inteiro boolean not null default false,
+  lembrete_minutos integer,
+  lembrete_enviado_em timestamptz,
+  ref_tipo text check (ref_tipo in ('lead','cliente','contrato')),
+  ref_id uuid,
+  criado_por uuid references public.users(id) on delete set null,
+  responsavel_id uuid references public.users(id) on delete set null,
+  status text not null default 'agendado' check (status in ('agendado','concluido','cancelado')),
+  criado_em timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+create index idx_eventos_data on public.eventos_agenda(data_hora_inicio) where deleted_at is null;
+create index idx_eventos_ref on public.eventos_agenda(ref_tipo,ref_id) where deleted_at is null;
+create index idx_eventos_lembrete on public.eventos_agenda(data_hora_inicio,lembrete_minutos)
+  where deleted_at is null and lembrete_minutos is not null and lembrete_enviado_em is null and status='agendado';
+
 -- Agora que clientes existe, adiciona FK em leads
 alter table public.leads
   add constraint fk_leads_cliente_id
@@ -353,6 +377,7 @@ create trigger trg_users_updated       before update on public.users        for 
 create trigger trg_leads_updated       before update on public.leads        for each row execute function public.set_updated_at();
 create trigger trg_clientes_updated    before update on public.clientes     for each row execute function public.set_updated_at();
 create trigger trg_cliente_notas_updated before update on public.cliente_notas for each row execute function public.set_updated_at();
+create trigger trg_eventos_agenda_updated before update on public.eventos_agenda for each row execute function public.set_updated_at();
 create trigger trg_contratos_updated   before update on public.contratos    for each row execute function public.set_updated_at();
 create trigger trg_artigos_updated     before update on public.artigos      for each row execute function public.set_updated_at();
 create trigger trg_cases_updated       before update on public.cases        for each row execute function public.set_updated_at();
@@ -435,6 +460,7 @@ alter table public.funil_etapas enable row level security;
 alter table public.leads        enable row level security;
 alter table public.clientes     enable row level security;
 alter table public.cliente_notas enable row level security;
+alter table public.eventos_agenda enable row level security;
 alter table public.contratos    enable row level security;
 alter table public.atividades   enable row level security;
 alter table public.artigos      enable row level security;
@@ -512,6 +538,19 @@ create policy cliente_notas_update_author_or_admin on public.cliente_notas
 create policy cliente_notas_delete_admin on public.cliente_notas
   for delete using (public.is_admin());
 
+-- -------- EVENTOS_AGENDA --------
+create policy eventos_select_active on public.eventos_agenda
+  for select using (public.is_active_user());
+create policy eventos_insert_own on public.eventos_agenda
+  for insert to authenticated with check (criado_por = public.current_active_user_id());
+create policy eventos_update_active on public.eventos_agenda
+  for update to authenticated using (public.is_active_user()) with check (public.is_active_user());
+create policy eventos_delete_admin on public.eventos_agenda
+  for delete to authenticated using (public.is_admin());
+revoke update on table public.eventos_agenda from authenticated;
+grant update (titulo,descricao,tipo,data_hora_inicio,data_hora_fim,dia_inteiro,lembrete_minutos,ref_tipo,ref_id,responsavel_id,status)
+  on table public.eventos_agenda to authenticated;
+
 -- -------- CONTRATOS --------
 create policy contratos_select_active on public.contratos
   for select using (public.is_active_user());
@@ -573,7 +612,10 @@ insert into public.config (chave, valor, descricao) values
   ('etapas_funil', 'Novo Lead,Contato iniciado,Em negociacao,Proposta enviada,Aguardando resposta,Fechado — ganho,Fechado — perdido,Sem retorno', 'Etapas do Kanban (separadas por vírgula)'),
   ('msg_whatsapp_padrao', 'Ola {nome}! Sou consultor da Imposto & Obra. Vimos sua simulacao de INSS e podemos te ajudar a regularizar a obra. Posso te enviar uma proposta?', 'Mensagem padrão de WhatsApp'),
   ('produtos', 'obra_andamento,obra_finalizada', 'Produtos ativos do CRM'),
-  ('vau_vigencia', 'Maio/2026', 'Vigência atual da tabela VAU')
+  ('vau_vigencia', 'Maio/2026', 'Vigência atual da tabela VAU'),
+  ('agenda_lembrete_default_min', '60', 'Minutos antes do evento para lembrete padrão'),
+  ('resend_from_email', 'agenda@impostoeobra.com.br', 'Email remetente dos lembretes da agenda'),
+  ('resend_from_name', 'Imposto & Obra — Agenda', 'Nome exibido no remetente dos lembretes')
 on conflict (chave) do nothing;
 
 insert into public.funil_etapas (nome, ordem, cor, e_fechada) values

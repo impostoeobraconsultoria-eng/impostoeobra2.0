@@ -15,6 +15,10 @@ import {
   type DocumentHistoryItem,
 } from "@/components/admin/document-history";
 import {
+  RelatedEvents,
+  type RelatedEvent,
+} from "@/components/admin/related-events";
+import {
   dateBr,
   dateExtenso,
   getConfigMap,
@@ -40,6 +44,7 @@ export default async function CustomerDetailPage({
     { data: contracts },
     { data: notes },
     { data: documents },
+    { data: relatedEvents },
     { data: claims },
     config,
   ] = await Promise.all([
@@ -71,6 +76,14 @@ export default async function CustomerDetailPage({
       .eq("ref_tipo", "cliente")
       .eq("ref_id", params.id)
       .order("gerado_em", { ascending: false })
+      .limit(10),
+    supabase
+      .from("eventos_agenda")
+      .select("id,titulo,tipo,data_hora_inicio,status")
+      .eq("ref_tipo", "cliente")
+      .eq("ref_id", params.id)
+      .is("deleted_at", null)
+      .order("data_hora_inicio", { ascending: false })
       .limit(10),
     supabase.auth.getClaims(),
     getConfigMap(),
@@ -358,6 +371,7 @@ export default async function CustomerDetailPage({
               currentUserId={profile.id}
               isAdmin={profile.perfil === "admin"}
             />
+            <RelatedEvents events={(relatedEvents ?? []) as RelatedEvent[]} />
             <DocumentHistory
               compact
               items={(documents ?? []) as DocumentHistoryItem[]}
