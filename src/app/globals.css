@@ -54,6 +54,27 @@
   }
 }
 
+@media print {
+  html,
+  body {
+    width: 297mm;
+    height: 210mm;
+    background: #ecedef !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .admin-sidebar,
+  .admin-header,
+  .material-toolbar {
+    display: none !important;
+  }
+
+  .admin-shell {
+    padding-left: 0 !important;
+  }
+}
+
 @layer components {
   .site-container {
     @apply mx-auto w-full max-w-[1200px] px-6;
@@ -135,5 +156,17 @@
 
   .input {
     @apply mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal text-slate-950 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15;
+  }
+
+  .material-toolbar {
+    @apply fixed inset-x-0 top-0 z-50 flex min-h-16 items-center justify-between gap-3 border-b bg-white px-4 shadow-sm sm:px-6;
+  }
+
+  .material-toolbar button {
+    @apply inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold;
+  }
+
+  .material-toolbar button.primary {
+    @apply border-primary bg-primary text-white;
   }
 }
