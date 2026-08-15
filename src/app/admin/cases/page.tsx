@@ -31,7 +31,8 @@ export default async function CasesPage({
             <p className="text-sm font-semibold text-primary">Conteúdo</p>
             <h1 className="text-3xl font-bold">Cases de sucesso</h1>
             <p className="mt-2 text-sm text-slate-500">
-              Resultados autorizados para divulgação no site.
+              Os cases publicados aparecem na seção &quot;Resultados&quot; da
+              home. Mostramos os 6 primeiros na ordem definida.
             </p>
           </div>
           <Link

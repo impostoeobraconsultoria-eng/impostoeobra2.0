@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CalculadoraInss } from "@/components/calculadora/calculadora-inss";
+import { CasesSection } from "@/components/public/cases-section";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 
 export const metadata: Metadata = {
@@ -97,13 +98,7 @@ export default function Home() {
         </div>
         <CalculadoraInss />
       </section>
-      <section className="bg-primary py-10 text-white">
-        <div className="site-container grid gap-8 text-center sm:grid-cols-3">
-          <Stat value="R$ 1,5 mi+" label="em impostos reduzidos" />
-          <Stat value="5 dias" label="prazo médio de regularização" />
-          <Stat value="100%" label="atendimento especializado" />
-        </div>
-      </section>
+      <CasesSection />
       <section className="site-container py-16 text-center">
         <h2 className="text-3xl font-extrabold tracking-tight">
           Regularize sua obra com segurança e economia
@@ -124,13 +119,5 @@ export default function Home() {
         </a>
       </section>
     </main>
-  );
-}
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div>
-      <p className="text-3xl font-extrabold">{value}</p>
-      <p className="mt-1 text-sm text-white/80">{label}</p>
-    </div>
   );
 }

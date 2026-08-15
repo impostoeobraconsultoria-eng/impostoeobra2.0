@@ -71,6 +71,6 @@ export async function updateFaq(id: string, formData: FormData) {
 }
 
 function revalidateFaq() {
-  revalidatePath("/");
+  revalidatePath("/guia-inss-de-obra");
   revalidatePath("/admin/faq");
 }

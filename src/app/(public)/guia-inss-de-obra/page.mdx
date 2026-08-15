@@ -2,6 +2,7 @@ import {
   InstitutionalPage,
   FinalCta,
 } from "@/components/public/institutional-page";
+import { GuideFaq } from "@/components/public/guide-faq";
 
 export const metadata = {
   title: "Guia completo do INSS de obra: CNO, SERO e ARO",
@@ -196,102 +197,7 @@ corretamente o Fator de Ajuste; - esquecer documentos de materiais
 industrializados; - não computar contribuições já recolhidas; - confirmar o SERO
 sem revisar a memória de cálculo; - deixar de analisar a decadência em obras
 antigas.
-<h2 id="faq">12. Perguntas frequentes</h2>
-<div className="my-5 space-y-3">
-  <details className="rounded-xl border border-slate-200 p-5">
-    <summary className="cursor-pointer font-semibold">
-      O que é INSS de obra, em uma frase?
-    </summary>
-    <p className="mt-3">
-      É a contribuição previdenciária sobre a mão de obra empregada na
-      construção civil, regularizada pelo responsável da obra por meio do CNO e
-      do SERO.
-    </p>
-  </details>
-  <details className="rounded-xl border border-slate-200 p-5">
-    <summary className="cursor-pointer font-semibold">
-      Toda obra precisa pagar INSS?
-    </summary>
-    <p className="mt-3">
-      Construção, ampliação, demolição e reformas enquadradas nas normas
-      precisam ser avaliadas. Reparos puramente cosméticos, sem alteração de
-      área, têm tratamento diferente.
-    </p>
-  </details>
-  <details className="rounded-xl border border-slate-200 p-5">
-    <summary className="cursor-pointer font-semibold">
-      Como sei se minha obra tem INSS pendente?
-    </summary>
-    <p className="mt-3">
-      Consulte no e-CAC as obras vinculadas ao CPF ou CNPJ e verifique a
-      situação do CNO e da aferição.
-    </p>
-  </details>
-  <details className="rounded-xl border border-slate-200 p-5">
-    <summary className="cursor-pointer font-semibold">
-      Qual a diferença entre CNO e SERO?
-    </summary>
-    <p className="mt-3">
-      CNO é o cadastro da obra; SERO é o serviço usado para aferir e declarar as
-      contribuições. O CNO é pré-requisito do SERO.
-    </p>
-  </details>
-  <details className="rounded-xl border border-slate-200 p-5">
-    <summary className="cursor-pointer font-semibold">Posso parcelar?</summary>
-    <p className="mt-3">
-      Débitos declarados podem ser parcelados conforme as modalidades, limites e
-      condições vigentes na Receita Federal.
-    </p>
-  </details>
-  <details className="rounded-xl border border-slate-200 p-5">
-    <summary className="cursor-pointer font-semibold">
-      Quanto tempo o processo leva?
-    </summary>
-    <p className="mt-3">
-      O prazo depende da documentação, das correções no CNO, do pagamento e do
-      cartório. Casos sem inconsistências costumam avançar em semanas;
-      impugnações podem levar meses.
-    </p>
-  </details>
-  <details className="rounded-xl border border-slate-200 p-5">
-    <summary className="cursor-pointer font-semibold">
-      O INSS pode ser reduzido legalmente?
-    </summary>
-    <p className="mt-3">
-      Sim. Fator de Ajuste, créditos comprovados, materiais elegíveis e
-      decadência podem reduzir o cálculo, conforme o caso.
-    </p>
-  </details>
-  <details className="rounded-xl border border-slate-200 p-5">
-    <summary className="cursor-pointer font-semibold">
-      Posso regularizar antes de receber notificação?
-    </summary>
-    <p className="mt-3">
-      Sim. A regularização espontânea costuma ser mais segura e econômica do que
-      aguardar uma cobrança de ofício.
-    </p>
-  </details>
-  <details className="rounded-xl border border-slate-200 p-5">
-    <summary className="cursor-pointer font-semibold">
-      E se a obra for antiga e faltarem documentos?
-    </summary>
-    <p className="mt-3">
-      Parte dos documentos pode ser recuperada em cartório, prefeitura, e-CAC e
-      instituições financeiras. Ainda é possível avaliar a regularização, embora
-      a falta de comprovação possa limitar créditos e métodos.
-    </p>
-  </details>
-  <details className="rounded-xl border border-slate-200 p-5">
-    <summary className="cursor-pointer font-semibold">
-      Vale a pena contratar consultoria?
-    </summary>
-    <p className="mt-3">
-      Depende do valor, da documentação e da complexidade. Uma análise
-      especializada ajuda a identificar o método correto, evitar erros e aplicar
-      as reduções legais cabíveis.
-    </p>
-  </details>
-</div>
+<GuideFaq />
 <FinalCta
   title="Quer regularizar sua obra com economia?"
   highlight="Simule o INSS da sua obra em 2 minutos."
