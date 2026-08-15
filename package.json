@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:calculadora": "node --no-warnings --experimental-strip-types scripts/test-calculadora.ts"
+    "test:calculadora": "node --no-warnings --experimental-strip-types scripts/test-calculadora.ts",
+    "migrate:artigos": "node --no-warnings --experimental-strip-types scripts/migrate-artigos-do-repo-antigo.ts",
+    "migrate:crm": "node --no-warnings --experimental-strip-types scripts/migrate-crm-do-sheets.ts"
   },
   "dependencies": {
     "@mdx-js/loader": "3.1.1",
@@ -21,6 +23,7 @@
     "@tiptap/extension-placeholder": "3.30.1",
     "@tiptap/react": "3.30.1",
     "@tiptap/starter-kit": "3.30.1",
+    "cheerio": "1.2.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "lucide-react": "0.468.0",
