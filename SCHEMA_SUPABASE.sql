@@ -196,6 +196,7 @@ create table public.clientes (
   pix                   text,
 
   obs_contrato          text,
+  link_dossie           text,
   legacy_id             text,
   criado_em             timestamptz not null default now(),
   criado_por            uuid references public.users(id) on delete set null,
@@ -205,6 +206,20 @@ create table public.clientes (
 
 create index idx_clientes_nome on public.clientes(nome) where deleted_at is null;
 create index idx_clientes_cpf on public.clientes(cpf) where deleted_at is null;
+
+-- Notas privadas da vista 360 do cliente
+create table public.cliente_notas (
+  id           uuid primary key default gen_random_uuid(),
+  cliente_id   uuid not null references public.clientes(id) on delete cascade,
+  autor_id     uuid references public.users(id) on delete set null,
+  conteudo     text not null,
+  criado_em    timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+  deleted_at   timestamptz
+);
+create index idx_cliente_notas_cliente
+  on public.cliente_notas(cliente_id, criado_em desc)
+  where deleted_at is null;
 
 -- Agora que clientes existe, adiciona FK em leads
 alter table public.leads
@@ -337,6 +352,7 @@ $$ language plpgsql;
 create trigger trg_users_updated       before update on public.users        for each row execute function public.set_updated_at();
 create trigger trg_leads_updated       before update on public.leads        for each row execute function public.set_updated_at();
 create trigger trg_clientes_updated    before update on public.clientes     for each row execute function public.set_updated_at();
+create trigger trg_cliente_notas_updated before update on public.cliente_notas for each row execute function public.set_updated_at();
 create trigger trg_contratos_updated   before update on public.contratos    for each row execute function public.set_updated_at();
 create trigger trg_artigos_updated     before update on public.artigos      for each row execute function public.set_updated_at();
 create trigger trg_cases_updated       before update on public.cases        for each row execute function public.set_updated_at();
@@ -378,6 +394,16 @@ revoke execute on function public.is_admin() from public;
 grant execute on function public.is_active_user() to authenticated, anon;
 grant execute on function public.is_admin() to authenticated, anon;
 
+create or replace function public.current_active_user_id()
+returns uuid language sql security definer stable
+set search_path = public, pg_temp as $$
+  select id from public.users
+   where email = auth.jwt()->>'email' and ativo = true
+   limit 1;
+$$;
+revoke execute on function public.current_active_user_id() from public;
+grant execute on function public.current_active_user_id() to authenticated;
+
 -- RPC para atualizar ultimo_acesso do próprio usuário (chamada no callback OAuth)
 -- SECURITY DEFINER porque UPDATE em users é restrito a admin pela policy geral,
 -- mas queremos permitir que qualquer usuário ativo atualize apenas o próprio
@@ -408,6 +434,7 @@ alter table public.config       enable row level security;
 alter table public.funil_etapas enable row level security;
 alter table public.leads        enable row level security;
 alter table public.clientes     enable row level security;
+alter table public.cliente_notas enable row level security;
 alter table public.contratos    enable row level security;
 alter table public.atividades   enable row level security;
 alter table public.artigos      enable row level security;
@@ -470,6 +497,19 @@ create policy clientes_insert_active on public.clientes
 create policy clientes_update_active on public.clientes
   for update using (public.is_active_user()) with check (public.is_active_user());
 create policy clientes_delete_admin on public.clientes
+  for delete using (public.is_admin());
+
+-- -------- CLIENTE_NOTAS --------
+create policy cliente_notas_select_active on public.cliente_notas
+  for select using (public.is_active_user());
+create policy cliente_notas_insert_own on public.cliente_notas
+  for insert to authenticated
+  with check (autor_id = public.current_active_user_id());
+create policy cliente_notas_update_author_or_admin on public.cliente_notas
+  for update to authenticated
+  using (autor_id = public.current_active_user_id() or public.is_admin())
+  with check (autor_id = public.current_active_user_id() or public.is_admin());
+create policy cliente_notas_delete_admin on public.cliente_notas
   for delete using (public.is_admin());
 
 -- -------- CONTRATOS --------

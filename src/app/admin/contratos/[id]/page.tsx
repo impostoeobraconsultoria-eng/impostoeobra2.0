@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { MessageCircle } from "lucide-react";
 import { ContractForm } from "@/components/admin/contract-form";
 import { addContractNote, updateContract } from "../actions";
 import { DocumentActions } from "@/components/admin/document-actions";
@@ -54,6 +55,13 @@ export default async function Page({
   ]);
   if (!c) notFound();
   const customer = Array.isArray(c.cliente) ? c.cliente[0] : c.cliente;
+  const phone = `${customer?.ddd ?? ""}${customer?.telefone ?? ""}`.replace(
+    /\D/g,
+    "",
+  );
+  const whatsappUrl = phone
+    ? `https://api.whatsapp.com/send?phone=55${phone.replace(/^55/, "")}&text=${encodeURIComponent(`Olá, ${customer?.nome}! Sou da Imposto & Obra Consultoria e estou entrando em contato sobre o seu contrato.`)}`
+    : null;
   const total = Number(c.valor_total ?? 0),
     paid = Number(c.valor_pago ?? 0);
   const assinatura = c.data_assinatura || new Date().toISOString().slice(0, 10);
@@ -107,14 +115,44 @@ export default async function Page({
         <Link href="/admin/contratos" className="font-semibold text-slate-500">
           ← Contratos
         </Link>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold">
-            Contrato {c.numero || "sem número"}
-          </h1>
-          <DocumentActions
-            contratoId={c.id}
-            contractDefaults={contractDefaults}
-          />
+        <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">
+              Contrato {c.numero || "sem número"}
+            </h1>
+            {customer && (
+              <div className="mt-2 text-sm text-slate-500">
+                <Link
+                  href={`/admin/clientes/${customer.id}`}
+                  className="font-bold text-primary hover:underline"
+                >
+                  {customer.nome}
+                </Link>
+                <span>
+                  {customer.cpf || customer.cnpj
+                    ? ` · ${customer.cpf || customer.cnpj}`
+                    : ""}
+                  {customer.email ? ` · ${customer.email}` : ""}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {whatsappUrl && (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-bold text-white"
+              >
+                <MessageCircle className="size-4" /> WhatsApp
+              </a>
+            )}
+            <DocumentActions
+              contratoId={c.id}
+              contractDefaults={contractDefaults}
+            />
+          </div>
         </div>
         {searchParams?.saved && (
           <p className="mt-4 rounded-xl bg-emerald-50 p-4 text-emerald-800">
