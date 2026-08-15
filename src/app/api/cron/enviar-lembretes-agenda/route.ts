@@ -26,6 +26,9 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
   const now = new Date();
+  const sevenDaysFromNow = new Date(
+    now.getTime() + 7 * 24 * 60 * 60 * 1000,
+  );
   const [{ data: candidates, error }, { data: users }, { data: configs }] =
     await Promise.all([
       supabase
@@ -38,6 +41,7 @@ export async function GET(request: NextRequest) {
         .not("lembrete_minutos", "is", null)
         .is("lembrete_enviado_em", null)
         .gt("data_hora_inicio", now.toISOString())
+        .lte("data_hora_inicio", sevenDaysFromNow.toISOString())
         .order("data_hora_inicio")
         .limit(500),
       supabase

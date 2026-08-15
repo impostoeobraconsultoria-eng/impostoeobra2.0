@@ -37,12 +37,7 @@ function parseEvent(formData: FormData) {
   const reference = String(formData.get("referencia") ?? "");
   const [refTipo, refId] = reference ? reference.split(":") : ["", ""];
   const reminderRaw = String(formData.get("lembrete") ?? "");
-  const reminder =
-    reminderRaw === "custom"
-      ? Number(formData.get("lembrete_custom"))
-      : reminderRaw === ""
-        ? null
-        : Number(reminderRaw);
+  const reminder = reminderRaw === "" ? null : Number(reminderRaw);
   return z
     .object({
       titulo: z.string().trim().min(2).max(180),
@@ -54,7 +49,9 @@ function parseEvent(formData: FormData) {
       data_hora_inicio: z.string().datetime(),
       data_hora_fim: z.string().datetime().nullable(),
       dia_inteiro: z.boolean(),
-      lembrete_minutos: z.number().int().min(0).max(525600).nullable(),
+      lembrete_minutos: z
+        .union([z.literal(1440), z.literal(4320), z.literal(10080)])
+        .nullable(),
       ref_tipo: z.enum(["lead", "cliente", "contrato"]).nullable(),
       ref_id: z.string().uuid().nullable(),
       responsavel_id: z.string().uuid(),

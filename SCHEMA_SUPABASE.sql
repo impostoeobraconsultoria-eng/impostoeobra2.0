@@ -613,7 +613,7 @@ insert into public.config (chave, valor, descricao) values
   ('msg_whatsapp_padrao', 'Ola {nome}! Sou consultor da Imposto & Obra. Vimos sua simulacao de INSS e podemos te ajudar a regularizar a obra. Posso te enviar uma proposta?', 'Mensagem padrão de WhatsApp'),
   ('produtos', 'obra_andamento,obra_finalizada', 'Produtos ativos do CRM'),
   ('vau_vigencia', 'Maio/2026', 'Vigência atual da tabela VAU'),
-  ('agenda_lembrete_default_min', '60', 'Minutos antes do evento para lembrete padrão'),
+  ('agenda_lembrete_default_min', '1440', 'Minutos antes do evento para lembrete padrão'),
   ('resend_from_email', 'agenda@impostoeobra.com.br', 'Email remetente dos lembretes da agenda'),
   ('resend_from_name', 'Imposto & Obra — Agenda', 'Nome exibido no remetente dos lembretes')
 on conflict (chave) do nothing;

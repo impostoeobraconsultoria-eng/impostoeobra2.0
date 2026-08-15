@@ -105,7 +105,13 @@ export default async function AgendaPage({
       contracts={contracts ?? []}
       currentUserId={current?.id ?? ""}
       isAdmin={profile?.perfil === "admin"}
-      defaultReminder={Number(config.agenda_lembrete_default_min || 60)}
+      defaultReminder={
+        [1440, 4320, 10080].includes(
+          Number(config.agenda_lembrete_default_min),
+        )
+          ? Number(config.agenda_lembrete_default_min)
+          : 1440
+      }
       initialEventId={initialEventId}
       initialView={searchParams?.view}
     />

@@ -711,25 +711,26 @@ function EventModal({
           <select
             className="input"
             name="lembrete"
-            defaultValue={String(event?.lembrete_minutos ?? defaultReminder)}
+            defaultValue={String(
+              [1440, 4320, 10080].includes(
+                Number(event?.lembrete_minutos ?? defaultReminder),
+              )
+                ? (event?.lembrete_minutos ?? defaultReminder)
+                : defaultReminder,
+            )}
           >
             <option value="">Sem lembrete</option>
-            <option value="15">15 min antes</option>
-            <option value="30">30 min antes</option>
-            <option value="60">1 hora antes</option>
-            <option value="1440">1 dia antes</option>
-            <option value="custom">Personalizado</option>
+            <option value="1440">1 dia antes (email às 8h da manhã)</option>
+            <option value="4320">3 dias antes (email às 8h da manhã)</option>
+            <option value="10080">
+              1 semana antes (email às 8h da manhã)
+            </option>
           </select>
         </label>
-        <label className="field">
-          Minutos personalizados
-          <input
-            className="input"
-            type="number"
-            min="0"
-            name="lembrete_custom"
-          />
-        </label>
+        <p className="self-end text-xs leading-relaxed text-slate-500">
+          Os lembretes são enviados por email às 8h da manhã, no dia do prazo
+          escolhido.
+        </p>
         <label className="field sm:col-span-2">
           Vincular a
           <select className="input" name="referencia" defaultValue={reference}>
