@@ -47,5 +47,5 @@ pelo framework foi aprovada pelo responsável do projeto em 14 de agosto de 2026
 - Proteção SSO dos deployments desativada com autorização para permitir os
   testes públicos.
 - Nenhum domínio personalizado ou registro DNS foi alterado.
-- A conexão automática com o GitHub ainda depende de adicionar a Login Connection
-  do GitHub na conta Vercel; os deployments desta validação foram manuais.
+- GitHub conectado a `impostoeobraconsultoria-eng/impostoeobra2.0`, com `main`
+  configurada como Production Branch para deploys automáticos.
