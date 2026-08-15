@@ -1,6 +1,6 @@
 import "server-only";
 
-import { cache } from "react";
+import { unstable_cache } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -24,23 +24,27 @@ export const siteConfigDefaults = {
 
 export type SiteConfig = Record<string, string> & typeof siteConfigDefaults;
 
-export const getSiteConfig = cache(async (): Promise<SiteConfig> => {
-  try {
-    const { data, error } = await createAdminClient()
-      .from("config")
-      .select("chave,valor");
-    if (error) throw error;
-    return {
-      ...siteConfigDefaults,
-      ...Object.fromEntries(
-        (data ?? []).map((item) => [item.chave, item.valor ?? ""]),
-      ),
-    } as SiteConfig;
-  } catch (error) {
-    console.error("Falha ao carregar configuração pública", error);
-    return { ...siteConfigDefaults } as SiteConfig;
-  }
-});
+export const getSiteConfig = unstable_cache(
+  async (): Promise<SiteConfig> => {
+    try {
+      const { data, error } = await createAdminClient()
+        .from("config")
+        .select("chave,valor");
+      if (error) throw error;
+      return {
+        ...siteConfigDefaults,
+        ...Object.fromEntries(
+          (data ?? []).map((item) => [item.chave, item.valor ?? ""]),
+        ),
+      } as SiteConfig;
+    } catch (error) {
+      console.error("Falha ao carregar configuração pública", error);
+      return { ...siteConfigDefaults } as SiteConfig;
+    }
+  },
+  ["site-config"],
+  { tags: ["config"] },
+);
 
 export function getConfiguredWhatsAppUrl(config: SiteConfig) {
   const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE;

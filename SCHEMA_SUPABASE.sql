@@ -57,6 +57,19 @@ create table public.config (
   updated_at timestamptz not null default now()
 );
 
+-- Etapas dinâmicas do Kanban (substitui funcionalmente config.etapas_funil)
+create table public.funil_etapas (
+  id         uuid primary key default gen_random_uuid(),
+  nome       text not null,
+  ordem      integer not null check (ordem >= 0),
+  cor        text,
+  e_fechada  boolean not null default false,
+  criado_em  timestamptz not null default now(),
+  constraint funil_etapas_nome_not_blank check (length(btrim(nome)) between 1 and 100),
+  constraint funil_etapas_cor_hex check (cor is null or cor = '' or cor ~ '^#[0-9A-Fa-f]{6}$')
+);
+create index idx_funil_etapas_ordem on public.funil_etapas (ordem, criado_em);
+
 -- =============================================================================
 -- 5. TABELA leads
 -- =============================================================================
@@ -392,6 +405,7 @@ grant execute on function public.registrar_ultimo_acesso() to authenticated;
 alter table public.users        enable row level security;
 alter table public.vau          enable row level security;
 alter table public.config       enable row level security;
+alter table public.funil_etapas enable row level security;
 alter table public.leads        enable row level security;
 alter table public.clientes     enable row level security;
 alter table public.contratos    enable row level security;
@@ -425,6 +439,16 @@ create policy config_select_active on public.config
   for select using (public.is_active_user());
 create policy config_write_admin on public.config
   for all using (public.is_admin()) with check (public.is_admin());
+
+-- -------- FUNIL_ETAPAS --------
+create policy funil_etapas_select_active on public.funil_etapas
+  for select to authenticated using (public.is_active_user());
+create policy funil_etapas_insert_admin on public.funil_etapas
+  for insert to authenticated with check (public.is_admin());
+create policy funil_etapas_update_admin on public.funil_etapas
+  for update to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy funil_etapas_delete_admin on public.funil_etapas
+  for delete to authenticated using (public.is_admin());
 
 -- -------- LEADS --------
 -- IMPORTANTE: inserts em leads NÃO usam RLS.
@@ -511,6 +535,16 @@ insert into public.config (chave, valor, descricao) values
   ('produtos', 'obra_andamento,obra_finalizada', 'Produtos ativos do CRM'),
   ('vau_vigencia', 'Maio/2026', 'Vigência atual da tabela VAU')
 on conflict (chave) do nothing;
+
+insert into public.funil_etapas (nome, ordem, cor, e_fechada) values
+  ('Novo Lead', 0, '#0B76C6', false),
+  ('Contato iniciado', 1, '#2563EB', false),
+  ('Em negociacao', 2, '#7C3AED', false),
+  ('Proposta enviada', 3, '#D97706', false),
+  ('Aguardando resposta', 4, '#EA580C', false),
+  ('Fechado — ganho', 5, '#3AB97A', true),
+  ('Fechado — perdido', 6, '#D93025', true),
+  ('Sem retorno', 7, '#5B6265', false);
 
 -- Tabela VAU inicial (Maio/2026)
 insert into public.vau (uf, casa_popular, comercial, conj_pop, galpao, res_multi, res_uni, garagens, vigencia) values
