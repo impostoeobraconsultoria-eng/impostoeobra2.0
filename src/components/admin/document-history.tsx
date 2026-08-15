@@ -17,7 +17,55 @@ const labels: Record<string, string> = {
   material_apoio: "Material de apoio",
 };
 
-export function DocumentHistory({ items }: { items: DocumentHistoryItem[] }) {
+export function DocumentHistory({
+  items,
+  compact = false,
+}: {
+  items: DocumentHistoryItem[];
+  compact?: boolean;
+}) {
+  if (compact)
+    return (
+      <section className="rounded-2xl border bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-bold">Documentos gerados</h2>
+        <ul className="mt-4 space-y-3">
+          {items.map((item) => {
+            const generator = Array.isArray(item.gerador)
+              ? item.gerador[0]
+              : item.gerador;
+            return (
+              <li
+                key={item.id}
+                className="border-b border-slate-100 pb-3 last:border-0 last:pb-0"
+              >
+                <p className="text-sm font-semibold">
+                  {labels[item.tipo] ?? item.tipo}
+                </p>
+                <p className="truncate text-xs text-slate-500">
+                  {item.nome_arquivo}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {generator?.nome || "Equipe"} ·{" "}
+                  {new Date(item.gerado_em).toLocaleDateString("pt-BR")}
+                </p>
+                {item.storage_path && (
+                  <Link
+                    href={`/api/documentos/${item.id}/download`}
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-primary"
+                  >
+                    <Download className="size-3.5" />
+                    Baixar novamente
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+          {!items.length && (
+            <li className="text-sm text-slate-500">Nenhum documento gerado.</li>
+          )}
+        </ul>
+      </section>
+    );
   return (
     <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
       <h2 className="text-lg font-bold">Documentos gerados</h2>

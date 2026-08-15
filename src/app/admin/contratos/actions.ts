@@ -71,6 +71,30 @@ export async function createContract(f: FormData) {
   revalidatePath("/admin/contratos");
   redirect(`/admin/contratos/${data.id}?saved=1`);
 }
+
+export async function createCustomerContract(customerId: string, f: FormData) {
+  f.set("cliente_id", customerId);
+  const p = parse(f);
+  if (!p.success) redirect(`/admin/clientes/${customerId}?error=contract`);
+  const { supabase, user } = await context();
+  const { data, error } = await supabase
+    .from("contratos")
+    .insert(p.data)
+    .select("id")
+    .single();
+  if (error || !data) redirect(`/admin/clientes/${customerId}?error=contract`);
+  await supabase.from("atividades").insert({
+    ref_tipo: "contrato",
+    ref_id: data.id,
+    tipo: "criacao",
+    descricao: "Contrato criado a partir da vista do cliente",
+    autor_id: user.id,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/contratos");
+  revalidatePath(`/admin/clientes/${customerId}`);
+  redirect(`/admin/clientes/${customerId}?saved=contract`);
+}
 export async function updateContract(id: string, f: FormData) {
   const p = parse(f);
   if (!p.success) redirect(`/admin/contratos/${id}?error=invalid`);

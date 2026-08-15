@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
 async function context() {
@@ -9,12 +10,104 @@ async function context() {
   if (typeof c?.claims.email !== "string") throw new Error("Sessão expirada");
   const { data: u } = await supabase
     .from("users")
-    .select("id")
+    .select("id,perfil")
     .eq("email", c.claims.email)
     .eq("ativo", true)
     .single();
   if (!u) throw new Error("Não autorizado");
   return { supabase, user: u };
+}
+
+const uuid = z.string().uuid();
+const noteContent = z.string().trim().min(2).max(3000);
+
+export async function updateDossierLink(
+  customerId: string,
+  formData: FormData,
+) {
+  const parsed = z
+    .object({
+      customerId: uuid,
+      link: z.preprocess(
+        (value) => (String(value ?? "").trim() === "" ? null : value),
+        z.string().trim().url().startsWith("https://").max(1000).nullable(),
+      ),
+    })
+    .safeParse({ customerId, link: formData.get("link_dossie") });
+  if (!parsed.success)
+    return { ok: false, error: "Informe uma URL https válida." };
+  const { supabase, user } = await context();
+  const { error } = await supabase
+    .from("clientes")
+    .update({ link_dossie: parsed.data.link })
+    .eq("id", parsed.data.customerId)
+    .is("deleted_at", null);
+  if (error) return { ok: false, error: error.message };
+  await supabase.from("atividades").insert({
+    ref_tipo: "cliente",
+    ref_id: customerId,
+    tipo: "edicao",
+    descricao: parsed.data.link
+      ? "Link do dossiê atualizado"
+      : "Link do dossiê removido",
+    autor_id: user.id,
+  });
+  revalidatePath(`/admin/clientes/${customerId}`);
+  return { ok: true };
+}
+
+export async function addCustomerNote(customerId: string, formData: FormData) {
+  const parsed = z
+    .object({ customerId: uuid, conteudo: noteContent })
+    .safeParse({ customerId, conteudo: formData.get("conteudo") });
+  if (!parsed.success)
+    return { ok: false, error: "A nota deve ter entre 2 e 3.000 caracteres." };
+  const { supabase, user } = await context();
+  const { error } = await supabase.from("cliente_notas").insert({
+    cliente_id: parsed.data.customerId,
+    autor_id: user.id,
+    conteudo: parsed.data.conteudo,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/admin/clientes/${customerId}`);
+  return { ok: true };
+}
+
+export async function updateCustomerNote(noteId: string, formData: FormData) {
+  const parsed = z
+    .object({ noteId: uuid, conteudo: noteContent })
+    .safeParse({ noteId, conteudo: formData.get("conteudo") });
+  if (!parsed.success) return { ok: false, error: "Nota inválida." };
+  const { supabase, user } = await context();
+  let query = supabase
+    .from("cliente_notas")
+    .update({ conteudo: parsed.data.conteudo })
+    .eq("id", parsed.data.noteId)
+    .is("deleted_at", null);
+  if (user.perfil !== "admin") query = query.eq("autor_id", user.id);
+  const { data, error } = await query.select("cliente_id").maybeSingle();
+  if (error || !data)
+    return { ok: false, error: "Você não pode editar esta nota." };
+  revalidatePath(`/admin/clientes/${data.cliente_id}`);
+  return { ok: true };
+}
+
+export async function deleteCustomerNote(noteId: string) {
+  if (!uuid.safeParse(noteId).success)
+    return { ok: false, error: "Nota inválida." };
+  const { supabase, user } = await context();
+  if (user.perfil !== "admin")
+    return { ok: false, error: "Somente administradores podem excluir notas." };
+  const { data, error } = await supabase
+    .from("cliente_notas")
+    .delete()
+    .eq("id", noteId)
+    .select("cliente_id")
+    .maybeSingle();
+  if (error || !data)
+    return { ok: false, error: error?.message ?? "Nota não encontrada." };
+  revalidatePath(`/admin/clientes/${data.cliente_id}`);
+  return { ok: true };
 }
 const fields = [
   "nome",
