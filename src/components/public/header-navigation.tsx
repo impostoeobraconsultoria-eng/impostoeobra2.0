@@ -36,11 +36,11 @@ export function HeaderNavigation({ whatsAppUrl }: { whatsAppUrl: string }) {
         >
           <Image
             alt="Imposto & Obra Consultoria"
-            className="h-auto w-[180px] sm:w-[195px]"
+            className="h-auto w-[192px] sm:w-[208px]"
             height={70}
             priority
             src="/logo/logo-horizontal.svg"
-            width={210}
+            width={224}
           />
         </Link>
 
