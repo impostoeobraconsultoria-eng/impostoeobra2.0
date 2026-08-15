@@ -1,4 +1,5 @@
 import { type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 import {
   createMiddlewareClient,
@@ -16,6 +17,14 @@ function isWithinPath(pathname: string, basePath: string) {
 }
 
 export async function middleware(request: NextRequest) {
+  const legacyPath = request.nextUrl.pathname;
+
+  if (legacyPath.endsWith(".html")) {
+    const destination = request.nextUrl.clone();
+    destination.pathname = legacyPath.slice(0, -".html".length);
+    return NextResponse.redirect(destination, 301);
+  }
+
   const { supabase, getResponse } = createMiddlewareClient(request);
   const { data: claimsData, error: claimsError } =
     await supabase.auth.getClaims();
@@ -58,5 +67,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/artigos/:slug*.html",
+    "/politica/aviso-de-privacidade.html",
+  ],
 };
