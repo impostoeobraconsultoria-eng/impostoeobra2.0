@@ -346,6 +346,26 @@ create table public.cases (
 create index idx_cases_publicado on public.cases(publicado, ordem);
 
 -- =============================================================================
+-- 10.1. TABELA equipe_juridica (conteúdo institucional)
+-- =============================================================================
+
+create table public.equipe_juridica (
+  id           uuid primary key default gen_random_uuid(),
+  nome         text not null,
+  oab          text,
+  papel        text not null,
+  descricao    text,
+  foto_url     text,
+  ordem        integer not null default 100,
+  publicado    boolean not null default true,
+  criado_em    timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+create index idx_equipe_publicada on public.equipe_juridica(publicado, ordem)
+  where publicado = true;
+
+-- =============================================================================
 -- 11. TABELA faq (perguntas frequentes gerais)
 -- =============================================================================
 
@@ -381,6 +401,7 @@ create trigger trg_eventos_agenda_updated before update on public.eventos_agenda
 create trigger trg_contratos_updated   before update on public.contratos    for each row execute function public.set_updated_at();
 create trigger trg_artigos_updated     before update on public.artigos      for each row execute function public.set_updated_at();
 create trigger trg_cases_updated       before update on public.cases        for each row execute function public.set_updated_at();
+create trigger trg_equipe_juridica_updated before update on public.equipe_juridica for each row execute function public.set_updated_at();
 create trigger trg_faq_updated         before update on public.faq          for each row execute function public.set_updated_at();
 create trigger trg_vau_updated         before update on public.vau          for each row execute function public.set_updated_at();
 create trigger trg_config_updated      before update on public.config       for each row execute function public.set_updated_at();
@@ -465,6 +486,7 @@ alter table public.contratos    enable row level security;
 alter table public.atividades   enable row level security;
 alter table public.artigos      enable row level security;
 alter table public.cases        enable row level security;
+alter table public.equipe_juridica enable row level security;
 alter table public.faq          enable row level security;
 
 -- -------- USERS --------
@@ -590,6 +612,16 @@ create policy cases_select_active on public.cases
 create policy cases_write_active on public.cases
   for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
 
+-- -------- EQUIPE JURÍDICA --------
+create policy equipe_select_public on public.equipe_juridica
+  for select to anon using (publicado = true);
+create policy equipe_select_active on public.equipe_juridica
+  for select to authenticated using (public.is_active_user());
+create policy equipe_write_admin on public.equipe_juridica
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+grant select on table public.equipe_juridica to anon;
+grant select, insert, update, delete on table public.equipe_juridica to authenticated;
+
 -- -------- FAQ --------
 create policy faq_select_public on public.faq
   for select to anon using (publicado = true);
@@ -615,8 +647,32 @@ insert into public.config (chave, valor, descricao) values
   ('vau_vigencia', 'Maio/2026', 'Vigência atual da tabela VAU'),
   ('agenda_lembrete_default_min', '1440', 'Minutos antes do evento para lembrete padrão'),
   ('resend_from_email', 'agenda@impostoeobra.com.br', 'Email remetente dos lembretes da agenda'),
-  ('resend_from_name', 'Imposto & Obra — Agenda', 'Nome exibido no remetente dos lembretes')
+  ('resend_from_name', 'Imposto & Obra — Agenda', 'Nome exibido no remetente dos lembretes'),
+  ('dpo_nome', 'Paulo Ricardo da Silva Santana', 'Nome do Encarregado de Dados Pessoais (DPO)'),
+  ('empresa_email_privacidade', '', 'Email do DPO; usa empresa_email quando vazio'),
+  ('horario_atendimento_dias', 'Segunda a sexta', 'Dias de atendimento'),
+  ('horario_atendimento_horas', 'Das 09h às 19h', 'Horas de atendimento'),
+  ('horario_atendimento_fuso', 'horário de Brasília', 'Fuso do atendimento'),
+  ('home_qtd_cases', '2', 'Quantidade de cases exibidos na home')
 on conflict (chave) do nothing;
+
+insert into public.equipe_juridica (nome, oab, papel, descricao, ordem, publicado)
+select 'Dr. Paulo Ricardo da Silva Santana', 'OAB/DF nº 72.326',
+  'Advogado tributarista · Fundador',
+  'Responsável pela estratégia jurídica da consultoria, análise de cobranças, aplicação de reduções legais e impugnações administrativas perante a Receita Federal.',
+  10, true
+where not exists (
+  select 1 from public.equipe_juridica where nome = 'Dr. Paulo Ricardo da Silva Santana'
+);
+
+insert into public.equipe_juridica (nome, oab, papel, descricao, ordem, publicado)
+select 'Dr. Wenderson Siqueira', 'OAB/DF nº 57.162',
+  'Advogado tributarista · Consultor parceiro',
+  'Atua em temas de direito tributário e previdenciário aplicados à construção civil, reforçando o time em casos complexos e na estratégia processual.',
+  20, true
+where not exists (
+  select 1 from public.equipe_juridica where nome = 'Dr. Wenderson Siqueira'
+);
 
 insert into public.funil_etapas (nome, ordem, cor, e_fechada) values
   ('Novo Lead', 0, '#0B76C6', false),

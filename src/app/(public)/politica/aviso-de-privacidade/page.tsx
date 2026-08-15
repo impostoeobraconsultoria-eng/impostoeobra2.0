@@ -4,8 +4,7 @@ import {
   InstitutionalPage,
 } from "@/components/public/institutional-page";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
-
-const email = "impostoeobraconsultoria@gmail.com";
+import { getSiteConfig } from "@/lib/site-config";
 const description =
   "Conheça o Aviso de Privacidade da Imposto & Obra Consultoria e saiba como tratamos e protegemos seus dados pessoais.";
 export const metadata: Metadata = {
@@ -19,7 +18,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const config = await getSiteConfig();
+  const email = config.empresa_email_privacidade || config.empresa_email;
   return (
     <InstitutionalPage
       eyebrow="Privacidade · Atualizado em 28 de maio de 2026"
@@ -41,7 +42,7 @@ export default function PrivacyPage() {
           <strong>Sede:</strong> Brasília — Distrito Federal — Brasil
         </li>
         <li>
-          <strong>Encarregado:</strong> Paulo Ricardo da Silva Santana
+          <strong>Encarregado:</strong> {config.dpo_nome}
         </li>
         <li>
           <strong>E-mail:</strong> <a href={`mailto:${email}`}>{email}</a>

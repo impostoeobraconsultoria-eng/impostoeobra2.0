@@ -5,6 +5,7 @@ import {
   InstitutionalPage,
 } from "@/components/public/institutional-page";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
+import { getSiteConfig } from "@/lib/site-config";
 
 const description =
   "Fale com a Imposto & Obra Consultoria. Atendimento online em todo o Brasil para regularização e redução do INSS de obras.";
@@ -19,34 +20,17 @@ export const metadata: Metadata = {
   },
 };
 
-const contacts = [
-  [
-    "WhatsApp",
-    "+55 61 99398-2653",
-    getWhatsAppUrl(),
-    "Canal mais rápido. Resposta em horário comercial.",
-  ],
-  [
-    "E-mail",
-    "impostoeobraconsultoria@gmail.com",
-    "mailto:impostoeobraconsultoria@gmail.com",
-    "Para envio de documentação ou consultas detalhadas.",
-  ],
-  [
-    "Telefone",
-    "+55 61 99398-2653",
-    "tel:+5561993982653",
-    "Para chamadas durante o horário comercial.",
-  ],
-  [
-    "Horário de atendimento",
-    "Segunda a sexta",
-    "",
-    "Das 09h às 19h (horário de Brasília).",
-  ],
-];
-
-export default function ContatoPage() {
+export default async function ContatoPage() {
+  const config = await getSiteConfig();
+  const schedule = [config.horario_atendimento_dias, config.horario_atendimento_horas, config.horario_atendimento_fuso];
+  const contacts = [
+    ["WhatsApp", config.empresa_telefone_institucional, getWhatsAppUrl(), "Canal mais rápido. Resposta em horário comercial."],
+    ["E-mail", config.empresa_email, `mailto:${config.empresa_email}`, "Para envio de documentação ou consultas detalhadas."],
+    ["Telefone", config.empresa_telefone_institucional, `tel:${config.empresa_telefone_institucional.replace(/\D/g, "")}`, "Para chamadas durante o horário comercial."],
+    ...(schedule.every((value) => !value)
+      ? []
+      : [["Horário de atendimento", schedule[0], "", [schedule[1], schedule[2]].filter(Boolean).join(" · ")]]),
+  ];
   return (
     <InstitutionalPage
       eyebrow="Contato · Atualizado em 28 de maio de 2026"

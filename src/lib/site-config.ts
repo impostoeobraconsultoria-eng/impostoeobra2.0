@@ -13,6 +13,11 @@ export const siteConfigDefaults = {
   empresa_instagram_url: "https://instagram.com/impostoeobra",
   empresa_linkedin_url: "",
   empresa_frase_apoio: "Sua obra regularizada em 5 dias úteis",
+  dpo_nome: "Paulo Ricardo da Silva Santana",
+  empresa_email_privacidade: "",
+  horario_atendimento_dias: "Segunda a sexta",
+  horario_atendimento_horas: "Das 09h às 19h",
+  horario_atendimento_fuso: "horário de Brasília",
   whatsapp_msg_padrao:
     "Olá, gostaria de informações sobre como regularizar minha obra perante a Receita Federal com economia.",
   hero_exemplo_imposto_cheio: "R$ 10.967,90",

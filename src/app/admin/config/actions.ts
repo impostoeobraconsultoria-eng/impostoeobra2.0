@@ -21,6 +21,11 @@ const sections = {
     empresa_representante_cpf: field,
     empresa_representante_oab: field,
     empresa_cidade_sede: field,
+    dpo_nome: field,
+    empresa_email_privacidade: z.string().trim().email().or(z.literal("")),
+    horario_atendimento_dias: field,
+    horario_atendimento_horas: field,
+    horario_atendimento_fuso: field,
   }),
   comunicacao: z.object({
     whatsapp_msg_padrao: field.min(5),
