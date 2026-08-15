@@ -92,7 +92,36 @@ export async function updateCase(id: string, formData: FormData) {
   redirect(`/admin/cases/${id}?saved=1`);
 }
 
+export async function duplicateCase(id: string) {
+  if (!z.string().uuid().safeParse(id).success)
+    throw new Error("Case inválido.");
+  const supabase = await getAuthorizedClient();
+  const { data: current } = await supabase
+    .from("cases")
+    .select(
+      "cliente_display,tipo_obra,economia_valor,economia_pct,descricao,imagem_url,ordem",
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (!current) redirect("/admin/cases?error=not_found");
+  const { data: copy, error } = await supabase
+    .from("cases")
+    .insert({
+      ...current,
+      cliente_display: `${current.cliente_display.slice(0, 150)} (cópia)`,
+      ordem: Number(current.ordem ?? 100) + 1,
+      publicado: false,
+    })
+    .select("id")
+    .single();
+  if (error || !copy) redirect("/admin/cases?error=save");
+  revalidateCases();
+  redirect(`/admin/cases/${copy.id}?duplicated=1`);
+}
+
 function revalidateCases() {
   revalidatePath("/");
+  revalidatePath("/casos-de-sucesso");
+  revalidatePath("/sitemap.xml");
   revalidatePath("/admin/cases");
 }

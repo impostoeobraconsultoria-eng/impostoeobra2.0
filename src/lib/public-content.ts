@@ -44,3 +44,16 @@ export const getPublishedCases = cache(async (): Promise<PublicCase[]> => {
   if (error) throw new Error(`Falha ao carregar cases: ${error.message}`);
   return data;
 });
+
+export const getAllPublishedCases = cache(async (): Promise<PublicCase[]> => {
+  const { data, error } = await createPublicClient()
+    .from("cases")
+    .select(
+      "id,cliente_display,tipo_obra,economia_valor,economia_pct,descricao,imagem_url",
+    )
+    .eq("publicado", true)
+    .order("ordem", { ascending: true });
+
+  if (error) throw new Error(`Falha ao carregar cases: ${error.message}`);
+  return data;
+});

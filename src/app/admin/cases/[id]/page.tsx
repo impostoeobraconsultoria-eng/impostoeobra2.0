@@ -10,7 +10,7 @@ export default async function CaseDetailPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams?: { saved?: string; error?: string };
+  searchParams?: { saved?: string; error?: string; duplicated?: string };
 }) {
   const supabase = createClient();
   const { data: item } = await supabase
@@ -39,6 +39,11 @@ export default async function CaseDetailPage({
         {searchParams?.saved && (
           <p className="mt-5 rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
             Case salvo com sucesso.
+          </p>
+        )}
+        {searchParams?.duplicated && (
+          <p className="mt-5 rounded-xl bg-blue-50 p-4 text-sm font-semibold text-primary">
+            Cópia criada como rascunho. Revise os dados antes de publicar.
           </p>
         )}
         {searchParams?.error && (
