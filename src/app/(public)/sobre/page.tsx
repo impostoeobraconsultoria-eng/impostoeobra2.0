@@ -5,6 +5,7 @@ import {
   FinalCta,
   InstitutionalPage,
 } from "@/components/public/institutional-page";
+import { createPublicClient } from "@/lib/supabase/public";
 
 const description =
   "Consultoria tributária especializada em INSS de construção civil, com equipe jurídica e atendimento 100% online em todo o Brasil.";
@@ -20,7 +21,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function SobrePage() {
+export default async function SobrePage() {
+  const { data: team } = await createPublicClient()
+    .from("equipe_juridica")
+    .select("id,nome,oab,papel,descricao,foto_url")
+    .eq("publicado", true)
+    .order("ordem");
   return (
     <InstitutionalPage
       eyebrow="Sobre nós · Atualizado em 28 de maio de 2026"
@@ -84,31 +90,26 @@ export default function SobrePage() {
         direito previdenciário aplicado à construção civil.
       </p>
       <div className="my-6 grid gap-5 sm:grid-cols-2">
-        <section className="rounded-xl border-l-4 border-primary bg-slate-50 p-6">
-          <h3 className="!m-0 !text-lg">Dr. Paulo Ricardo da Silva Santana</h3>
-          <p className="mt-1 text-sm font-semibold text-primary">
-            Advogado tributarista · Fundador
-          </p>
-          <p className="mt-1 text-sm text-slate-500">
-            <strong>OAB/DF nº 72.326</strong>
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-slate-700">
-            Responsável pela estratégia jurídica da consultoria, análise de
-            cobranças, aplicação de reduções legais e impugnações
-            administrativas perante a Receita Federal.
-          </p>
-        </section>
-        <section className="rounded-xl border-l-4 border-primary bg-slate-50 p-6">
-          <h3 className="!m-0 !text-lg">Dr. Wenderson Siqueira</h3>
-          <p className="mt-1 text-sm font-semibold text-primary">
-            Advogado tributarista · Consultor parceiro
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-slate-700">
-            Atua em temas de direito tributário e previdenciário aplicados à
-            construção civil, reforçando o time em casos complexos e na
-            estratégia processual.
-          </p>
-        </section>
+        {(team ?? []).map((member) => (
+          <section className="rounded-xl border-l-4 border-primary bg-slate-50 p-6" key={member.id}>
+            <div className="flex items-start gap-4">
+              {member.foto_url && (
+                <div
+                  role="img"
+                  aria-label={`Foto de ${member.nome}`}
+                  className="size-16 shrink-0 rounded-full bg-cover bg-center"
+                  style={{ backgroundImage: `url(${member.foto_url})` }}
+                />
+              )}
+              <div>
+                <h3 className="!m-0 !text-lg">{member.nome}</h3>
+                <p className="mt-1 text-sm font-semibold text-primary">{member.papel}</p>
+                {member.oab && <p className="mt-1 text-sm text-slate-500"><strong>{member.oab}</strong></p>}
+              </div>
+            </div>
+            {member.descricao && <p className="mt-3 text-sm leading-relaxed text-slate-700">{member.descricao}</p>}
+          </section>
+        ))}
       </div>
 
       <h2>Como atendemos</h2>

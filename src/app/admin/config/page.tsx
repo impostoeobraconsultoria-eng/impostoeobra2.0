@@ -218,6 +218,42 @@ function CompanyForm({ values }: { values: ConfigMap }) {
           label="Cidade sede"
           value={values.empresa_cidade_sede}
         />
+        <div className="sm:col-span-2 mt-2 border-t pt-6">
+          <h3 className="font-bold">Encarregado de Dados (LGPD)</h3>
+          <p className="mt-1 text-sm text-slate-500">Dados exibidos no Aviso de Privacidade.</p>
+        </div>
+        <Input
+          name="dpo_nome"
+          label="Nome do DPO"
+          value={values.dpo_nome}
+        />
+        <Input
+          name="empresa_email_privacidade"
+          label="Email do DPO"
+          type="email"
+          value={values.empresa_email_privacidade}
+          placeholder="Deixe vazio para usar o email institucional"
+        />
+        <div className="sm:col-span-2 mt-2 border-t pt-6">
+          <h3 className="font-bold">Horário de atendimento</h3>
+          <p className="mt-1 text-sm text-slate-500">Preencha os três campos ou deixe todos vazios para esconder o card.</p>
+        </div>
+        <Input
+          name="horario_atendimento_dias"
+          label="Dias"
+          value={values.horario_atendimento_dias}
+        />
+        <Input
+          name="horario_atendimento_horas"
+          label="Horas"
+          value={values.horario_atendimento_horas}
+        />
+        <Input
+          name="horario_atendimento_fuso"
+          label="Fuso"
+          value={values.horario_atendimento_fuso}
+          span
+        />
       </div>
       <SaveButton />
     </form>

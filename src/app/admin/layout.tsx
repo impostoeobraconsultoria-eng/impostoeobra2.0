@@ -11,6 +11,7 @@ import {
   FileText,
   Gauge,
   Settings,
+  Scale,
   Star,
   TableProperties,
   Users,
@@ -38,6 +39,7 @@ const navigation = [
 const adminNavigation = [
   { href: "/admin/vau", label: "VAU", icon: TableProperties },
   { href: "/admin/usuarios", label: "Usuários", icon: Users },
+  { href: "/admin/equipe-juridica", label: "Equipe Jurídica", icon: Scale },
   { href: "/admin/config", label: "Config", icon: Settings },
 ];
 
