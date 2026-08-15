@@ -1,7 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ContractForm } from "../page";
+import { ContractForm } from "@/components/admin/contract-form";
 import { addContractNote, updateContract } from "../actions";
+import { DocumentActions } from "@/components/admin/document-actions";
+import {
+  DocumentHistory,
+  type DocumentHistoryItem,
+} from "@/components/admin/document-history";
+import {
+  dateBr,
+  dateExtenso,
+  getConfigMap,
+  joinAddress,
+  money as formatMoney,
+} from "@/lib/documentos";
 import { createClient } from "@/lib/supabase/server";
 export default async function Page({
   params,
@@ -11,10 +23,16 @@ export default async function Page({
   searchParams?: Record<string, string | undefined>;
 }) {
   const s = createClient();
-  const [{ data: c }, { data: clients }, { data: a }] = await Promise.all([
+  const [
+    { data: c },
+    { data: clients },
+    { data: a },
+    { data: documents },
+    config,
+  ] = await Promise.all([
     s
       .from("contratos")
-      .select("*")
+      .select("*,cliente:clientes(*)")
       .eq("id", params.id)
       .is("deleted_at", null)
       .maybeSingle(),
@@ -25,19 +43,79 @@ export default async function Page({
       .eq("ref_tipo", "contrato")
       .eq("ref_id", params.id)
       .order("data_hora", { ascending: false }),
+    s
+      .from("documentos_gerados")
+      .select("id,tipo,nome_arquivo,storage_path,gerado_em,gerador:users(nome)")
+      .eq("ref_tipo", "contrato")
+      .eq("ref_id", params.id)
+      .order("gerado_em", { ascending: false })
+      .limit(10),
+    getConfigMap(),
   ]);
   if (!c) notFound();
+  const customer = Array.isArray(c.cliente) ? c.cliente[0] : c.cliente;
   const total = Number(c.valor_total ?? 0),
     paid = Number(c.valor_pago ?? 0);
+  const assinatura = c.data_assinatura || new Date().toISOString().slice(0, 10);
+  const contractDefaults = {
+    contratante_nome: customer?.nome || "",
+    contratante_cpf_cnpj: customer?.cpf || customer?.cnpj || "",
+    contratante_rg: customer?.rg || "",
+    contratante_endereco: joinAddress(
+      customer?.end_logradouro,
+      customer?.end_bairro,
+      customer?.end_cidade,
+      customer?.end_uf,
+      customer?.end_cep,
+    ),
+    contratante_email: customer?.email || "",
+    contratante_telefone: [customer?.ddd, customer?.telefone]
+      .filter(Boolean)
+      .join(" "),
+    contratada_razao: config.empresa_razao_social || "",
+    contratada_cnpj: config.empresa_cnpj || "",
+    contratada_endereco: config.empresa_endereco_completo || "",
+    contratada_representante: config.empresa_representante_nome || "",
+    obra_endereco: joinAddress(
+      customer?.obra_end_logradouro,
+      customer?.obra_end_bairro,
+      customer?.obra_end_cidade,
+      customer?.obra_end_uf,
+    ),
+    obra_area: customer?.obra_descricao || "",
+    obra_matricula: customer?.obra_matricula || "",
+    obra_iptu: customer?.obra_iptu || "",
+    obra_tipo: customer?.obra_tipo || "",
+    numero_contrato: c.numero || "",
+    data_assinatura: dateBr(assinatura),
+    data_assinatura_extenso: dateExtenso(assinatura),
+    cidade_assinatura: config.empresa_cidade_sede || "",
+    cidade_foro: config.empresa_cidade_sede || "",
+    valor_total: formatMoney(total),
+    valor_extenso: "(valor por extenso)",
+    valor_entrada: formatMoney(total / 2),
+    valor_saldo: formatMoney(total / 2),
+    parcelas: c.parcelas ?? "",
+    forma_pagamento: c.forma_pagamento || "",
+    dia_vencimento: "10",
+    escopo_servico:
+      c.observacoes || "Escopo customizado conforme alinhado entre as partes.",
+  };
   return (
     <main className="px-5 py-8 sm:px-8">
       <div className="mx-auto max-w-7xl">
         <Link href="/admin/contratos" className="font-semibold text-slate-500">
           ← Contratos
         </Link>
-        <h1 className="mt-4 text-3xl font-bold">
-          Contrato {c.numero || "sem número"}
-        </h1>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-3xl font-bold">
+            Contrato {c.numero || "sem número"}
+          </h1>
+          <DocumentActions
+            contratoId={c.id}
+            contractDefaults={contractDefaults}
+          />
+        </div>
         {searchParams?.saved && (
           <p className="mt-4 rounded-xl bg-emerald-50 p-4 text-emerald-800">
             Alterações salvas.
@@ -91,6 +169,7 @@ export default async function Page({
             </ol>
           </aside>
         </div>
+        <DocumentHistory items={(documents ?? []) as DocumentHistoryItem[]} />
       </div>
     </main>
   );

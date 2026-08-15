@@ -60,7 +60,7 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
+      <aside className="admin-sidebar fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
         <Link
           href="/admin"
           className="flex h-20 items-center gap-3 border-b border-slate-200 px-6"
@@ -98,8 +98,8 @@ export default async function AdminLayout({
           Ver site público
         </Link>
       </aside>
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div className="admin-shell lg:pl-64">
+        <header className="admin-header sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="flex min-h-20 items-center justify-between gap-4 px-5 sm:px-8">
             <details className="relative lg:hidden">
               <summary className="cursor-pointer list-none rounded-lg border px-3 py-2 text-sm font-semibold">

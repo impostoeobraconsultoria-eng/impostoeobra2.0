@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  BookOpen,
-  FileText,
-  LockKeyhole,
-  MessageCircle,
-  Save,
-} from "lucide-react";
+import { ArrowLeft, LockKeyhole, MessageCircle, Save } from "lucide-react";
 
 import { addLeadNote, updateLead } from "@/app/admin/leads/actions";
 import { convertLead } from "@/app/admin/clientes/actions";
+import { DocumentActions } from "@/components/admin/document-actions";
+import {
+  DocumentHistory,
+  type DocumentHistoryItem,
+} from "@/components/admin/document-history";
+import {
+  dateBr,
+  dateExtenso,
+  getConfigMap,
+  joinAddress,
+} from "@/lib/documentos";
 import { calcularComplementar, LEAD_STATUSES } from "@/lib/leads";
 import { createClient } from "@/lib/supabase/server";
 
@@ -30,23 +34,36 @@ const dateTime = new Intl.DateTimeFormat("pt-BR", {
 
 export default async function LeadDetailPage({ params, searchParams }: Props) {
   const supabase = createClient();
-  const [{ data: lead, error }, { data: activities }, { data: users }] =
-    await Promise.all([
-      supabase
-        .from("leads")
-        .select("*")
-        .eq("id", params.id)
-        .is("deleted_at", null)
-        .maybeSingle(),
-      supabase
-        .from("atividades")
-        .select("id,tipo,descricao,data_hora,autor_id")
-        .eq("ref_tipo", "lead")
-        .eq("ref_id", params.id)
-        .order("data_hora", { ascending: false })
-        .limit(100),
-      supabase.from("users").select("id,nome").eq("ativo", true).order("nome"),
-    ]);
+  const [
+    { data: lead, error },
+    { data: activities },
+    { data: users },
+    { data: documents },
+    config,
+  ] = await Promise.all([
+    supabase
+      .from("leads")
+      .select("*")
+      .eq("id", params.id)
+      .is("deleted_at", null)
+      .maybeSingle(),
+    supabase
+      .from("atividades")
+      .select("id,tipo,descricao,data_hora,autor_id")
+      .eq("ref_tipo", "lead")
+      .eq("ref_id", params.id)
+      .order("data_hora", { ascending: false })
+      .limit(100),
+    supabase.from("users").select("id,nome").eq("ativo", true).order("nome"),
+    supabase
+      .from("documentos_gerados")
+      .select("id,tipo,nome_arquivo,storage_path,gerado_em,gerador:users(nome)")
+      .eq("ref_tipo", "lead")
+      .eq("ref_id", params.id)
+      .order("gerado_em", { ascending: false })
+      .limit(10),
+    getConfigMap(),
+  ]);
   if (error || !lead) notFound();
   const complementary = calcularComplementar(lead);
   const whatsappPhone = `${lead.ddd ?? ""}${lead.whatsapp ?? ""}`.replace(
@@ -59,6 +76,29 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
   const userMap = new Map((users ?? []).map((user) => [user.id, user.nome]));
   const updateAction = updateLead.bind(null, params.id);
   const noteAction = addLeadNote.bind(null, params.id);
+  const today = new Date().toISOString();
+  const proposalDefaults = {
+    nome_cliente: lead.nome,
+    cpf_cnpj: "—",
+    endereco_obra: joinAddress(lead.cidade, lead.uf),
+    tipo_construcao: lead.tipo ?? "",
+    area_construida: lead.area_total ?? lead.a_construcao ?? "",
+    situacao_obra: lead.categoria ?? lead.status,
+    data_proposta: dateBr(today),
+    data_extenso: dateExtenso(today),
+    valor_obra_concluida: config.proposta_valor_obra_concluida || "",
+    valor_obra_andamento: config.proposta_valor_obra_andamento || "",
+  };
+  const materialDefaults = {
+    cliente: lead.nome,
+    area_construcao: Number(lead.area_total ?? lead.a_construcao ?? 0),
+    imposto_direto: Number(lead.inss_direto ?? 0),
+    imposto_reduzido: Number(lead.inss_reduzido ?? 0),
+    multas: 0,
+    parcelas: 5,
+    area_piscina:
+      Number(lead.a_pcoberta ?? 0) + Number(lead.a_pdescoberta ?? 0),
+  };
 
   return (
     <main className="px-5 py-8 sm:px-8">
@@ -90,22 +130,11 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
                 WhatsApp
               </a>
             )}
-            <Link
-              href="/guia-inss-de-obra"
-              target="_blank"
-              className="flex items-center gap-2 rounded-full border bg-white px-4 py-2.5 text-sm font-bold"
-            >
-              <BookOpen className="size-4" />
-              Material de apoio
-            </Link>
-            <button
-              disabled
-              title="Disponível em uma etapa futura"
-              className="flex items-center gap-2 rounded-full border bg-white px-4 py-2.5 text-sm font-bold opacity-50"
-            >
-              <FileText className="size-4" />
-              Proposta
-            </button>
+            <DocumentActions
+              leadId={lead.id}
+              proposalDefaults={proposalDefaults}
+              materialDefaults={materialDefaults}
+            />
             <form action={convertLead.bind(null, params.id)}>
               <button
                 disabled={Boolean(lead.cliente_id)}
@@ -381,6 +410,7 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
             </ol>
           </aside>
         </div>
+        <DocumentHistory items={(documents ?? []) as DocumentHistoryItem[]} />
       </div>
     </main>
   );
