@@ -8,78 +8,60 @@ export async function CasesSection() {
     console.error("Falha ao renderizar cases da home", error);
   }
 
-  if (cases.length < 3) return <StatsFallback />;
-
+  const featured = cases.slice(0, 2);
   return (
-    <section className="bg-slate-50 py-16" aria-labelledby="cases-title">
+    <section className="bg-white py-20" aria-labelledby="cases-title">
       <div className="site-container">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2
-            className="text-3xl font-extrabold tracking-tight"
-            id="cases-title"
-          >
-            Resultados reais dos nossos clientes
-          </h2>
-          <p className="mt-3 text-slate-600">
-            Economia validada em contratos reais de regularização de INSS de
-            obra.
+        <div className="grid gap-8 border-b border-border pb-10 lg:grid-cols-12 lg:items-end">
+          <div className="lg:col-span-8">
+            <p className="editorial-label">Resultados reais</p>
+            <h2 className="editorial-title mt-5" id="cases-title">
+              Economia que aparece nos números.
+            </h2>
+          </div>
+          <p className="text-brandMuted lg:col-span-4">
+            Casos reais de regularização conduzidos pela nossa equipe.
           </p>
         </div>
-        <div className="mt-9 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {cases.map((item) => (
-            <article
-              className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-              key={item.id}
-            >
-              {item.imagem_url && (
-                // A URL é cadastrada pelo admin e pode vir de provedores diversos.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  alt={`Obra de ${item.cliente_display}`}
-                  className="aspect-video w-full object-cover"
-                  loading="lazy"
-                  src={item.imagem_url}
-                />
-              )}
-              <div className="p-6">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="mr-auto text-lg font-bold text-slate-950">
-                    {item.cliente_display}
-                  </h3>
-                  {item.tipo_obra && (
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-primary">
-                      {item.tipo_obra}
-                    </span>
+        {featured.length >= 2 ? (
+          <div className="grid md:grid-cols-2">
+            {featured.map((item, index) => (
+              <article
+                className={`py-10 ${index === 0 ? "md:border-r md:border-border md:pr-10" : "md:pl-10"}`}
+                key={item.id}
+              >
+                <div className="flex items-center justify-between gap-4 border-b border-border pb-5">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[.12em] text-primary">
+                      {item.tipo_obra || "Regularização"}
+                    </p>
+                    <h3 className="mt-2 text-xl font-bold">
+                      {item.cliente_display}
+                    </h3>
+                  </div>
+                  {item.economia_pct != null && (
+                    <strong className="text-2xl text-accent">
+                      −{formatPercent(item.economia_pct)}
+                    </strong>
                   )}
                 </div>
-                <p className="mt-6 text-3xl font-extrabold tracking-tight text-accent">
+                <p className="mt-7 text-5xl font-extrabold tracking-[-.05em] text-text">
                   {formatMoney(item.economia_valor)}
                 </p>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  de economia
+                <p className="mt-2 text-sm uppercase tracking-[.1em] text-brandMuted">
+                  economizados
                 </p>
-                {item.economia_pct != null && (
-                  <span className="mt-4 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700">
-                    {formatPercent(item.economia_pct)} de redução
-                  </span>
-                )}
                 {item.descricao && (
-                  <p className="mt-4 leading-7 text-slate-600">
+                  <p className="mt-6 max-w-xl leading-7 text-brandMuted">
                     {truncate(item.descricao, 200)}
                   </p>
                 )}
-              </div>
-            </article>
-          ))}
-        </div>
-        <div className="mt-9 text-center">
-          <a
-            className="inline-flex rounded-full bg-accent px-6 py-3 font-bold text-white hover:no-underline"
-            href="#calculadora"
-          >
-            Quero simular a minha obra
-          </a>
-        </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <StatsFallback />
+        )}
       </div>
     </section>
   );
@@ -87,38 +69,35 @@ export async function CasesSection() {
 
 function StatsFallback() {
   return (
-    <section className="bg-primary py-10 text-white">
-      <div className="site-container grid gap-8 text-center sm:grid-cols-3">
-        <Stat value="R$ 1,5 mi+" label="em impostos reduzidos" />
-        <Stat value="5 dias" label="prazo médio de regularização" />
-        <Stat value="100%" label="atendimento especializado" />
-      </div>
-    </section>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div>
-      <p className="text-3xl font-extrabold">{value}</p>
-      <p className="mt-1 text-sm text-white/80">{label}</p>
+    <div className="grid border-b border-border py-10 sm:grid-cols-3">
+      <Stat value="R$ 1,5 mi+" label="em impostos reduzidos" />
+      <Stat value="200+" label="obras regularizadas" />
+      <Stat value="100%" label="atendimento especializado" />
     </div>
   );
 }
-
-function formatMoney(value: number | null) {
-  if (value == null) return "Economia comprovada";
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="border-border py-5 first:pl-0 last:border-0 sm:border-r sm:px-8">
+      <p className="text-4xl font-extrabold tracking-tight text-primary">
+        {value}
+      </p>
+      <p className="mt-2 text-sm text-brandMuted">{label}</p>
+    </div>
+  );
 }
-
+function formatMoney(value: number | null) {
+  return value == null
+    ? "Economia comprovada"
+    : new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        maximumFractionDigits: 0,
+      }).format(value);
+}
 function formatPercent(value: number) {
   return `${Number(value).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 }
-
 function truncate(value: string, max: number) {
-  if (value.length <= max) return value;
-  return `${value.slice(0, max - 1).trimEnd()}…`;
+  return value.length <= max ? value : `${value.slice(0, max - 1).trimEnd()}…`;
 }

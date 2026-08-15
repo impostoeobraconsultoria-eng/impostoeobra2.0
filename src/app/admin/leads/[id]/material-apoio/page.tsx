@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Image from "next/image";
 
 import { MaterialSupportToolbar } from "@/components/admin/material-support-toolbar";
 import { getConfigMap, money } from "@/lib/documentos";
@@ -78,13 +79,13 @@ export default async function MaterialApoioPage({
       <article className={styles.sheet}>
         <section className={styles.info}>
           <div className={styles.logo}>
-            <div className={styles.mark}>I&amp;O</div>
-            <div className={styles.brand}>
-              Imposto
-              <br />
-              &amp; Obra
-              <small>CONSULTORIA</small>
-            </div>
+            <Image
+              src="/logo/logo-horizontal.svg"
+              alt="Imposto & Obra Consultoria"
+              width={190}
+              height={52}
+              priority
+            />
           </div>
           <div>
             <h1 className={styles.infoTitle}>INFORMAÇÕES DA OBRA</h1>
@@ -150,7 +151,26 @@ export default async function MaterialApoioPage({
           </div>
         </section>
         <section className={styles.center}>
-          <div className={styles.badge}>CÁLCULO DE INSS DE OBRA</div>
+          <p className={styles.kicker}>PLANEJAMENTO TRIBUTÁRIO</p>
+          <h2 className={styles.centerTitle}>
+            Pague o justo. Regularize com segurança.
+          </h2>
+          <p className={styles.centerText}>
+            Aplicamos as reduções previstas na legislação para encontrar o
+            cenário mais eficiente para sua obra.
+          </p>
+          <div className={styles.savingCard}>
+            <span>ECONOMIA ESTIMADA</span>
+            <strong>{money(economia)}</strong>
+          </div>
+          <div className={styles.conditions}>
+            <strong>Condições para o benefício</strong>
+            <ul>
+              <li>Obra de pessoa física</li>
+              <li>Recolhimento contínuo no período</li>
+              <li>Atingir o mínimo necessário da RMT</li>
+            </ul>
+          </div>
         </section>
         <section className={styles.panel}>
           <svg

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import {
   BarChart3,
@@ -65,9 +66,7 @@ export default async function AdminLayout({
           href="/admin"
           className="flex h-20 items-center gap-3 border-b border-slate-200 px-6"
         >
-          <span className="grid size-10 place-items-center rounded-xl bg-primary font-extrabold text-white">
-            I&amp;O
-          </span>
+          <Image src="/logo/simbolo-azul.svg" alt="" width={40} height={40} />
           <span className="font-bold leading-tight">
             Imposto &amp; Obra
             <small className="block text-xs font-medium text-slate-500">

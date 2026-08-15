@@ -6,196 +6,192 @@
 }
 .sheet {
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr 0.95fr;
+  grid-template-columns: 1.04fr 0.96fr 0.8fr;
   width: 297mm;
   height: 210mm;
   margin: 0 auto;
-  background: #ecedef;
-  color: #1e1e1e;
-  box-shadow: 0 20px 55px rgba(15, 23, 42, 0.18);
-  font-family:
-    Inter,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    Arial,
-    sans-serif;
+  background: #f7f8f9;
+  color: #2e3234;
+  font-family: Montserrat, Arial, sans-serif;
+}
+.info,
+.center,
+.panel {
+  padding: 30px 28px;
 }
 .info {
-  padding: 38px 32px 32px 38px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 15px;
+  border-right: 1px solid #d4d9dc;
 }
 .logo {
+  height: 48px;
   display: flex;
   align-items: center;
-  gap: 12px;
 }
-.mark {
-  display: grid;
-  place-items: center;
-  width: 58px;
-  height: 58px;
-  border-radius: 8px;
-  background: #0071e3;
-  color: #fff;
-  font-size: 19px;
-  font-weight: 900;
-}
-.brand {
-  font-size: 26px;
-  font-weight: 800;
-  line-height: 0.95;
-  letter-spacing: -0.02em;
-}
-.brand small {
-  display: block;
-  margin-top: 7px;
+.infoTitle,
+.kicker {
+  margin: 7px 0;
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-}
-.infoTitle {
-  margin: 8px 0 6px;
-  font-size: 13px;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.16em;
+  color: #0b76c6;
 }
 .infoList {
-  font-size: 13.5px;
-  line-height: 1.6;
+  font-size: 11.5px;
+  line-height: 1.55;
+  border-top: 1px solid #d4d9dc;
+  padding-top: 11px;
 }
 .infoList strong {
-  color: #0071e3;
-  font-weight: 650;
+  color: #2e3234;
+  font-weight: 700;
 }
 .values {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px 12px;
-  margin-top: 6px;
+  gap: 1px;
+  background: #d4d9dc;
+  border: 1px solid #d4d9dc;
 }
 .blueBox,
 .yellowBox {
-  border-radius: 6px;
-  padding: 14px 16px;
-  text-align: center;
+  padding: 13px 10px;
+  text-align: left;
+  background: #fff;
 }
 .blueBox {
   grid-row: span 2;
+  background: #0b76c6;
+  color: #fff;
   display: flex;
-  min-height: 130px;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  background: #0071e3;
-  color: white;
 }
 .yellowBox {
-  background: #ffd439;
+  background: #e7ecf0;
 }
 .boxLabel {
-  margin-bottom: 10px;
-  font-size: 13px;
-  font-weight: 750;
-  letter-spacing: 0.04em;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
 }
 .boxValue {
-  font-size: 20px;
-  font-weight: 850;
+  display: block;
+  margin-top: 8px;
+  font-size: 17px;
+  font-weight: 800;
 }
 .fineBox {
-  padding: 8px 16px;
-  font-size: 12.5px;
+  font-size: 10px;
 }
 .total {
   display: flex;
+  justify-content: space-between;
   align-items: baseline;
-  gap: 18px;
-  margin-top: 14px;
-  padding-left: 4px;
+  border-top: 2px solid #2e3234;
+  padding-top: 10px;
 }
-.total span:first-child {
-  font-size: 24px;
-  font-weight: 600;
+.total span {
+  font-size: 13px;
+  font-weight: 700;
 }
 .total strong {
-  font-size: 32px;
-  font-weight: 850;
+  font-size: 27px;
 }
 .installments {
-  margin: 2px 0 0 110px;
-  font-size: 12px;
+  font-size: 10px;
+  text-align: right;
 }
-.conditions {
-  margin-top: 18px;
-  font-size: 11.5px;
-}
-.conditions strong {
-  display: block;
-  margin-bottom: 6px;
-}
-.conditions ul {
-  padding-left: 18px;
-  line-height: 1.55;
-  list-style: disc;
+.info > .conditions {
+  display: none;
 }
 .center {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
-  padding: 38px 0;
+  border-right: 1px solid #d4d9dc;
 }
-.badge {
-  display: flex;
-  width: 220px;
-  height: 220px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: #0071e3;
-  padding: 16px;
-  color: white;
-  text-align: center;
-  font-size: 36px;
-  font-weight: 850;
-  line-height: 1.05;
+.centerTitle {
+  margin: 12px 0 16px;
+  font-size: 32px;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  font-weight: 800;
+}
+.centerText {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #5b6265;
+}
+.savingCard {
+  margin: 28px 0;
+  border-top: 1px solid #d4d9dc;
+  border-bottom: 1px solid #d4d9dc;
+  padding: 20px 0;
+}
+.savingCard span {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  font-weight: 800;
+  color: #0b76c6;
+}
+.savingCard strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 28px;
+  color: #3ab97a;
+}
+.conditions {
+  font-size: 10.5px;
+}
+.conditions strong {
+  font-size: 11px;
+}
+.conditions ul {
+  padding-left: 16px;
+  margin-top: 8px;
+  line-height: 1.65;
+  list-style: disc;
 }
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  background: #0071e3;
-  padding: 38px 32px;
-  color: white;
+  gap: 13px;
+  background: #0b76c6;
+  color: #fff;
 }
 .donut {
   display: block;
-  width: 195px;
-  height: 195px;
-  margin: 0 auto 4px;
+  width: 180px;
+  height: 180px;
+  margin: 6px auto;
 }
 .donutBig {
-  font-size: 38px;
-  font-weight: 850;
-  fill: #1e1e1e;
+  font-size: 27px;
+  font-weight: 800;
+  fill: #fff;
   text-anchor: middle;
 }
 .donutSmall {
-  font-size: 11px;
-  font-weight: 500;
-  fill: white;
+  font-size: 7px;
+  font-weight: 600;
+  fill: #fff;
   text-anchor: middle;
 }
 .panelText {
-  font-size: 12.5px;
+  font-size: 10.5px;
   line-height: 1.55;
   text-align: center;
 }
 .highlight {
-  font-size: 13px;
-  font-weight: 850;
+  padding: 15px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  font-weight: 800;
   line-height: 1.5;
   text-align: center;
 }
@@ -203,13 +199,13 @@
   margin-top: auto;
 }
 .contact h2 {
-  margin-bottom: 12px;
-  font-size: 22px;
-  font-weight: 850;
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: 800;
 }
 .contact p {
-  margin-bottom: 6px;
-  font-size: 12px;
+  margin-bottom: 5px;
+  font-size: 9.5px;
   line-height: 1.4;
 }
 @page {
@@ -230,11 +226,10 @@
     height: 210mm;
     min-height: 0;
     padding: 0;
-    background: #ecedef;
+    background: #f7f8f9;
     overflow: visible;
   }
   .sheet {
     margin: 0;
-    box-shadow: none;
   }
 }

@@ -10,14 +10,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        border: "hsl(var(--border))",
+        border: {
+          DEFAULT: "#D4D9DC",
+          light: "#E1E5E8",
+          softer: "#EAEEF0",
+        },
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        text: "#2E3234",
+        brandMuted: "#5B6265",
+        page: {
+          DEFAULT: "#F7F8F9",
+          soft: "#E7ECF0",
+        },
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+          DEFAULT: "#0B76C6",
+          hover: "#05528C",
+          foreground: "#FFFFFF",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -45,12 +56,13 @@ const config: Config = {
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "0px",
+        md: "0px",
+        sm: "0px",
       },
-      boxShadow: {
-        soft: "0 4px 16px rgba(2, 6, 23, 0.06)",
+      fontSize: {
+        "display-xl": ["62px", { lineHeight: ".98", letterSpacing: "-.035em" }],
+        "display-lg": ["44px", { lineHeight: "1", letterSpacing: "-.03em" }],
       },
     },
   },

@@ -45,7 +45,7 @@ export default async function ArticlesPage() {
           Entenda suas pendências, regularize a obra e conheça as formas legais
           de reduzir o valor do INSS.
         </p>
-        <section className="my-9 rounded-2xl bg-gradient-to-br from-primary to-blue-600 px-7 py-8 text-white shadow-xl shadow-blue-600/15 sm:px-9">
+        <section className="my-12 border-y border-border bg-primary px-7 py-10 text-white sm:px-10">
           <p className="text-xs font-bold uppercase tracking-[0.08em] text-white/80">
             ★ Comece aqui
           </p>
@@ -57,7 +57,7 @@ export default async function ArticlesPage() {
             os fundamentos reunidos em um único lugar.
           </p>
           <Link
-            className="mt-5 inline-flex rounded-full bg-white px-5 py-3 text-sm font-bold text-primary transition hover:bg-slate-100"
+            className="mt-5 inline-flex min-h-12 items-center bg-white px-5 py-3 text-sm font-bold text-primary transition hover:bg-slate-100"
             href="/guia-inss-de-obra"
           >
             Ler o guia completo
@@ -68,7 +68,7 @@ export default async function ArticlesPage() {
           <div className="grid gap-5 md:grid-cols-2">
             {articles.map((article) => (
               <article
-                className="flex flex-col rounded-[14px] border border-slate-200 bg-white p-6 shadow-sm"
+                className="flex flex-col border border-border bg-white p-7"
                 key={article.slug}
               >
                 {article.categoria && (
@@ -87,7 +87,7 @@ export default async function ArticlesPage() {
                   </p>
                 )}
                 <Link
-                  className="mt-5 inline-flex w-fit rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-white hover:brightness-105"
+                  className="mt-5 inline-flex w-fit border-b-2 border-primary pb-1 text-sm font-bold text-primary"
                   href={`/artigos/${article.slug}`}
                 >
                   Ler artigo
@@ -96,7 +96,7 @@ export default async function ArticlesPage() {
             ))}
           </div>
         ) : (
-          <section className="rounded-[14px] border border-slate-200 bg-slate-50 px-6 py-10 text-center">
+          <section className="border border-border bg-page px-6 py-10 text-center">
             <h2 className="text-xl font-bold">
               {unavailable
                 ? "Artigos temporariamente indisponíveis"

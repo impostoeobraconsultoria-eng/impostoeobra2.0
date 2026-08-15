@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Brand } from "./brand";
 
 const navigation = [
   { href: "/", label: "Home" },
@@ -27,9 +27,22 @@ export function HeaderNavigation({ whatsAppUrl }: { whatsAppUrl: string }) {
   }, [open]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-white/95 backdrop-blur-sm">
-      <div className="site-container flex min-h-[75px] items-center justify-between gap-5 py-3">
-        <Brand />
+    <header className="sticky top-0 z-50 border-b border-border bg-page/95 backdrop-blur-sm">
+      <div className="site-container flex min-h-[80px] items-center justify-between gap-7 py-4">
+        <Link
+          href="/"
+          aria-label="Imposto & Obra Consultoria - início"
+          className="inline-flex shrink-0"
+        >
+          <Image
+            alt="Imposto & Obra Consultoria"
+            className="h-auto w-[192px] sm:w-[208px]"
+            height={70}
+            priority
+            src="/logo/logo-horizontal.svg"
+            width={224}
+          />
+        </Link>
 
         <nav
           className="hidden items-center gap-6 lg:flex"
@@ -39,7 +52,7 @@ export function HeaderNavigation({ whatsAppUrl }: { whatsAppUrl: string }) {
             <Link
               key={item.href}
               href={item.href}
-              className="whitespace-nowrap text-sm font-medium text-foreground transition-colors hover:text-primary hover:no-underline"
+              className="whitespace-nowrap text-[13px] font-semibold text-text transition-colors hover:text-primary hover:no-underline"
             >
               {item.label}
             </Link>
@@ -50,14 +63,14 @@ export function HeaderNavigation({ whatsAppUrl }: { whatsAppUrl: string }) {
           href={whatsAppUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="ml-auto hidden rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground shadow-soft transition hover:no-underline hover:brightness-95 lg:inline-flex"
+          className="ml-auto hidden bg-primary px-5 py-3 text-[13px] font-bold text-white transition hover:bg-primary-hover hover:no-underline lg:inline-flex"
         >
-          Fale conosco
+          Falar no WhatsApp
         </a>
 
         <button
           type="button"
-          className="grid size-11 place-items-center rounded-lg text-foreground lg:hidden"
+          className="grid size-11 place-items-center text-text lg:hidden"
           aria-label={open ? "Fechar menu" : "Abrir menu"}
           aria-expanded={open}
           aria-controls="mobile-navigation"
@@ -83,14 +96,14 @@ export function HeaderNavigation({ whatsAppUrl }: { whatsAppUrl: string }) {
           <nav
             id="mobile-navigation"
             aria-label="Principal para dispositivos móveis"
-            className="ml-auto flex min-h-[calc(100vh-75px)] w-[min(88vw,360px)] flex-col gap-1 border-l border-border bg-white p-6 shadow-2xl"
+            className="ml-auto flex min-h-[calc(100vh-75px)] w-[min(88vw,360px)] flex-col gap-1 border-l border-border bg-page p-6"
           >
             {navigation.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-3 text-base font-semibold text-foreground hover:bg-secondary hover:no-underline"
+                className="border-b border-border-light px-3 py-3 text-base font-semibold text-text hover:text-primary hover:no-underline"
               >
                 {item.label}
               </Link>
@@ -99,10 +112,10 @@ export function HeaderNavigation({ whatsAppUrl }: { whatsAppUrl: string }) {
               href={whatsAppUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-5 rounded-full bg-accent px-5 py-3 text-center font-bold text-accent-foreground shadow-soft hover:no-underline hover:brightness-95"
+              className="mt-5 bg-primary px-5 py-3 text-center font-bold text-white hover:bg-primary-hover hover:no-underline"
               onClick={() => setOpen(false)}
             >
-              Fale conosco
+              Falar no WhatsApp
             </a>
           </nav>
         </div>

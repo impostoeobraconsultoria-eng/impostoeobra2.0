@@ -124,13 +124,6 @@ export default function ContatoPage() {
           Com a proposta aceita, conduzimos o processo até a entrega da CND.
         </li>
       </ol>
-      <FinalCta
-        title="Pronto para simular?"
-        highlight="É grátis e leva 2 minutos."
-        description="Diagnóstico jurídico em até 24h após a simulação."
-        href="/#calculadora"
-        label="Simular agora"
-      />
       <p className="rounded-xl bg-slate-50 px-5 py-4 text-[15px]">
         Conheça também: <Link href="/sobre">a equipe</Link>,{" "}
         <Link href="/guia-inss-de-obra">o guia completo</Link> e{" "}
