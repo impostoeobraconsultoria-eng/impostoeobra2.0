@@ -366,6 +366,7 @@ function validatePlan(
   assertUnique(
     plan.activities.map((row) => row.id),
     "atividades.id",
+    source.Atividades,
   );
   if (plan.leads.length !== source.Leads.length)
     throw new Error("Contagem de leads divergente no plano.");
@@ -411,20 +412,42 @@ async function verifyMigration(
       throw new Error(`Verificação ${table}: ${found}/${rows.length}.`);
     console.log(`  verificado ${table}: ${found}`);
   }
-  const { count: invalidLeadClients, error } = await supabase
-    .from("leads")
-    .select("id,clientes!leads_cliente_id_fkey(id)", {
-      count: "exact",
-      head: true,
-    })
-    .not("cliente_id", "is", null)
-    .is("clientes.id", null);
-  if (error)
-    console.warn(
-      `Aviso: verificação relacional de leads não disponível (${error.code}).`,
+  const referencedClientIds = new Set<string>();
+  for (const batch of chunks(
+    plan.leads.map((row) => row.id),
+    100,
+  )) {
+    const { data, error } = await supabase
+      .from("leads")
+      .select("cliente_id")
+      .in("id", batch)
+      .not("cliente_id", "is", null);
+    if (error)
+      throw new Error(`Verificação leads.cliente_id: ${error.message}`);
+    for (const lead of data ?? [])
+      if (lead.cliente_id) referencedClientIds.add(lead.cliente_id);
+  }
+
+  const foundClientIds = new Set<string>();
+  for (const batch of chunks(Array.from(referencedClientIds), 100)) {
+    const { data, error } = await supabase
+      .from("clientes")
+      .select("id")
+      .in("id", batch);
+    if (error)
+      throw new Error(`Verificação clientes referenciados: ${error.message}`);
+    for (const client of data ?? []) foundClientIds.add(client.id);
+  }
+  const invalidClientIds = Array.from(referencedClientIds).filter(
+    (id) => !foundClientIds.has(id),
+  );
+  if (invalidClientIds.length)
+    throw new Error(
+      `${invalidClientIds.length} cliente_id(s) de leads não localizado(s).`,
     );
-  else if (invalidLeadClients)
-    throw new Error(`${invalidLeadClients} lead(s) com cliente_id inválido.`);
+  console.log(
+    `  verificado leads.cliente_id: ${referencedClientIds.size} referência(s) válida(s)`,
+  );
 }
 
 async function readSheet(sheet: string, accessToken: string) {
@@ -571,12 +594,30 @@ function jsonValue(value: unknown) {
 function sourceError(row: SourceRow, message: string) {
   return new Error(`${row.__sheet}, linha ${row.__row}: ${message}`);
 }
-function assertUnique(values: string[], label: string) {
-  const seen = new Set<string>();
-  for (const value of values) {
-    if (seen.has(value)) throw new Error(`${label} duplicado: ${value}`);
-    seen.add(value);
+function assertUnique(values: string[], label: string, rows?: SourceRow[]) {
+  const seen = new Map<string, number>();
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    const previousIndex = seen.get(value);
+    if (previousIndex !== undefined) {
+      const locations = rows
+        ? duplicateContext(rows[previousIndex], rows[index])
+        : "";
+      throw new Error(`${label} duplicado: ${value}${locations}`);
+    }
+    seen.set(value, index);
   }
+}
+
+function duplicateContext(first: SourceRow, second: SourceRow) {
+  const sourceValues = (row: SourceRow) =>
+    Object.fromEntries(
+      Object.entries(row).filter(([key]) => !key.startsWith("__")),
+    );
+  const identical =
+    JSON.stringify(sourceValues(first)) ===
+    JSON.stringify(sourceValues(second));
+  return ` (linhas ${first.__row} e ${second.__row}; legacy_id ${legacyId(first, "atividade")}; conteúdo idêntico: ${identical ? "sim" : "não"})`;
 }
 
 const LEAD_TEXT_FIELDS = [
