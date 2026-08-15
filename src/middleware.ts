@@ -10,6 +10,7 @@ const ADMIN_ONLY_PATHS = [
   "/admin/usuarios",
   "/admin/config",
   "/admin/vau",
+  "/admin/leads/lixeira",
 ] as const;
 
 function isWithinPath(pathname: string, basePath: string) {
