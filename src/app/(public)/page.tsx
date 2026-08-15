@@ -4,12 +4,60 @@ import { getWhatsAppUrl } from "@/lib/whatsapp";
 
 export const metadata: Metadata = {
   title: "Regularize sua obra e economize INSS",
+  description:
+    "Consultoria especializada em regularização de obras e redução de INSS. Simule o valor do imposto da sua obra e descubra quanto você pode economizar.",
   alternates: { canonical: "/" },
+};
+
+const professionalServiceSchema = {
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  "@id": "https://impostoeobra.com.br/#organization",
+  name: "Imposto & Obra Consultoria",
+  alternateName: "Imposto e Obra",
+  url: "https://impostoeobra.com.br/",
+  logo: "https://impostoeobra.com.br/og-logo.png",
+  image: "https://impostoeobra.com.br/og-cover.png",
+  description:
+    "Consultoria especializada em regularização de obras e redução do INSS de construção civil. Atendimento nacional 100% remoto.",
+  telephone: "+55-61-99398-2653",
+  email: "impostoeobraconsultoria@gmail.com",
+  taxID: "63.382.260/0001-99",
+  foundingDate: "2025-10-27",
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "Brasília",
+    addressRegion: "DF",
+    addressCountry: "BR",
+  },
+  areaServed: { "@type": "Country", name: "Brasil" },
+  serviceType:
+    "Consultoria tributária especializada em INSS de obra, CNO, SERO e regularização perante a Receita Federal",
+  openingHoursSpecification: {
+    "@type": "OpeningHoursSpecification",
+    dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+    opens: "09:00",
+    closes: "19:00",
+  },
+  potentialAction: {
+    "@type": "Action",
+    name: "Simular INSS da obra",
+    target: "https://impostoeobra.com.br/#calc",
+  },
 };
 
 export default function Home() {
   return (
     <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(professionalServiceSchema).replace(
+            /</g,
+            "\\u003c",
+          ),
+        }}
+      />
       <section className="site-container grid gap-12 py-12 lg:grid-cols-[1.02fr_.98fr] lg:py-16">
         <div className="pt-3">
           <p className="mb-4 text-sm font-bold uppercase tracking-[.14em] text-primary">

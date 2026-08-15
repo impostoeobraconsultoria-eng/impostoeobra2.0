@@ -75,7 +75,7 @@ export function CalculadoraInss() {
       .then((body) => {
         if (body?.data) {
           setTabela(body.data);
-          if (body.vigencia) setPeriodo(body.vigencia);
+          if (body.vigencia) setPeriodo(formatVigencia(body.vigencia));
         }
       })
       .catch(() => {})
@@ -427,6 +427,16 @@ export function CalculadoraInss() {
       ) : null}
     </section>
   );
+}
+
+function formatVigencia(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const month = new Intl.DateTimeFormat("pt-BR", {
+    month: "long",
+    timeZone: "UTC",
+  }).format(date);
+  return `${month.charAt(0).toUpperCase()}${month.slice(1)}/${date.getUTCFullYear()}`;
 }
 
 function Actions({
