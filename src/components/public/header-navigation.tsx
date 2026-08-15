@@ -29,13 +29,18 @@ export function HeaderNavigation({ whatsAppUrl }: { whatsAppUrl: string }) {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-page/95 backdrop-blur-sm">
       <div className="site-container flex min-h-[80px] items-center justify-between gap-7 py-4">
-        <Link href="/" aria-label="Imposto & Obra Consultoria - início">
+        <Link
+          href="/"
+          aria-label="Imposto & Obra Consultoria - início"
+          className="inline-flex shrink-0"
+        >
           <Image
             alt="Imposto & Obra Consultoria"
-            height={42}
+            className="h-auto w-[180px] sm:w-[195px]"
+            height={70}
             priority
             src="/logo/logo-horizontal.svg"
-            width={154}
+            width={210}
           />
         </Link>
 
