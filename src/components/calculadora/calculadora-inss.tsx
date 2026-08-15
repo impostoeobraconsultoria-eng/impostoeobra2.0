@@ -16,19 +16,35 @@ import {
   type ResultadoCalculo,
 } from "@/lib/calculadora";
 
-const initial: EntradasCalculo = {
-  resp: "Pessoa Física",
-  dest: "Residencial Unifamiliar",
-  tipo: "Alvenaria",
-  categoria: "Obra Nova",
-  concreto: "Sim",
-  prefab: "Não",
-  uf: "DF",
-  a_construcao: 0,
-  a_reforma: 0,
-  a_demolicao: 0,
-  a_pcoberta: 0,
-  a_pdescoberta: 0,
+type FormInput = {
+  [K in keyof EntradasCalculo]: EntradasCalculo[K] extends number
+    ? string
+    : EntradasCalculo[K] | "";
+};
+
+const obraKeys = [
+  "resp",
+  "dest",
+  "tipo",
+  "categoria",
+  "concreto",
+  "prefab",
+  "uf",
+] as const;
+
+const initial: FormInput = {
+  resp: "",
+  dest: "",
+  tipo: "",
+  categoria: "",
+  concreto: "",
+  prefab: "",
+  uf: "",
+  a_construcao: "",
+  a_reforma: "",
+  a_demolicao: "",
+  a_pcoberta: "",
+  a_pdescoberta: "",
 };
 const inputClass =
   "mt-1.5 min-h-11 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20";
@@ -85,23 +101,48 @@ export function CalculadoraInss() {
       controller.abort();
     };
   }, []);
+  const camposObraValidos = obraKeys.every((key) => input[key] !== "");
+  const calculoInput = useMemo(
+    (): EntradasCalculo => ({
+      resp: input.resp as EntradasCalculo["resp"],
+      dest: input.dest as EntradasCalculo["dest"],
+      tipo: input.tipo as EntradasCalculo["tipo"],
+      categoria: input.categoria as EntradasCalculo["categoria"],
+      concreto: input.concreto as EntradasCalculo["concreto"],
+      prefab: input.prefab as EntradasCalculo["prefab"],
+      uf: input.uf as EntradasCalculo["uf"],
+      a_construcao: Number(input.a_construcao) || 0,
+      a_reforma: Number(input.a_reforma) || 0,
+      a_demolicao: Number(input.a_demolicao) || 0,
+      a_pcoberta: Number(input.a_pcoberta) || 0,
+      a_pdescoberta: Number(input.a_pdescoberta) || 0,
+    }),
+    [input],
+  );
   const areas = useMemo(() => {
-    const principal = input.a_construcao + input.a_reforma + input.a_demolicao;
-    const pct = percEquivalencia(input.dest, principal);
+    const principal =
+      calculoInput.a_construcao +
+      calculoInput.a_reforma +
+      calculoInput.a_demolicao;
+    const pct = calculoInput.dest
+      ? percEquivalencia(calculoInput.dest, principal)
+      : 0;
     return {
-      bruta: principal + input.a_pcoberta + input.a_pdescoberta,
+      bruta: principal + calculoInput.a_pcoberta + calculoInput.a_pdescoberta,
       equivalente:
         (principal * pct) / 100 +
-        input.a_pcoberta * 0.5 +
-        input.a_pdescoberta * 0.25,
+        calculoInput.a_pcoberta * 0.5 +
+        calculoInput.a_pdescoberta * 0.25,
     };
-  }, [input]);
-  const update = <K extends keyof EntradasCalculo>(
-    key: K,
-    value: EntradasCalculo[K],
-  ) => setInput((current) => ({ ...current, [key]: value }));
+  }, [calculoInput]);
+  const update = <K extends keyof FormInput>(key: K, value: FormInput[K]) =>
+    setInput((current) => ({ ...current, [key]: value }));
   const go = (next: number) => {
     setErro("");
+    if (step === 1 && next === 2 && !camposObraValidos) {
+      setErro("Preencha todos os campos antes de continuar");
+      return;
+    }
     if (next === 3 && areas.bruta <= 0) {
       setErro("A soma das áreas deve ser maior que zero.");
       return;
@@ -118,7 +159,7 @@ export function CalculadoraInss() {
     if (cleanDdd.length !== 2) return setErro("DDD deve ter 2 dígitos.");
     if (![8, 9].includes(cleanWhats.length))
       return setErro("WhatsApp deve ter 8 ou 9 dígitos.");
-    const r = calcularInss(input, tabela);
+    const r = calcularInss(calculoInput, tabela);
     setResultado(r);
     setErro("");
     setStep(4);
@@ -139,7 +180,7 @@ export function CalculadoraInss() {
         ddd: cleanDdd,
         whatsapp: cleanWhats,
         email: email.trim() || null,
-        ...input,
+        ...calculoInput,
         ...r,
       }),
     }).catch((error) => console.error("Erro ao enviar lead", error));
@@ -200,8 +241,11 @@ export function CalculadoraInss() {
                   update("resp", e.target.value as EntradasCalculo["resp"])
                 }
               >
+                <option value="">— Selecione —</option>
                 {RESPONSAVEIS.map((x) => (
-                  <option key={x}>{x}</option>
+                  <option key={x} value={x}>
+                    {x}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -213,8 +257,11 @@ export function CalculadoraInss() {
                   update("dest", e.target.value as EntradasCalculo["dest"])
                 }
               >
+                <option value="">— Selecione —</option>
                 {DESTINACOES.map((x) => (
-                  <option key={x}>{x}</option>
+                  <option key={x} value={x}>
+                    {x}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -226,8 +273,11 @@ export function CalculadoraInss() {
                   update("tipo", e.target.value as EntradasCalculo["tipo"])
                 }
               >
+                <option value="">— Selecione —</option>
                 {TIPOS_OBRA.map((x) => (
-                  <option key={x}>{x}</option>
+                  <option key={x} value={x}>
+                    {x}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -242,8 +292,11 @@ export function CalculadoraInss() {
                   )
                 }
               >
+                <option value="">— Selecione —</option>
                 {CATEGORIAS.map((x) => (
-                  <option key={x}>{x}</option>
+                  <option key={x} value={x}>
+                    {x}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -264,8 +317,9 @@ export function CalculadoraInss() {
                   update("concreto", e.target.value as "Sim" | "Não")
                 }
               >
-                <option>Sim</option>
-                <option>Não</option>
+                <option value="">— Selecione —</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
               </select>
             </Field>
             <Field
@@ -285,8 +339,9 @@ export function CalculadoraInss() {
                   update("prefab", e.target.value as "Sim" | "Não")
                 }
               >
-                <option>Não</option>
-                <option>Sim</option>
+                <option value="">— Selecione —</option>
+                <option value="Não">Não</option>
+                <option value="Sim">Sim</option>
               </select>
             </Field>
             <Field label="UF">
@@ -297,13 +352,16 @@ export function CalculadoraInss() {
                   update("uf", e.target.value as EntradasCalculo["uf"])
                 }
               >
+                <option value="">— Selecione —</option>
                 {UFS.map((x) => (
-                  <option key={x}>{x}</option>
+                  <option key={x} value={x}>
+                    {x}
+                  </option>
                 ))}
               </select>
             </Field>
           </div>
-          <Actions next={() => go(2)} />
+          <Actions next={() => go(2)} disabled={!camposObraValidos} />
         </div>
       ) : null}
       {step === 2 ? (
@@ -324,11 +382,10 @@ export function CalculadoraInss() {
                   className={inputClass}
                   type="number"
                   min="0"
-                  step="0.01"
+                  step="any"
+                  placeholder="0"
                   value={input[key]}
-                  onChange={(e) =>
-                    update(key, Math.max(0, Number(e.target.value)))
-                  }
+                  onChange={(e) => update(key, e.target.value)}
                 />
               </Field>
             ))}
@@ -444,11 +501,13 @@ function Actions({
   next,
   nextLabel = "Próximo",
   success = false,
+  disabled = false,
 }: {
   prev?: () => void;
   next: () => void;
   nextLabel?: string;
   success?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <div className="mt-7 flex flex-wrap justify-end gap-3">
@@ -461,8 +520,9 @@ function Actions({
         </button>
       ) : null}
       <button
-        className={`rounded-full px-6 py-2.5 text-sm font-bold text-white ${success ? "bg-accent" : "bg-primary"}`}
+        className={`rounded-full px-6 py-2.5 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-45 ${success ? "bg-accent" : "bg-primary"}`}
         onClick={next}
+        disabled={disabled}
       >
         {nextLabel}
       </button>
