@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
-import { LayoutGrid, List, LoaderCircle } from "lucide-react";
+import { Ellipsis, LayoutGrid, List, LoaderCircle, Trash2 } from "lucide-react";
 
-import { updateLeadStatus } from "@/app/admin/leads/actions";
+import { softDeleteLead, updateLeadStatus } from "@/app/admin/leads/actions";
 import type { LeadRecord } from "@/lib/leads";
 
 type User = { id: string; nome: string | null };
@@ -17,16 +17,20 @@ export function LeadsBoard({
   initialLeads,
   users,
   stages,
+  isAdmin,
+  initialStatus = "",
 }: {
   initialLeads: LeadRecord[];
   users: User[];
   stages: { nome: string; cor: string | null }[];
+  isAdmin: boolean;
+  initialStatus?: string;
 }) {
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [leads, setLeads] = useState(initialLeads);
   const [filters, setFilters] = useState({
     uf: "",
-    status: "",
+    status: initialStatus,
     responsavel: "",
     from: "",
     to: "",
@@ -62,6 +66,17 @@ export function LeadsBoard({
         setLeads(previous);
         setMessage(result.error ?? "Não foi possível alterar o status.");
       }
+    });
+  }
+
+  function removeLead(id: string, nome: string) {
+    if (!window.confirm(`Mover ${nome} para a lixeira?`)) return;
+    setMessage("");
+    startTransition(async () => {
+      const result = await softDeleteLead(id);
+      if (result.ok)
+        setLeads((items) => items.filter((lead) => lead.id !== id));
+      else setMessage(result.error ?? "Não foi possível excluir o lead.");
     });
   }
 
@@ -152,12 +167,12 @@ export function LeadsBoard({
         </div>
       )}
       {view === "kanban" ? (
-        <div className="mt-6 flex gap-4 overflow-x-auto pb-5">
+        <div className="mt-6 grid gap-4 overflow-visible pb-5 sm:flex sm:max-w-[calc(100vw-3rem)] sm:overflow-x-auto lg:max-w-[calc(100vw-19rem)]">
           {stages.map(({ nome: status, cor }) => {
             const column = filtered.filter((lead) => lead.status === status);
             return (
               <section
-                className="w-72 shrink-0 rounded-2xl bg-slate-100 p-3"
+                className="w-full min-w-0 rounded-2xl bg-slate-100 p-3 sm:w-72 sm:shrink-0"
                 key={status}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) =>
@@ -173,18 +188,47 @@ export function LeadsBoard({
                     {column.length}
                   </span>
                 </div>
-                <div className="space-y-3">
+                <div className="max-h-none space-y-3 overflow-y-visible sm:max-h-[calc(100vh-7.5rem)] sm:overflow-y-auto sm:pr-1">
                   {column.map((lead) => (
-                    <Link
-                      href={`/admin/leads/${lead.id}`}
+                    <article
                       draggable
                       onDragStart={(e) =>
                         e.dataTransfer.setData("text/lead-id", lead.id)
                       }
-                      className="block cursor-grab rounded-xl border bg-white p-4 shadow-sm hover:border-primary/30"
+                      className="relative cursor-grab rounded-xl border bg-white p-4 shadow-sm hover:border-primary/30"
                       key={lead.id}
                     >
-                      <h3 className="font-semibold">{lead.nome}</h3>
+                      <div className="flex items-start gap-2">
+                        <Link
+                          className="min-w-0 flex-1 font-semibold hover:text-primary"
+                          href={`/admin/leads/${lead.id}`}
+                        >
+                          {lead.nome}
+                        </Link>
+                        {isAdmin && (
+                          <details
+                            className="relative"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <summary
+                              className="list-none rounded-md p-1 text-slate-500 hover:bg-slate-100"
+                              aria-label={`Ações de ${lead.nome}`}
+                            >
+                              <Ellipsis className="size-4" />
+                            </summary>
+                            <div className="absolute right-0 top-7 z-10 w-32 rounded-lg border bg-white p-1 shadow-lg">
+                              <button
+                                type="button"
+                                onClick={() => removeLead(lead.id, lead.nome)}
+                                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-semibold text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="size-4" />
+                                Excluir
+                              </button>
+                            </div>
+                          </details>
+                        )}
+                      </div>
                       <p className="mt-1 text-xs text-slate-500">
                         {[lead.cidade, lead.uf].filter(Boolean).join(" / ") ||
                           "Local não informado"}
@@ -194,7 +238,7 @@ export function LeadsBoard({
                           {money.format(Number(lead.valor_potencial))}
                         </p>
                       )}
-                    </Link>
+                    </article>
                   ))}
                   {column.length === 0 && (
                     <p className="rounded-xl border border-dashed border-slate-300 px-3 py-8 text-center text-xs text-slate-400">

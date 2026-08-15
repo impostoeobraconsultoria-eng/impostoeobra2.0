@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, X } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 
 import { createLead } from "@/app/admin/leads/actions";
 import { LeadsBoard } from "@/components/admin/leads-board";
@@ -10,22 +10,44 @@ type Props = { searchParams?: Record<string, string | string[] | undefined> };
 
 export default async function LeadsPage({ searchParams }: Props) {
   const supabase = createClient();
-  const [{ data: leads, error }, { data: users }, { data: funnelStages }] =
-    await Promise.all([
-      supabase
-        .from("leads")
-        .select(
-          "id,data_hora,nome,ddd,whatsapp,email,uf,cidade,produto,status,responsavel_id,valor_potencial,observacoes",
-        )
-        .is("deleted_at", null)
-        .order("data_hora", { ascending: false })
-        .limit(500),
-      supabase.from("users").select("id,nome").eq("ativo", true).order("nome"),
-      supabase.from("funil_etapas").select("nome,cor").order("ordem"),
-    ]);
+  const [
+    { data: leads, error },
+    { data: users },
+    { data: funnelStages },
+    { data: claims },
+  ] = await Promise.all([
+    supabase
+      .from("leads")
+      .select(
+        "id,data_hora,nome,ddd,whatsapp,email,uf,cidade,produto,status,responsavel_id,valor_potencial,observacoes",
+      )
+      .is("deleted_at", null)
+      .order("data_hora", { ascending: false })
+      .limit(500),
+    supabase.from("users").select("id,nome").eq("ativo", true).order("nome"),
+    supabase.from("funil_etapas").select("nome,cor").order("ordem"),
+    supabase.auth.getClaims(),
+  ]);
+  const email = claims?.claims.email;
+  const { data: profile } =
+    typeof email === "string"
+      ? await supabase
+          .from("users")
+          .select("perfil")
+          .eq("email", email)
+          .eq("ativo", true)
+          .maybeSingle()
+      : { data: null };
+  const isAdmin = profile?.perfil === "admin";
   const stages = funnelStages?.length
     ? funnelStages
     : LEAD_STATUSES.map((nome) => ({ nome, cor: null }));
+  const requestedStatus = Array.isArray(searchParams?.status)
+    ? searchParams?.status[0]
+    : searchParams?.status;
+  const initialStatus = stages.some((stage) => stage.nome === requestedStatus)
+    ? requestedStatus
+    : "";
   const showNew = searchParams?.new === "1";
 
   return (
@@ -40,13 +62,24 @@ export default async function LeadsPage({ searchParams }: Props) {
               fechamento.
             </p>
           </div>
-          <Link
-            href={showNew ? "/admin/leads" : "/admin/leads?new=1"}
-            className="flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-white"
-          >
-            {showNew ? <X className="size-4" /> : <Plus className="size-4" />}
-            {showNew ? "Fechar" : "Novo lead"}
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {isAdmin && (
+              <Link
+                href="/admin/leads/lixeira"
+                className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700"
+              >
+                <Trash2 className="size-4" />
+                Lixeira
+              </Link>
+            )}
+            <Link
+              href={showNew ? "/admin/leads" : "/admin/leads?new=1"}
+              className="flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-white"
+            >
+              {showNew ? <X className="size-4" /> : <Plus className="size-4" />}
+              {showNew ? "Fechar" : "Novo lead"}
+            </Link>
+          </div>
         </div>
         {error && (
           <p
@@ -114,6 +147,8 @@ export default async function LeadsPage({ searchParams }: Props) {
           initialLeads={(leads ?? []) as LeadRecord[]}
           users={users ?? []}
           stages={stages}
+          isAdmin={isAdmin}
+          initialStatus={initialStatus}
         />
       </div>
     </main>

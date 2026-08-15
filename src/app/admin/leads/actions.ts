@@ -22,12 +22,79 @@ async function context() {
   if (typeof email !== "string") throw new Error("Sessão expirada.");
   const { data: user } = await supabase
     .from("users")
-    .select("id")
+    .select("id,perfil")
     .eq("email", email)
     .eq("ativo", true)
     .single();
   if (!user) throw new Error("Usuário não autorizado.");
   return { supabase, user };
+}
+
+async function adminContext() {
+  const value = await context();
+  if (value.user.perfil !== "admin")
+    throw new Error("Acesso restrito a administradores.");
+  return value;
+}
+
+export async function softDeleteLead(id: string) {
+  if (!z.string().uuid().safeParse(id).success)
+    return { ok: false, error: "Lead inválido." };
+  const { supabase, user } = await adminContext();
+  const { error } = await supabase
+    .from("leads")
+    .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) return { ok: false, error: error.message };
+  await supabase.from("atividades").insert({
+    ref_tipo: "lead",
+    ref_id: id,
+    tipo: "exclusao",
+    descricao: "Lead movido para a lixeira",
+    autor_id: user.id,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/leads");
+  revalidatePath("/admin/leads/lixeira");
+  return { ok: true };
+}
+
+export async function restoreLead(id: string) {
+  if (!z.string().uuid().safeParse(id).success)
+    return { ok: false, error: "Lead inválido." };
+  const { supabase, user } = await adminContext();
+  const { error } = await supabase
+    .from("leads")
+    .update({ deleted_at: null, updated_by: user.id })
+    .eq("id", id)
+    .not("deleted_at", "is", null);
+  if (error) return { ok: false, error: error.message };
+  await supabase.from("atividades").insert({
+    ref_tipo: "lead",
+    ref_id: id,
+    tipo: "restauracao",
+    descricao: "Lead restaurado da lixeira",
+    autor_id: user.id,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/leads");
+  revalidatePath("/admin/leads/lixeira");
+  return { ok: true };
+}
+
+export async function permanentlyDeleteLead(id: string) {
+  if (!z.string().uuid().safeParse(id).success)
+    return { ok: false, error: "Lead inválido." };
+  const { supabase } = await adminContext();
+  const { error } = await supabase
+    .from("leads")
+    .delete()
+    .eq("id", id)
+    .not("deleted_at", "is", null);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/leads/lixeira");
+  return { ok: true };
 }
 
 export async function updateLeadStatus(id: string, status: string) {

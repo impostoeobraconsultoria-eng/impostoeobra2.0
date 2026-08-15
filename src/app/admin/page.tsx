@@ -1,10 +1,11 @@
 import Link from "next/link";
 import {
-  ArrowRight,
   BadgeDollarSign,
-  CircleDollarSign,
+  CircleCheckBig,
+  FileSignature,
   Target,
-  Users,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
@@ -12,15 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 type AdminPageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
 };
-type Lead = {
-  id: string;
-  nome: string;
-  status: string;
-  uf: string | null;
-  cidade: string | null;
-  data_hora: string;
-  valor_potencial: number | null;
-};
+type Stage = { nome: string; cor: string | null; e_fechada: boolean };
 
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -32,28 +25,28 @@ const shortDate = new Intl.DateTimeFormat("pt-BR", {
   month: "2-digit",
   timeZone: "America/Sao_Paulo",
 });
-const dateTime = new Intl.DateTimeFormat("pt-BR", {
-  dateStyle: "short",
-  timeStyle: "short",
-  timeZone: "America/Sao_Paulo",
-});
 
-function getPeriods(now = new Date()) {
-  const brasiliaNow = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-  const year = brasiliaNow.getUTCFullYear();
-  const month = brasiliaNow.getUTCMonth();
-  const day = brasiliaNow.getUTCDate();
-  const monthStart = new Date(Date.UTC(year, month, 1, 3));
-  const nextMonth = new Date(Date.UTC(year, month + 1, 1, 3));
-  const thirtyDaysAgo = new Date(Date.UTC(year, month, day - 29, 3));
+function periods(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).formatToParts(now);
+  const get = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value);
+  const year = get("year");
+  const month = get("month") - 1;
+  const day = get("day");
   return {
-    monthStart: monthStart.toISOString(),
-    nextMonth: nextMonth.toISOString(),
-    thirtyDaysAgo,
+    previousMonthStart: new Date(Date.UTC(year, month - 1, 1, 3)).toISOString(),
+    monthStart: new Date(Date.UTC(year, month, 1, 3)).toISOString(),
+    nextMonth: new Date(Date.UTC(year, month + 1, 1, 3)).toISOString(),
+    thirtyDaysAgo: new Date(Date.UTC(year, month, day - 29, 3)).toISOString(),
   };
 }
 
-function brasiliaDateKey(value: string | Date) {
+function dateKey(value: string | Date) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     year: "numeric",
     month: "2-digit",
@@ -64,24 +57,84 @@ function brasiliaDateKey(value: string | Date) {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
-function isWon(status: string) {
-  const normalized = status
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-  return normalized.includes("fechado") && normalized.includes("ganho");
+function LeadsLineChart({
+  values,
+}: {
+  values: { day: string; count: number }[];
+}) {
+  const max = Math.max(1, ...values.map((value) => value.count));
+  const points = values
+    .map(
+      (value, index) =>
+        `${(index / Math.max(1, values.length - 1)) * 100},${100 - (value.count / max) * 88}`,
+    )
+    .join(" ");
+  return (
+    <div className="mt-7">
+      <svg
+        viewBox="0 0 100 105"
+        preserveAspectRatio="none"
+        className="h-52 w-full overflow-visible"
+        role="img"
+        aria-label="Gráfico de linha de leads recebidos por dia"
+      >
+        {[25, 50, 75, 100].map((y) => (
+          <line
+            key={y}
+            x1="0"
+            x2="100"
+            y1={y}
+            y2={y}
+            stroke="#e2e8f0"
+            strokeWidth="0.5"
+          />
+        ))}
+        <polyline
+          points={points}
+          fill="none"
+          stroke="#0071e3"
+          strokeWidth="2"
+          vectorEffect="non-scaling-stroke"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {values.map((value, index) => (
+          <circle
+            key={value.day}
+            cx={(index / Math.max(1, values.length - 1)) * 100}
+            cy={100 - (value.count / max) * 88}
+            r="1.2"
+            fill="#0071e3"
+          >
+            <title>
+              {shortDate.format(new Date(`${value.day}T12:00:00`))}:{" "}
+              {value.count}
+            </title>
+          </circle>
+        ))}
+      </svg>
+      <div className="mt-2 flex justify-between text-xs text-slate-400">
+        <span>{shortDate.format(new Date(`${values[0]?.day}T12:00:00`))}</span>
+        <span>
+          {shortDate.format(new Date(`${values.at(-1)?.day}T12:00:00`))}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const forbidden = searchParams?.error === "forbidden";
   const supabase = createClient();
-  const { monthStart, nextMonth, thirtyDaysAgo } = getPeriods();
-
+  const { previousMonthStart, monthStart, nextMonth, thirtyDaysAgo } =
+    periods();
   const [
-    monthLeadsResult,
-    chartLeadsResult,
-    latestLeadsResult,
+    currentResult,
+    previousResult,
+    allLeadsResult,
+    chartResult,
     contractsResult,
+    stagesResult,
     goalResult,
   ] = await Promise.all([
     supabase
@@ -92,46 +145,59 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .lt("data_hora", nextMonth),
     supabase
       .from("leads")
-      .select("data_hora")
+      .select("id", { count: "exact", head: true })
       .is("deleted_at", null)
-      .gte("data_hora", thirtyDaysAgo.toISOString())
-      .order("data_hora"),
+      .gte("data_hora", previousMonthStart)
+      .lt("data_hora", monthStart),
+    supabase.from("leads").select("status").is("deleted_at", null),
     supabase
       .from("leads")
-      .select("id,nome,status,uf,cidade,data_hora,valor_potencial")
+      .select("data_hora")
       .is("deleted_at", null)
-      .order("data_hora", { ascending: false })
-      .limit(10),
+      .gte("data_hora", thirtyDaysAgo)
+      .order("data_hora"),
     supabase
       .from("contratos")
-      .select("valor_total,data_assinatura")
+      .select("id,valor_total")
       .is("deleted_at", null)
       .neq("status", "cancelado")
       .gte("data_assinatura", monthStart.slice(0, 10))
       .lt("data_assinatura", nextMonth.slice(0, 10)),
+    supabase.from("funil_etapas").select("nome,cor,e_fechada").order("ordem"),
     supabase
       .from("config")
       .select("valor")
-      .eq("chave", "meta_faturamento_mensal")
+      .eq("chave", "meta_leads_mensal")
       .maybeSingle(),
   ]);
-
-  const queryError = [
-    monthLeadsResult.error,
-    chartLeadsResult.error,
-    latestLeadsResult.error,
+  const errors = [
+    currentResult.error,
+    previousResult.error,
+    allLeadsResult.error,
+    chartResult.error,
     contractsResult.error,
-  ].find(Boolean);
-  if (queryError)
-    console.error("Falha ao carregar dashboard", {
-      code: queryError.code,
-      message: queryError.message,
-    });
+    stagesResult.error,
+  ].filter(Boolean);
+  if (errors.length)
+    console.error(
+      "Falha ao carregar dashboard",
+      errors.map((error) => ({ code: error?.code, message: error?.message })),
+    );
 
-  const monthLeads = monthLeadsResult.data ?? [];
-  const leadsCount = monthLeadsResult.count ?? monthLeads.length;
-  const wonCount = monthLeads.filter((lead) => isWon(lead.status)).length;
-  const conversionRate = leadsCount ? (wonCount / leadsCount) * 100 : 0;
+  const stages = (stagesResult.data ?? []) as Stage[];
+  const closed = new Set(
+    stages.filter((stage) => stage.e_fechada).map((stage) => stage.nome),
+  );
+  const current = currentResult.data ?? [];
+  const currentCount = currentResult.count ?? current.length;
+  const previousCount = previousResult.count ?? 0;
+  const variation = previousCount
+    ? ((currentCount - previousCount) / previousCount) * 100
+    : currentCount
+      ? 100
+      : 0;
+  const closedCount = current.filter((lead) => closed.has(lead.status)).length;
+  const conversion = currentCount ? (closedCount / currentCount) * 100 : 0;
   const contracts = contractsResult.data ?? [];
   const revenue = contracts.reduce(
     (sum, contract) => sum + Number(contract.valor_total ?? 0),
@@ -140,41 +206,54 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const averageTicket = contracts.length ? revenue / contracts.length : 0;
   const goal = Number(goalResult.data?.valor);
   const validGoal = Number.isFinite(goal) && goal > 0 ? goal : null;
-  const goalProgress = validGoal
-    ? Math.min(100, (revenue / validGoal) * 100)
-    : 0;
 
-  const dayCounts = new Map<string, number>();
+  const counts = new Map<string, number>();
+  for (const lead of allLeadsResult.data ?? [])
+    counts.set(lead.status, (counts.get(lead.status) ?? 0) + 1);
+  const funnel = stages.map((stage, index) => ({
+    ...stage,
+    count: counts.get(stage.nome) ?? 0,
+    drop: index
+      ? Math.max(
+          0,
+          (counts.get(stages[index - 1].nome) ?? 0) -
+            (counts.get(stage.nome) ?? 0),
+        )
+      : 0,
+  }));
+  const biggestDrop = Math.max(0, ...funnel.map((stage) => stage.drop));
+  const maxStage = Math.max(1, ...funnel.map((stage) => stage.count));
+
+  const daily = new Map<string, number>();
   for (let index = 0; index < 30; index += 1) {
     const day = new Date(thirtyDaysAgo);
-    day.setDate(day.getDate() + index);
-    dayCounts.set(brasiliaDateKey(day), 0);
+    day.setUTCDate(day.getUTCDate() + index);
+    daily.set(dateKey(day), 0);
   }
-  for (const lead of chartLeadsResult.data ?? []) {
-    const key = brasiliaDateKey(lead.data_hora);
-    dayCounts.set(key, (dayCounts.get(key) ?? 0) + 1);
+  for (const lead of chartResult.data ?? []) {
+    const key = dateKey(lead.data_hora);
+    daily.set(key, (daily.get(key) ?? 0) + 1);
   }
-  const chart = Array.from(dayCounts, ([day, count]) => ({ day, count }));
-  const maxDaily = Math.max(1, ...chart.map(({ count }) => count));
+  const chart = Array.from(daily, ([day, count]) => ({ day, count }));
 
   const kpis = [
     {
       label: "Leads este mês",
-      value: number.format(leadsCount),
-      detail: `${wonCount} fechado${wonCount === 1 ? "" : "s"} — ganho`,
-      icon: Users,
+      value: number.format(currentCount),
+      detail: `${variation >= 0 ? "+" : ""}${variation.toFixed(1).replace(".", ",")}% vs. mês anterior`,
+      icon: variation >= 0 ? TrendingUp : TrendingDown,
     },
     {
       label: "Taxa de conversão",
-      value: `${conversionRate.toFixed(1).replace(".", ",")}%`,
-      detail: "Sobre os leads deste mês",
+      value: `${conversion.toFixed(1).replace(".", ",")}%`,
+      detail: `${closedCount} de ${currentCount} leads fechados`,
       icon: Target,
     },
     {
       label: "Contratos assinados",
-      value: money.format(revenue),
-      detail: `${contracts.length} contrato${contracts.length === 1 ? "" : "s"} no mês`,
-      icon: CircleDollarSign,
+      value: number.format(contracts.length),
+      detail: `No mês atual`,
+      icon: FileSignature,
     },
     {
       label: "Ticket médio",
@@ -187,13 +266,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   return (
     <main className="px-5 py-8 sm:px-8 sm:py-10">
       <div className="mx-auto max-w-7xl">
-        <div>
-          <p className="text-sm font-semibold text-primary">Visão geral</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="mt-2 text-slate-500">
-            Acompanhe o desempenho comercial do mês.
-          </p>
-        </div>
+        <p className="text-sm font-semibold text-primary">Visão geral</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="mt-2 text-slate-500">
+          Acompanhe o desempenho comercial do mês.
+        </p>
         {forbidden && (
           <p
             role="alert"
@@ -202,16 +279,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             Seu perfil não tem permissão para acessar essa área.
           </p>
         )}
-        {queryError && (
+        {!!errors.length && (
           <p
             role="alert"
             className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
           >
-            Não foi possível atualizar todos os indicadores agora. Tente
-            recarregar a página.
+            Não foi possível atualizar todos os indicadores agora.
           </p>
         )}
-
         <section
           className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
           aria-label="Indicadores do mês"
@@ -224,7 +299,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               <div className="flex items-start justify-between">
                 <p className="text-sm font-medium text-slate-500">{label}</p>
                 <span className="rounded-xl bg-blue-50 p-2 text-primary">
-                  <Icon aria-hidden="true" className="size-5" />
+                  <Icon className="size-5" aria-hidden="true" />
                 </span>
               </div>
               <p className="mt-4 text-2xl font-bold tracking-tight">{value}</p>
@@ -232,142 +307,85 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </article>
           ))}
         </section>
-
-        <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+        <section className="mt-6 grid gap-6 xl:grid-cols-2">
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <div>
-              <h2 className="text-lg font-bold">Leads nos últimos 30 dias</h2>
-              <p className="text-sm text-slate-500">
-                Novos contatos recebidos por dia
-              </p>
-            </div>
-            <div
-              className="mt-8 flex h-52 items-end gap-1"
-              role="img"
-              aria-label="Gráfico de leads recebidos por dia"
-            >
-              {chart.map(({ day, count }, index) => (
-                <div
-                  className="group relative flex min-w-0 flex-1 flex-col items-center justify-end"
-                  key={day}
+            <h2 className="text-lg font-bold">Funil de conversão</h2>
+            <p className="text-sm text-slate-500">
+              Distribuição atual dos leads por etapa
+            </p>
+            <div className="mt-6 space-y-4">
+              {funnel.map((stage) => (
+                <Link
+                  key={stage.nome}
+                  href={`/admin/leads?status=${encodeURIComponent(stage.nome)}`}
+                  className="group block"
                 >
-                  <span className="absolute -top-7 hidden rounded bg-slate-900 px-2 py-1 text-xs text-white group-hover:block">
-                    {count}
-                  </span>
-                  <div
-                    className="w-full min-w-1 rounded-t bg-primary/80"
-                    style={{
-                      height: `${Math.max(count ? 8 : 2, (count / maxDaily) * 100)}%`,
-                    }}
-                  />
-                  <span className="mt-2 hidden text-[10px] text-slate-400 sm:block">
-                    {index % 5 === 0
-                      ? shortDate.format(new Date(`${day}T12:00:00`))
-                      : ""}
-                  </span>
-                </div>
+                  <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                    <span className="truncate font-semibold group-hover:text-primary">
+                      {stage.nome}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2 font-bold">
+                      {stage.drop > 0 && stage.drop === biggestDrop && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-amber-800">
+                          gargalo
+                        </span>
+                      )}
+                      {stage.count}
+                    </span>
+                  </div>
+                  <div className="h-6 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full min-w-1 rounded-full transition-all group-hover:brightness-95"
+                      style={{
+                        width: `${Math.max(2, (stage.count / maxStage) * 100)}%`,
+                        backgroundColor: stage.cor || "#0071e3",
+                      }}
+                    />
+                  </div>
+                </Link>
               ))}
+              {!funnel.length && (
+                <p className="py-10 text-center text-sm text-slate-500">
+                  Configure as etapas do funil para visualizar os dados.
+                </p>
+              )}
             </div>
           </article>
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">
-              Meta de faturamento do mês
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <h2 className="text-lg font-bold">Leads nos últimos 30 dias</h2>
+            <p className="text-sm text-slate-500">
+              Novos contatos recebidos por dia
             </p>
-            <p className="mt-3 text-3xl font-bold">
-              {validGoal ? money.format(revenue) : "Não configurada"}
-            </p>
-            {validGoal ? (
-              <>
-                <p className="mt-1 text-sm text-slate-500">
-                  de {money.format(validGoal)}
-                </p>
-                <div className="mt-6 h-3 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-accent"
-                    style={{ width: `${goalProgress}%` }}
-                  />
-                </div>
-                <p className="mt-2 text-sm font-semibold text-slate-700">
-                  {goalProgress.toFixed(0)}% realizado
-                </p>
-              </>
-            ) : (
-              <p className="mt-3 text-sm leading-relaxed text-slate-500">
-                Defina a chave{" "}
-                <code className="rounded bg-slate-100 px-1.5 py-0.5">
-                  meta_faturamento_mensal
-                </code>{" "}
-                em Config.
-              </p>
-            )}
+            <LeadsLineChart values={chart} />
           </article>
         </section>
-
-        <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 sm:px-6">
-            <div>
-              <h2 className="text-lg font-bold">Últimos leads</h2>
-              <p className="text-sm text-slate-500">
-                Os 10 contatos mais recentes
-              </p>
+        {validGoal && (
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-slate-500">
+                  Meta mensal de leads fechados
+                </p>
+                <p className="mt-2 text-2xl font-bold">
+                  {closedCount} de {number.format(validGoal)}
+                </p>
+              </div>
+              <CircleCheckBig className="size-8 text-accent" />
             </div>
-            <Link
-              href="/admin/leads"
-              className="flex items-center gap-1 text-sm font-semibold text-primary"
-            >
-              Ver todos <ArrowRight className="size-4" />
-            </Link>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-6 py-3 font-semibold">Nome</th>
-                  <th className="px-4 py-3 font-semibold">Local</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Potencial</th>
-                  <th className="px-6 py-3 font-semibold">Recebido</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {(latestLeadsResult.data as Lead[] | null)?.map((lead) => (
-                  <tr className="hover:bg-slate-50" key={lead.id}>
-                    <td className="px-6 py-4 font-semibold">
-                      <Link href={`/admin/leads/${lead.id}`}>{lead.nome}</Link>
-                    </td>
-                    <td className="px-4 py-4 text-slate-600">
-                      {[lead.cidade, lead.uf].filter(Boolean).join(" / ") ||
-                        "—"}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-primary">
-                        {lead.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-slate-600">
-                      {lead.valor_potencial == null
-                        ? "—"
-                        : money.format(Number(lead.valor_potencial))}
-                    </td>
-                    <td className="px-6 py-4 text-slate-500">
-                      {dateTime.format(new Date(lead.data_hora))}
-                    </td>
-                  </tr>
-                ))}
-                {!latestLeadsResult.data?.length && (
-                  <tr>
-                    <td
-                      className="px-6 py-10 text-center text-slate-500"
-                      colSpan={5}
-                    >
-                      Nenhum lead recebido ainda.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+            <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-accent"
+                style={{
+                  width: `${Math.min(100, (closedCount / validGoal) * 100)}%`,
+                }}
+              />
+            </div>
+            <p className="mt-2 text-sm font-semibold text-slate-600">
+              {Math.min(100, (closedCount / validGoal) * 100).toFixed(0)}% da
+              meta
+            </p>
+          </section>
+        )}
       </div>
     </main>
   );
