@@ -15,7 +15,7 @@ import {
   getConfigMap,
   joinAddress,
 } from "@/lib/documentos";
-import { calcularComplementar, LEAD_STATUSES } from "@/lib/leads";
+import { calcularComplementar } from "@/lib/leads";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
@@ -39,6 +39,7 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
     { data: activities },
     { data: users },
     { data: documents },
+    { data: funnelStages },
     config,
   ] = await Promise.all([
     supabase
@@ -62,6 +63,7 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
       .eq("ref_id", params.id)
       .order("gerado_em", { ascending: false })
       .limit(10),
+    supabase.from("funil_etapas").select("nome").order("ordem"),
     getConfigMap(),
   ]);
   if (error || !lead) notFound();
@@ -186,8 +188,8 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
                     defaultValue={lead.status}
                     className="input"
                   >
-                    {LEAD_STATUSES.map((status) => (
-                      <option key={status}>{status}</option>
+                    {(funnelStages ?? []).map((stage) => (
+                      <option key={stage.nome}>{stage.nome}</option>
                     ))}
                   </select>
                 </label>

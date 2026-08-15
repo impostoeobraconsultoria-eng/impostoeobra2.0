@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { LEAD_STATUSES } from "@/lib/leads";
 import { createClient } from "@/lib/supabase/server";
 
 const optionalText = z.preprocess(
@@ -33,10 +32,15 @@ async function context() {
 
 export async function updateLeadStatus(id: string, status: string) {
   const parsed = z
-    .object({ id: z.string().uuid(), status: z.enum(LEAD_STATUSES) })
+    .object({
+      id: z.string().uuid(),
+      status: z.string().trim().min(1).max(100),
+    })
     .safeParse({ id, status });
   if (!parsed.success) return { ok: false, error: "Status inválido." };
   const { supabase, user } = await context();
+  if (!(await isValidStatus(supabase, status)))
+    return { ok: false, error: "Status inválido." };
   const { data: previous } = await supabase
     .from("leads")
     .select("status")
@@ -71,13 +75,15 @@ export async function createLead(formData: FormData) {
     uf: optionalText,
     cidade: optionalText,
     produto: optionalText,
-    status: z.enum(LEAD_STATUSES),
+    status: z.string().trim().min(1).max(100),
     valor_potencial: optionalNumber,
     observacoes: optionalText,
   });
   const parsed = schema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect("/admin/leads?new=1&error=invalid");
   const { supabase, user } = await context();
+  if (!(await isValidStatus(supabase, parsed.data.status)))
+    redirect("/admin/leads?new=1&error=invalid");
   const { data, error } = await supabase
     .from("leads")
     .insert({ ...parsed.data, origem: "manual", updated_by: user.id })
@@ -192,10 +198,15 @@ export async function updateLead(id: string, formData: FormData) {
   if (
     typeof payload.nome !== "string" ||
     payload.nome.length < 2 ||
-    (payload.status && !LEAD_STATUSES.includes(payload.status as never))
+    (payload.status && typeof payload.status !== "string")
   )
     redirect(`/admin/leads/${id}?error=invalid`);
   const { supabase, user } = await context();
+  if (
+    typeof payload.status === "string" &&
+    !(await isValidStatus(supabase, payload.status))
+  )
+    redirect(`/admin/leads/${id}?error=invalid`);
   const { error } = await supabase
     .from("leads")
     .update({ ...payload, updated_by: user.id })
@@ -213,6 +224,18 @@ export async function updateLead(id: string, formData: FormData) {
   revalidatePath("/admin/leads");
   revalidatePath(`/admin/leads/${id}`);
   redirect(`/admin/leads/${id}?saved=1`);
+}
+
+async function isValidStatus(
+  supabase: ReturnType<typeof createClient>,
+  status: string,
+) {
+  const { data } = await supabase
+    .from("funil_etapas")
+    .select("id")
+    .eq("nome", status)
+    .maybeSingle();
+  return Boolean(data);
 }
 
 export async function addLeadNote(id: string, formData: FormData) {

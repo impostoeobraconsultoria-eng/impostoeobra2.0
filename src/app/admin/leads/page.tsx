@@ -10,17 +10,22 @@ type Props = { searchParams?: Record<string, string | string[] | undefined> };
 
 export default async function LeadsPage({ searchParams }: Props) {
   const supabase = createClient();
-  const [{ data: leads, error }, { data: users }] = await Promise.all([
-    supabase
-      .from("leads")
-      .select(
-        "id,data_hora,nome,ddd,whatsapp,email,uf,cidade,produto,status,responsavel_id,valor_potencial,observacoes",
-      )
-      .is("deleted_at", null)
-      .order("data_hora", { ascending: false })
-      .limit(500),
-    supabase.from("users").select("id,nome").eq("ativo", true).order("nome"),
-  ]);
+  const [{ data: leads, error }, { data: users }, { data: funnelStages }] =
+    await Promise.all([
+      supabase
+        .from("leads")
+        .select(
+          "id,data_hora,nome,ddd,whatsapp,email,uf,cidade,produto,status,responsavel_id,valor_potencial,observacoes",
+        )
+        .is("deleted_at", null)
+        .order("data_hora", { ascending: false })
+        .limit(500),
+      supabase.from("users").select("id,nome").eq("ativo", true).order("nome"),
+      supabase.from("funil_etapas").select("nome,cor").order("ordem"),
+    ]);
+  const stages = funnelStages?.length
+    ? funnelStages
+    : LEAD_STATUSES.map((nome) => ({ nome, cor: null }));
   const showNew = searchParams?.new === "1";
 
   return (
@@ -76,8 +81,8 @@ export default async function LeadsPage({ searchParams }: Props) {
                   name="status"
                   className="mt-1 w-full rounded-lg border px-3 py-2.5 font-normal"
                 >
-                  {LEAD_STATUSES.map((status) => (
-                    <option key={status}>{status}</option>
+                  {stages.map((stage) => (
+                    <option key={stage.nome}>{stage.nome}</option>
                   ))}
                 </select>
               </label>
@@ -108,6 +113,7 @@ export default async function LeadsPage({ searchParams }: Props) {
         <LeadsBoard
           initialLeads={(leads ?? []) as LeadRecord[]}
           users={users ?? []}
+          stages={stages}
         />
       </div>
     </main>

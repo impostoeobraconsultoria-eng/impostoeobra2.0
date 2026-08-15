@@ -5,7 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { LayoutGrid, List, LoaderCircle } from "lucide-react";
 
 import { updateLeadStatus } from "@/app/admin/leads/actions";
-import { LEAD_STATUSES, type LeadRecord } from "@/lib/leads";
+import type { LeadRecord } from "@/lib/leads";
 
 type User = { id: string; nome: string | null };
 const money = new Intl.NumberFormat("pt-BR", {
@@ -16,9 +16,11 @@ const money = new Intl.NumberFormat("pt-BR", {
 export function LeadsBoard({
   initialLeads,
   users,
+  stages,
 }: {
   initialLeads: LeadRecord[];
   users: User[];
+  stages: { nome: string; cor: string | null }[];
 }) {
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [leads, setLeads] = useState(initialLeads);
@@ -115,8 +117,8 @@ export function LeadsBoard({
             className="rounded-lg border px-3 py-2 text-sm"
           >
             <option value="">Todos os status</option>
-            {LEAD_STATUSES.map((status) => (
-              <option key={status}>{status}</option>
+            {stages.map((stage) => (
+              <option key={stage.nome}>{stage.nome}</option>
             ))}
           </select>
           <select
@@ -151,7 +153,7 @@ export function LeadsBoard({
       )}
       {view === "kanban" ? (
         <div className="mt-6 flex gap-4 overflow-x-auto pb-5">
-          {LEAD_STATUSES.map((status) => {
+          {stages.map(({ nome: status, cor }) => {
             const column = filtered.filter((lead) => lead.status === status);
             return (
               <section
@@ -162,7 +164,10 @@ export function LeadsBoard({
                   moveLead(e.dataTransfer.getData("text/lead-id"), status)
                 }
               >
-                <div className="mb-3 flex items-center justify-between px-1">
+                <div
+                  className="mb-3 flex items-center justify-between border-t-4 px-1 pt-3"
+                  style={{ borderColor: cor || "#0B76C6" }}
+                >
                   <h2 className="text-sm font-bold">{status}</h2>
                   <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-slate-500">
                     {column.length}
