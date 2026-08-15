@@ -341,13 +341,24 @@ function SystemForm({ values }: { values: ConfigMap }) {
           value={values.resend_from_name}
           required
         />
-        <Input
-          name="agenda_lembrete_default_min"
-          label="Lembrete padrão (minutos)"
-          type="number"
-          value={values.agenda_lembrete_default_min || "60"}
-          min="0"
-        />
+        <label className="field">
+          Lembrete padrão
+          <select
+            className="input"
+            name="agenda_lembrete_default_min"
+            defaultValue={
+              ["1440", "4320", "10080"].includes(
+                values.agenda_lembrete_default_min,
+              )
+                ? values.agenda_lembrete_default_min
+                : "1440"
+            }
+          >
+            <option value="1440">1 dia antes</option>
+            <option value="4320">3 dias antes</option>
+            <option value="10080">1 semana antes</option>
+          </select>
+        </label>
       </div>
       <SaveButton />
     </form>

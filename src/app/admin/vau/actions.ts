@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
-import { UFS, VAU_COLUMNS } from "@/lib/vau";
+import { UFS, VAU_COLUMNS } from "@/lib/vau-constants";
 
 const moneyValue = z.preprocess(
   (value) => Number(String(value).replace(",", ".")),
@@ -59,6 +59,19 @@ export async function saveVau(formData: FormData) {
     console.error("Falha ao salvar VAU", { code: error.code });
     redirect("/admin/vau?error=save");
   }
+  const { error: configError } = await supabase
+    .from("config")
+    .upsert(
+      { chave: "vau_vigencia", valor: vigencia.data },
+      { onConflict: "chave" },
+    );
+  if (configError) {
+    console.error("Falha ao atualizar vigência da VAU", {
+      code: configError.code,
+    });
+    redirect("/admin/vau?error=save");
+  }
+  revalidateTag("config");
   revalidateTag("vau");
   revalidatePath("/api/vau");
   revalidatePath("/admin/vau");

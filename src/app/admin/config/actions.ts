@@ -35,12 +35,7 @@ const sections = {
       .transform(String),
     resend_from_email: z.string().trim().email(),
     resend_from_name: field.min(2),
-    agenda_lembrete_default_min: z.coerce
-      .number()
-      .int()
-      .min(0)
-      .max(10080)
-      .transform(String),
+    agenda_lembrete_default_min: z.enum(["1440", "4320", "10080"]),
   }),
 } as const;
 

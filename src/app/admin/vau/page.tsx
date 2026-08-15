@@ -1,8 +1,8 @@
-import { AlertTriangle, Save, TableProperties } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { UFS, VAU_COLUMNS } from "@/lib/vau";
-import { saveVau } from "./actions";
+import { UFS } from "@/lib/vau-constants";
+import { VauEditor } from "./vau-editor";
 
 type VauRow = {
   uf: string;
@@ -79,83 +79,11 @@ export default async function VauPage({
           </div>
         )}
 
-        <form action={saveVau} className="mt-6">
-          <section className="mb-4 flex flex-wrap items-end gap-4 rounded-2xl border bg-white p-5">
-            <label className="field w-full max-w-xs">
-              Vigência *
-              <input
-                className="input"
-                name="vigencia"
-                required
-                maxLength={80}
-                defaultValue={vigencia}
-                placeholder="Ex.: Junho/2026"
-              />
-            </label>
-            <p className="max-w-xl text-sm leading-relaxed text-slate-500">
-              Confira a publicação oficial antes de salvar. A alteração afeta
-              imediatamente novas simulações após a revalidação do cache.
-            </p>
-          </section>
-
-          <div className="max-h-[70vh] overflow-auto rounded-2xl border bg-white shadow-sm">
-            <table className="w-full min-w-[1450px] border-collapse text-left">
-              <thead className="sticky top-0 z-10 bg-slate-100 text-xs text-slate-700 shadow-sm">
-                <tr>
-                  <th className="sticky left-0 z-20 bg-slate-100 p-3">UF</th>
-                  {VAU_COLUMNS.map((column) => (
-                    <th className="min-w-[185px] p-3" key={column.key}>
-                      {column.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {UFS.map((uf) => {
-                  const row = byUf.get(uf);
-                  return (
-                    <tr className="hover:bg-blue-50/40" key={uf}>
-                      <th className="sticky left-0 bg-white p-3 font-bold text-primary">
-                        {uf}
-                      </th>
-                      {VAU_COLUMNS.map((column) => (
-                        <td className="p-2" key={column.key}>
-                          <div className="flex items-center rounded-lg border bg-white px-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
-                            <span className="text-xs text-slate-400">R$</span>
-                            <input
-                              className="w-full px-2 py-2 text-right tabular-nums outline-none"
-                              type="number"
-                              name={`${uf}.${column.key}`}
-                              min="0.01"
-                              max="99999999.99"
-                              step="0.01"
-                              required
-                              defaultValue={String(row?.[column.key] ?? "")}
-                              aria-label={`${column.label} — ${uf}`}
-                            />
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="sticky bottom-4 z-20 mt-4 flex items-center justify-between gap-4 rounded-2xl border bg-white/95 p-4 shadow-xl backdrop-blur">
-            <p className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-              <TableProperties className="size-4 text-primary" /> 27 UFs × 7
-              destinações
-            </p>
-            <button
-              className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-bold text-white disabled:opacity-50"
-              disabled={Boolean(error)}
-            >
-              <Save className="size-4" /> Salvar tudo
-            </button>
-          </div>
-        </form>
+        <VauEditor
+          initialRows={rows}
+          initialVigencia={vigencia}
+          disabled={Boolean(error)}
+        />
       </div>
     </main>
   );
