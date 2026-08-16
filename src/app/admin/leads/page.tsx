@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Plus, Trash2, X } from "lucide-react";
 
-import { createLead } from "@/app/admin/leads/actions";
+import { ManualLeadForm } from "@/components/admin/manual-lead-form";
 import { LeadsBoard } from "@/components/admin/leads-board";
 import { LEAD_STATUSES, type LeadRecord } from "@/lib/leads";
 import { createClient } from "@/lib/supabase/server";
@@ -92,55 +92,7 @@ export default async function LeadsPage({ searchParams }: Props) {
         {showNew && (
           <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
             <h2 className="text-xl font-bold">Novo lead</h2>
-            {searchParams?.error && (
-              <p className="mt-3 text-sm text-red-700">
-                Revise os campos e tente novamente.
-              </p>
-            )}
-            <form
-              action={createLead}
-              className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-            >
-              <Field name="nome" label="Nome *" required />
-              <Field name="email" label="E-mail" type="email" />
-              <Field name="ddd" label="DDD" />
-              <Field name="whatsapp" label="WhatsApp" />
-              <Field name="uf" label="UF" />
-              <Field name="cidade" label="Cidade" />
-              <Field name="produto" label="Produto" />
-              <label className="text-sm font-semibold">
-                Status
-                <select
-                  name="status"
-                  className="mt-1 w-full rounded-lg border px-3 py-2.5 font-normal"
-                >
-                  {stages.map((stage) => (
-                    <option key={stage.nome}>{stage.nome}</option>
-                  ))}
-                </select>
-              </label>
-              <Field
-                name="valor_potencial"
-                label="Valor potencial"
-                type="number"
-              />
-              <label className="text-sm font-semibold sm:col-span-2 lg:col-span-3">
-                Observações
-                <textarea
-                  name="observacoes"
-                  rows={3}
-                  className="mt-1 w-full rounded-lg border px-3 py-2.5 font-normal"
-                />
-              </label>
-              <div className="flex items-end">
-                <button
-                  className="w-full rounded-full bg-accent px-5 py-3 font-bold text-white"
-                  type="submit"
-                >
-                  Criar lead
-                </button>
-              </div>
-            </form>
+            <ManualLeadForm stages={stages} />
           </section>
         )}
         <LeadsBoard
@@ -152,30 +104,5 @@ export default async function LeadsPage({ searchParams }: Props) {
         />
       </div>
     </main>
-  );
-}
-
-function Field({
-  name,
-  label,
-  type = "text",
-  required = false,
-}: {
-  name: string;
-  label: string;
-  type?: string;
-  required?: boolean;
-}) {
-  return (
-    <label className="text-sm font-semibold">
-      {label}
-      <input
-        className="mt-1 w-full rounded-lg border px-3 py-2.5 font-normal"
-        name={name}
-        type={type}
-        required={required}
-        step={type === "number" ? "0.01" : undefined}
-      />
-    </label>
   );
 }

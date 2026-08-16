@@ -543,7 +543,9 @@ create policy clientes_select_active on public.clientes
 create policy clientes_insert_active on public.clientes
   for insert with check (public.is_active_user());
 create policy clientes_update_active on public.clientes
-  for update using (public.is_active_user()) with check (public.is_active_user());
+  for update to authenticated
+  using ((select public.is_active_user()) and (deleted_at is null or (select public.is_admin())))
+  with check ((select public.is_active_user()) and (deleted_at is null or (select public.is_admin())));
 create policy clientes_delete_admin on public.clientes
   for delete using (public.is_admin());
 
@@ -579,7 +581,9 @@ create policy contratos_select_active on public.contratos
 create policy contratos_insert_active on public.contratos
   for insert with check (public.is_active_user());
 create policy contratos_update_active on public.contratos
-  for update using (public.is_active_user()) with check (public.is_active_user());
+  for update to authenticated
+  using ((select public.is_active_user()) and (deleted_at is null or (select public.is_admin())))
+  with check ((select public.is_active_user()) and (deleted_at is null or (select public.is_admin())));
 create policy contratos_delete_admin on public.contratos
   for delete using (public.is_admin());
 

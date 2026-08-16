@@ -11,12 +11,18 @@ async function context() {
   if (typeof c?.claims.email !== "string") throw new Error("Sessão expirada");
   const { data: u } = await supabase
     .from("users")
-    .select("id")
+    .select("id,perfil")
     .eq("email", c.claims.email)
     .eq("ativo", true)
     .single();
   if (!u) throw new Error("Não autorizado");
   return { supabase, user: u };
+}
+async function adminContext() {
+  const value = await context();
+  if (value.user.perfil !== "admin")
+    throw new Error("Acesso restrito a administradores.");
+  return value;
 }
 function parse(f: FormData) {
   const raw = Object.fromEntries(f);
@@ -128,4 +134,68 @@ export async function addContractNote(id: string, f: FormData) {
   });
   revalidatePath(`/admin/contratos/${id}`);
   redirect(`/admin/contratos/${id}?saved=note`);
+}
+
+export async function softDeleteContract(id: string) {
+  if (!z.string().uuid().safeParse(id).success)
+    return { ok: false, error: "Contrato inválido." };
+  const { supabase, user } = await adminContext();
+  const { error } = await supabase
+    .from("contratos")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) return { ok: false, error: error.message };
+  await supabase
+    .from("atividades")
+    .insert({
+      ref_tipo: "contrato",
+      ref_id: id,
+      tipo: "exclusao",
+      descricao: "Contrato movido para a lixeira",
+      autor_id: user.id,
+    });
+  revalidatePath("/admin/contratos");
+  revalidatePath("/admin/contratos/lixeira");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function restoreContract(id: string) {
+  if (!z.string().uuid().safeParse(id).success)
+    return { ok: false, error: "Contrato inválido." };
+  const { supabase, user } = await adminContext();
+  const { error } = await supabase
+    .from("contratos")
+    .update({ deleted_at: null })
+    .eq("id", id)
+    .not("deleted_at", "is", null);
+  if (error) return { ok: false, error: error.message };
+  await supabase
+    .from("atividades")
+    .insert({
+      ref_tipo: "contrato",
+      ref_id: id,
+      tipo: "restauracao",
+      descricao: "Contrato restaurado da lixeira",
+      autor_id: user.id,
+    });
+  revalidatePath("/admin/contratos");
+  revalidatePath("/admin/contratos/lixeira");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function permanentlyDeleteContract(id: string) {
+  if (!z.string().uuid().safeParse(id).success)
+    return { ok: false, error: "Contrato inválido." };
+  const { supabase } = await adminContext();
+  const { error } = await supabase
+    .from("contratos")
+    .delete()
+    .eq("id", id)
+    .not("deleted_at", "is", null);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/contratos/lixeira");
+  return { ok: true };
 }
