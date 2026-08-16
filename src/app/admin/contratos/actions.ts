@@ -23,7 +23,7 @@ function parse(f: FormData) {
   const schema = z.object({
     cliente_id: z.string().uuid(),
     numero: z.string().trim().max(80).nullable(),
-    produto: z.string().trim().max(160).nullable(),
+    produto: z.enum(["obra_andamento", "obra_finalizada"]),
     status: z.enum(statuses),
     valor_total: z.number().nonnegative().nullable(),
     valor_pago: z.number().nonnegative().nullable(),
@@ -39,7 +39,6 @@ function parse(f: FormData) {
   return schema.safeParse({
     ...raw,
     numero: t("numero"),
-    produto: t("produto"),
     valor_total: n("valor_total"),
     valor_pago: n("valor_pago"),
     forma_pagamento: t("forma_pagamento"),
@@ -52,14 +51,14 @@ function parse(f: FormData) {
 }
 export async function createContract(f: FormData) {
   const p = parse(f);
-  if (!p.success) redirect("/admin/contratos?new=1&error=invalid");
+  if (!p.success) redirect("/admin/contratos/novo?error=invalid");
   const { supabase, user } = await context();
   const { data, error } = await supabase
     .from("contratos")
     .insert(p.data)
     .select("id")
     .single();
-  if (error || !data) redirect("/admin/contratos?new=1&error=save");
+  if (error || !data) redirect("/admin/contratos/novo?error=save");
   await supabase.from("atividades").insert({
     ref_tipo: "contrato",
     ref_id: data.id,

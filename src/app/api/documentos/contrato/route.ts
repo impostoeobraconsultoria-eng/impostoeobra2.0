@@ -58,13 +58,18 @@ const fields = [
   "escopo_servico",
 ] as const;
 
-function normalizeProduct(value: unknown) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-}
+const templateMap = {
+  obra_andamento: {
+    file: "contrato_obra_andamento.docx",
+    modalidade: "obra em andamento",
+    documentType: "contrato_andamento" as const,
+  },
+  obra_finalizada: {
+    file: "contrato_obra_finalizada.docx",
+    modalidade: "obra finalizada",
+    documentType: "contrato_finalizada" as const,
+  },
+} as const;
 
 export async function POST(request: Request) {
   try {
@@ -95,13 +100,14 @@ export async function POST(request: Request) {
         { error: "Cliente do contrato não encontrado." },
         { status: 422 },
       );
-    const product = normalizeProduct(contrato.produto);
-    const andamento = product.includes("andamento");
-    const finalizada =
-      product.includes("finalizada") || product.includes("finalizado");
-    if (!andamento && !finalizada)
+    const product = contrato.produto as keyof typeof templateMap;
+    const templateDefinition = templateMap[product];
+    if (!templateDefinition)
       return NextResponse.json(
-        { error: "O produto deve indicar obra_andamento ou obra_finalizada." },
+        {
+          error:
+            "Este contrato tem modalidade inválida. Edite e escolha uma modalidade válida antes de gerar a minuta.",
+        },
         { status: 422 },
       );
     const config = await getConfigMap();
@@ -154,16 +160,13 @@ export async function POST(request: Request) {
         "Escopo customizado conforme alinhado entre as partes.",
     };
     const values = mergeAndNormalize(defaults, parsed.data.params, fields);
-    const template = andamento
-      ? config.template_contrato_andamento || "contrato_obra_andamento.docx"
-      : config.template_contrato_finalizada || "contrato_obra_finalizada.docx";
-    const buffer = await generateDocx(template, values);
-    const modalidade = andamento ? "obra em andamento" : "obra finalizada";
+    const buffer = await generateDocx(templateDefinition.file, values);
+    const modalidade = templateDefinition.modalidade;
     const nomeArquivo = fileName(
       `Contrato ${values.numero_contrato} — ${values.contratante_nome} (${modalidade}) — ${new Date().toISOString().slice(0, 10)}.docx`,
     );
     const result = await persistDocx({
-      tipo: andamento ? "contrato_andamento" : "contrato_finalizada",
+      tipo: templateDefinition.documentType,
       refTipo: "contrato",
       refId: contrato.id,
       nomeArquivo,

@@ -7,6 +7,12 @@ export function ContractForm({
   clients: Array<{ id: string; nome: string }>;
   values?: Record<string, unknown>;
 }) {
+  const currentProduct = String(values.produto ?? "");
+  const productValue = ["obra_andamento", "obra_finalizada"].includes(
+    currentProduct,
+  )
+    ? currentProduct
+    : "";
   return (
     <form
       action={action}
@@ -28,9 +34,27 @@ export function ContractForm({
           ))}
         </select>
       </label>
+      <label className="field">
+        Modalidade *
+        <select
+          name="produto"
+          required
+          defaultValue={productValue}
+          className="input"
+        >
+          <option value="">Selecione</option>
+          <option value="obra_andamento">Obra em andamento</option>
+          <option value="obra_finalizada">Obra finalizada</option>
+        </select>
+        {currentProduct && !productValue && (
+          <span className="mt-1 block text-xs font-semibold text-amber-700">
+            Modalidade legada inválida: {currentProduct}. Escolha uma opção
+            válida antes de salvar.
+          </span>
+        )}
+      </label>
       {[
         ["numero", "Número", "text"],
-        ["produto", "Produto", "text"],
         ["valor_total", "Valor total", "number"],
         ["valor_pago", "Valor pago", "number"],
         ["forma_pagamento", "Forma de pagamento", "text"],
