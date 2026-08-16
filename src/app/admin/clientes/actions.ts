@@ -18,6 +18,13 @@ async function context() {
   return { supabase, user: u };
 }
 
+async function adminContext() {
+  const value = await context();
+  if (value.user.perfil !== "admin")
+    throw new Error("Acesso restrito a administradores.");
+  return value;
+}
+
 const uuid = z.string().uuid();
 const noteContent = z.string().trim().min(2).max(3000);
 
@@ -192,4 +199,79 @@ export async function convertLead(id: string) {
   revalidatePath("/admin/leads");
   revalidatePath("/admin/clientes");
   redirect(`/admin/clientes/${data}?saved=converted`);
+}
+
+export async function softDeleteCustomer(id: string) {
+  if (!uuid.safeParse(id).success)
+    return { ok: false, error: "Cliente inválido." };
+  const { supabase, user } = await adminContext();
+  const { error } = await supabase
+    .from("clientes")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) return { ok: false, error: error.message };
+  await supabase
+    .from("atividades")
+    .insert({
+      ref_tipo: "cliente",
+      ref_id: id,
+      tipo: "exclusao",
+      descricao: "Cliente movido para a lixeira",
+      autor_id: user.id,
+    });
+  revalidatePath("/admin/clientes");
+  revalidatePath("/admin/clientes/lixeira");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function restoreCustomer(id: string) {
+  if (!uuid.safeParse(id).success)
+    return { ok: false, error: "Cliente inválido." };
+  const { supabase, user } = await adminContext();
+  const { error } = await supabase
+    .from("clientes")
+    .update({ deleted_at: null })
+    .eq("id", id)
+    .not("deleted_at", "is", null);
+  if (error) return { ok: false, error: error.message };
+  await supabase
+    .from("atividades")
+    .insert({
+      ref_tipo: "cliente",
+      ref_id: id,
+      tipo: "restauracao",
+      descricao: "Cliente restaurado da lixeira",
+      autor_id: user.id,
+    });
+  revalidatePath("/admin/clientes");
+  revalidatePath("/admin/clientes/lixeira");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function permanentlyDeleteCustomer(id: string) {
+  if (!uuid.safeParse(id).success)
+    return { ok: false, error: "Cliente inválido." };
+  const { supabase } = await adminContext();
+  const { count, error: countError } = await supabase
+    .from("contratos")
+    .select("id", { count: "exact", head: true })
+    .eq("cliente_id", id);
+  if (countError) return { ok: false, error: countError.message };
+  if ((count ?? 0) > 0)
+    return {
+      ok: false,
+      error:
+        "Não é possível excluir permanentemente — há contratos vinculados.",
+    };
+  const { error } = await supabase
+    .from("clientes")
+    .delete()
+    .eq("id", id)
+    .not("deleted_at", "is", null);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/clientes/lixeira");
+  return { ok: true };
 }

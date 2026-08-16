@@ -7,7 +7,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
 const optionalText = z.preprocess(
-  (value) => (value === "" ? null : value),
+  (value) => (value === "" || value == null ? null : value),
   z.string().trim().max(2000).nullable(),
 );
 const optionalNumber = z.preprocess(
@@ -133,9 +133,16 @@ export async function updateLeadStatus(id: string, status: string) {
   return { ok: true };
 }
 
-export async function createLead(formData: FormData) {
+export type CreateLeadState = {
+  errors?: Partial<Record<"nome" | "status" | "form", string>>;
+};
+
+export async function createLead(
+  _state: CreateLeadState,
+  formData: FormData,
+): Promise<CreateLeadState> {
   const schema = z.object({
-    nome: z.string().trim().min(2).max(160),
+    nome: z.string().trim().min(1, "Nome é obrigatório").max(160),
     email: optionalText,
     ddd: optionalText,
     whatsapp: optionalText,
@@ -147,16 +154,28 @@ export async function createLead(formData: FormData) {
     observacoes: optionalText,
   });
   const parsed = schema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) redirect("/admin/leads?new=1&error=invalid");
+  if (!parsed.success) {
+    const fields = parsed.error.flatten().fieldErrors;
+    return {
+      errors: {
+        nome: fields.nome?.[0],
+        status: fields.status?.[0],
+        form: "Revise os campos destacados e tente novamente.",
+      },
+    };
+  }
   const { supabase, user } = await context();
   if (!(await isValidStatus(supabase, parsed.data.status)))
-    redirect("/admin/leads?new=1&error=invalid");
+    return { errors: { status: "Status inválido" } };
   const { data, error } = await supabase
     .from("leads")
     .insert({ ...parsed.data, origem: "manual", updated_by: user.id })
     .select("id")
     .single();
-  if (error || !data) redirect("/admin/leads?new=1&error=save");
+  if (error || !data) {
+    console.error("Falha ao criar lead manual", error);
+    return { errors: { form: "Não foi possível salvar o lead." } };
+  }
   await supabase.from("atividades").insert({
     ref_tipo: "lead",
     ref_id: data.id,

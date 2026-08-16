@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { Trash2 } from "lucide-react";
 import { createContract } from "./actions";
 import { ContractForm } from "@/components/admin/contract-form";
 import { createClient } from "@/lib/supabase/server";
+import { EntityDeleteMenu } from "@/components/admin/entity-delete-menu";
 export default async function Page({
   searchParams,
 }: {
@@ -14,10 +16,22 @@ export default async function Page({
     .is("deleted_at", null)
     .order("criado_em", { ascending: false });
   if (searchParams?.status) q = q.eq("status", searchParams.status);
-  const [{ data }, { data: clients }] = await Promise.all([
+  const [{ data }, { data: clients }, { data: claims }] = await Promise.all([
     q,
     s.from("clientes").select("id,nome").is("deleted_at", null).order("nome"),
+    s.auth.getClaims(),
   ]);
+  const email = claims?.claims.email;
+  const { data: profile } =
+    typeof email === "string"
+      ? await s
+          .from("users")
+          .select("perfil")
+          .eq("email", email)
+          .eq("ativo", true)
+          .maybeSingle()
+      : { data: null };
+  const isAdmin = profile?.perfil === "admin";
   const show = searchParams?.new === "1";
   return (
     <main className="px-5 py-8 sm:px-8">
@@ -27,12 +41,23 @@ export default async function Page({
             <p className="text-sm font-semibold text-primary">CRM</p>
             <h1 className="text-3xl font-bold">Contratos</h1>
           </div>
-          <Link
-            className="rounded-full bg-primary px-5 py-3 font-bold text-white"
-            href={show ? "/admin/contratos" : "/admin/contratos/novo"}
-          >
-            {show ? "Fechar" : "Novo contrato"}
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {isAdmin && (
+              <Link
+                className="flex items-center gap-2 rounded-full border px-5 py-3 font-bold text-slate-700"
+                href="/admin/contratos/lixeira"
+              >
+                <Trash2 className="size-4" />
+                Lixeira
+              </Link>
+            )}
+            <Link
+              className="rounded-full bg-primary px-5 py-3 font-bold text-white"
+              href="/admin/contratos/novo"
+            >
+              Novo contrato
+            </Link>
+          </div>
         </div>
         {show && (
           <section className="mt-6 rounded-2xl border bg-white p-6">
@@ -65,6 +90,11 @@ export default async function Page({
                 <th>Status</th>
                 <th>Total</th>
                 <th>Pago</th>
+                {isAdmin && (
+                  <th className="w-14">
+                    <span className="sr-only">Ações</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -99,12 +129,21 @@ export default async function Page({
                     <td>{c.status}</td>
                     <td>{money(c.valor_total)}</td>
                     <td>{money(c.valor_pago)}</td>
+                    {isAdmin && (
+                      <td className="pr-3">
+                        <EntityDeleteMenu
+                          kind="contrato"
+                          id={c.id}
+                          name={c.numero || "sem número"}
+                        />
+                      </td>
+                    )}
                   </tr>
                 );
               })}
               {!data?.length && (
                 <tr>
-                  <td colSpan={6} className="p-10 text-center">
+                  <td colSpan={isAdmin ? 7 : 6} className="p-10 text-center">
                     Nenhum contrato cadastrado.
                   </td>
                 </tr>

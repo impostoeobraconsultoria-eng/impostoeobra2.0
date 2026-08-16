@@ -35,11 +35,11 @@ export default async function PrivacyPage() {
       <p>Os dados são tratados sob a responsabilidade de:</p>
       <ul>
         <li>
-          <strong>Controlador:</strong> Imposto & Obra Consultoria, CNPJ nº
-          63.382.260/0001-99
+          <strong>Controlador:</strong> {config.empresa_razao_social} · CNPJ nº{" "}
+          {config.empresa_cnpj}
         </li>
         <li>
-          <strong>Sede:</strong> Brasília — Distrito Federal — Brasil
+          <strong>Sede:</strong> {config.empresa_endereco_completo}
         </li>
         <li>
           <strong>Encarregado:</strong> {config.dpo_nome}

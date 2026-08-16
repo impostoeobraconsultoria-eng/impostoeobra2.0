@@ -11,6 +11,8 @@ const ADMIN_ONLY_PATHS = [
   "/admin/config",
   "/admin/vau",
   "/admin/leads/lixeira",
+  "/admin/clientes/lixeira",
+  "/admin/contratos/lixeira",
   "/admin/equipe-juridica",
 ] as const;
 
