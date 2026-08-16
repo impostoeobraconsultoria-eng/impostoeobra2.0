@@ -9,6 +9,7 @@ export const siteConfigDefaults = {
   empresa_cnpj: "63.382.260/0001-99",
   empresa_email: "contato@impostoeobra.com.br",
   empresa_telefone_institucional: "+55 (61) 9 9398-2653",
+  empresa_whatsapp_e164: "",
   empresa_endereco_completo: "Brasília - DF",
   empresa_instagram_url: "https://instagram.com/impostoeobra",
   empresa_linkedin_url: "",
@@ -50,9 +51,3 @@ export const getSiteConfig = unstable_cache(
   ["site-config"],
   { tags: ["config"] },
 );
-
-export function getConfiguredWhatsAppUrl(config: SiteConfig) {
-  const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE;
-  if (!phone) return "#whatsapp-indisponivel";
-  return `https://api.whatsapp.com/send?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(config.whatsapp_msg_padrao)}`;
-}

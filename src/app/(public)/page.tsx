@@ -3,7 +3,8 @@ import Link from "next/link";
 
 import { CalculadoraInss } from "@/components/calculadora/calculadora-inss";
 import { CasesSection } from "@/components/public/cases-section";
-import { getConfiguredWhatsAppUrl, getSiteConfig } from "@/lib/site-config";
+import { getWhatsappNumber, getWhatsappUrl } from "@/lib/config";
+import { getSiteConfig } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "Regularize sua obra e economize INSS",
@@ -36,7 +37,10 @@ const professionalServiceSchema = {
 
 export default async function Home() {
   const config = await getSiteConfig();
-  const whatsappUrl = getConfiguredWhatsAppUrl(config);
+  const [whatsappUrl, whatsappNumber] = await Promise.all([
+    getWhatsappUrl(config.whatsapp_msg_padrao),
+    getWhatsappNumber(),
+  ]);
 
   return (
     <main>
@@ -117,7 +121,7 @@ export default async function Home() {
               </p>
             </header>
             <div className="calculator-editorial lg:col-span-8">
-              <CalculadoraInss />
+              <CalculadoraInss whatsappNumber={whatsappNumber} />
             </div>
           </div>
         </div>

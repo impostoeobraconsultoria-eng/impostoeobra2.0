@@ -174,6 +174,14 @@ function CompanyForm({ values }: { values: ConfigMap }) {
           value={values.empresa_telefone_institucional}
         />
         <Input
+          name="empresa_whatsapp_e164"
+          label="WhatsApp dos links (E.164)"
+          value={values.empresa_whatsapp_e164}
+          placeholder="5561999999999"
+          hint="Somente dígitos, com código do país e DDD. Alterar este campo atualiza todos os CTAs do site."
+          required
+        />
+        <Input
           name="empresa_email"
           label="Email institucional"
           type="email"
@@ -218,15 +226,13 @@ function CompanyForm({ values }: { values: ConfigMap }) {
           label="Cidade sede"
           value={values.empresa_cidade_sede}
         />
-        <div className="sm:col-span-2 mt-2 border-t pt-6">
+        <div className="mt-2 border-t pt-6 sm:col-span-2">
           <h3 className="font-bold">Encarregado de Dados (LGPD)</h3>
-          <p className="mt-1 text-sm text-slate-500">Dados exibidos no Aviso de Privacidade.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Dados exibidos no Aviso de Privacidade.
+          </p>
         </div>
-        <Input
-          name="dpo_nome"
-          label="Nome do DPO"
-          value={values.dpo_nome}
-        />
+        <Input name="dpo_nome" label="Nome do DPO" value={values.dpo_nome} />
         <Input
           name="empresa_email_privacidade"
           label="Email do DPO"
@@ -234,9 +240,11 @@ function CompanyForm({ values }: { values: ConfigMap }) {
           value={values.empresa_email_privacidade}
           placeholder="Deixe vazio para usar o email institucional"
         />
-        <div className="sm:col-span-2 mt-2 border-t pt-6">
+        <div className="mt-2 border-t pt-6 sm:col-span-2">
           <h3 className="font-bold">Horário de atendimento</h3>
-          <p className="mt-1 text-sm text-slate-500">Preencha os três campos ou deixe todos vazios para esconder o card.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Preencha os três campos ou deixe todos vazios para esconder o card.
+          </p>
         </div>
         <Input
           name="horario_atendimento_dias"
@@ -419,12 +427,14 @@ function Input({
   label,
   value = "",
   span = false,
+  hint,
   ...props
 }: {
   name: string;
   label: string;
   value?: string;
   span?: boolean;
+  hint?: string;
   [key: string]: unknown;
 }) {
   return (
@@ -435,6 +445,11 @@ function Input({
         defaultValue={value}
         {...props}
       />
+      {hint && (
+        <span className="mt-1 block text-xs font-normal text-slate-500">
+          {hint}
+        </span>
+      )}
     </label>
   );
 }

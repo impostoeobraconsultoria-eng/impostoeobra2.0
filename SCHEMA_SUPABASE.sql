@@ -654,6 +654,7 @@ insert into public.config (chave, valor, descricao) values
   ('resend_from_name', 'Imposto & Obra — Agenda', 'Nome exibido no remetente dos lembretes'),
   ('dpo_nome', 'Paulo Ricardo da Silva Santana', 'Nome do Encarregado de Dados Pessoais (DPO)'),
   ('empresa_email_privacidade', '', 'Email do DPO; usa empresa_email quando vazio'),
+  ('empresa_whatsapp_e164', '5561993982653', 'WhatsApp institucional em formato E.164, somente dígitos, usado nos links do site'),
   ('horario_atendimento_dias', 'Segunda a sexta', 'Dias de atendimento'),
   ('horario_atendimento_horas', 'Das 09h às 19h', 'Horas de atendimento'),
   ('horario_atendimento_fuso', 'horário de Brasília', 'Fuso do atendimento'),
