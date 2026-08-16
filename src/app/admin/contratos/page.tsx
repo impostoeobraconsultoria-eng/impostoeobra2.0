@@ -29,7 +29,7 @@ export default async function Page({
           </div>
           <Link
             className="rounded-full bg-primary px-5 py-3 font-bold text-white"
-            href={show ? "/admin/contratos" : "/admin/contratos?new=1"}
+            href={show ? "/admin/contratos" : "/admin/contratos/novo"}
           >
             {show ? "Fechar" : "Novo contrato"}
           </Link>
