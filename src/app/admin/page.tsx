@@ -307,56 +307,34 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </article>
           ))}
         </section>
-        <section className="mt-6 grid gap-6 xl:grid-cols-2">
-          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold">Funil de conversão</h2>
-            <p className="text-sm text-slate-500">
-              Distribuição atual dos leads por etapa
-            </p>
-            <div className="mt-6 space-y-4">
-              {funnel.map((stage) => (
-                <Link
-                  key={stage.nome}
-                  href={`/admin/leads?status=${encodeURIComponent(stage.nome)}`}
-                  className="group block"
-                >
-                  <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
-                    <span className="truncate font-semibold group-hover:text-primary">
-                      {stage.nome}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-2 font-bold">
-                      {stage.drop > 0 && stage.drop === biggestDrop && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-amber-800">
-                          gargalo
-                        </span>
-                      )}
-                      {stage.count}
-                    </span>
-                  </div>
-                  <div className="h-6 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full min-w-1 rounded-full transition-all group-hover:brightness-95"
-                      style={{
-                        width: `${Math.max(2, (stage.count / maxStage) * 100)}%`,
-                        backgroundColor: stage.cor || "#0071e3",
-                      }}
-                    />
-                  </div>
-                </Link>
-              ))}
-              {!funnel.length && (
-                <p className="py-10 text-center text-sm text-slate-500">
-                  Configure as etapas do funil para visualizar os dados.
-                </p>
-              )}
-            </div>
-          </article>
+        <section className="mt-6 grid grid-cols-1 gap-8">
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold">Leads nos últimos 30 dias</h2>
             <p className="text-sm text-slate-500">
               Novos contatos recebidos por dia
             </p>
             <LeadsLineChart values={chart} />
+          </article>
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <h2 className="text-lg font-bold">Funil de conversão</h2>
+            <p className="text-sm text-slate-500">Distribuição atual dos leads por etapa</p>
+            <div className="mt-6 space-y-4">
+              {funnel.map((stage) => (
+                <Link key={stage.nome} href={`/admin/leads?status=${encodeURIComponent(stage.nome)}`} className="group block">
+                  <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                    <span className="truncate font-semibold group-hover:text-primary">{stage.nome}</span>
+                    <span className="flex shrink-0 items-center gap-2 font-bold">
+                      {stage.drop > 0 && stage.drop === biggestDrop && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-amber-800">gargalo</span>}
+                      {stage.count}
+                    </span>
+                  </div>
+                  <div className="h-6 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full min-w-1 rounded-full transition-all group-hover:brightness-95" style={{ width: `${Math.max(2, (stage.count / maxStage) * 100)}%`, backgroundColor: stage.cor || "#0071e3" }} />
+                  </div>
+                </Link>
+              ))}
+              {!funnel.length && <p className="py-10 text-center text-sm text-slate-500">Configure as etapas do funil para visualizar os dados.</p>}
+            </div>
           </article>
         </section>
         {validGoal && (

@@ -27,6 +27,12 @@ const fixedRoutes: MetadataRoute.Sitemap = [
     priority: 0.9,
   },
   {
+    url: `${siteUrl}/casos-de-sucesso`,
+    lastModified: new Date(),
+    changeFrequency: "monthly",
+    priority: 0.8,
+  },
+  {
     url: `${siteUrl}/sobre`,
     lastModified: new Date(),
     changeFrequency: "yearly",

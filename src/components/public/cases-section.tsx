@@ -1,3 +1,6 @@
+import Link from "next/link";
+
+import { PublicCaseCard } from "@/components/public/case-card";
 import { getPublishedCases, type PublicCase } from "@/lib/public-content";
 
 export async function CasesSection() {
@@ -24,41 +27,26 @@ export async function CasesSection() {
           </p>
         </div>
         {featured.length >= 2 ? (
-          <div className="grid md:grid-cols-2">
-            {featured.map((item, index) => (
-              <article
-                className={`py-10 ${index === 0 ? "md:border-r md:border-border md:pr-10" : "md:pl-10"}`}
-                key={item.id}
-              >
-                <div className="flex items-center justify-between gap-4 border-b border-border pb-5">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[.12em] text-primary">
-                      {item.tipo_obra || "Regularização"}
-                    </p>
-                    <h3 className="mt-2 text-xl font-bold">
-                      {item.cliente_display}
-                    </h3>
-                  </div>
-                  {item.economia_pct != null && (
-                    <strong className="text-2xl text-accent">
-                      −{formatPercent(item.economia_pct)}
-                    </strong>
-                  )}
-                </div>
-                <p className="mt-7 text-5xl font-extrabold tracking-[-.05em] text-text">
-                  {formatMoney(item.economia_valor)}
-                </p>
-                <p className="mt-2 text-sm uppercase tracking-[.1em] text-brandMuted">
-                  economizados
-                </p>
-                {item.descricao && (
-                  <p className="mt-6 max-w-xl leading-7 text-brandMuted">
-                    {truncate(item.descricao, 200)}
-                  </p>
-                )}
-              </article>
-            ))}
+          <>
+          <div className="grid md:grid-cols-3">
+            {featured.map((item) => <PublicCaseCard item={item} key={item.id} />)}
+            <article className="flex flex-col justify-center border-b border-border bg-page px-8 py-10">
+              <p className="editorial-label">Sua obra</p>
+              <h3 className="mt-5 text-3xl font-extrabold tracking-[-.04em] text-text">
+                Quanto a sua obra pode economizar?
+              </h3>
+              <p className="mt-4 leading-7 text-brandMuted">Faça uma simulação gratuita com os parâmetros oficiais.</p>
+              <a className="btn-primary mt-7 self-start" href="#calculadora">Simular agora</a>
+            </article>
           </div>
+          {cases.length >= 3 && (
+            <div className="mt-8 text-center">
+              <Link className="inline-flex border-b-2 border-primary pb-1 font-bold text-primary" href="/casos-de-sucesso">
+                Ver todos os casos →
+              </Link>
+            </div>
+          )}
+          </>
         ) : (
           <StatsFallback />
         )}
@@ -85,19 +73,4 @@ function Stat({ value, label }: { value: string; label: string }) {
       <p className="mt-2 text-sm text-brandMuted">{label}</p>
     </div>
   );
-}
-function formatMoney(value: number | null) {
-  return value == null
-    ? "Economia comprovada"
-    : new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-        maximumFractionDigits: 0,
-      }).format(value);
-}
-function formatPercent(value: number) {
-  return `${Number(value).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
-}
-function truncate(value: string, max: number) {
-  return value.length <= max ? value : `${value.slice(0, max - 1).trimEnd()}…`;
 }

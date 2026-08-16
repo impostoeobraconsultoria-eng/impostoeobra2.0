@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 export type CaseValue = {
   cliente_display?: string | null;
   tipo_obra?: string | null;
@@ -16,6 +20,10 @@ export function CaseForm({
   action: (formData: FormData) => void | Promise<void>;
   value?: CaseValue;
 }) {
+  const [description, setDescription] = useState(value.descricao ?? "");
+  const [touched, setTouched] = useState(false);
+  const suspicious =
+    description.trim().length < 30 || /\b(teste|asdf|lorem)\b/i.test(description);
   return (
     <form action={action} className="mt-5 grid gap-5 sm:grid-cols-2">
       <label className="field">
@@ -68,9 +76,18 @@ export function CaseForm({
           className="input min-h-32"
           name="descricao"
           maxLength={3000}
-          defaultValue={value.descricao ?? ""}
+          value={description}
+          onChange={(event) => {
+            setDescription(event.target.value);
+            setTouched(true);
+          }}
           placeholder="Contexto da obra, desafio e resultado alcançado."
         />
+        {touched && suspicious && (
+          <span role="status" className="mt-2 block rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+            Descrição parece incompleta. Confirme antes de publicar.
+          </span>
+        )}
       </label>
       <label className="field sm:col-span-2">
         URL da imagem

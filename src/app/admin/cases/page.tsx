@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Plus, Star } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { createCase } from "./actions";
+import { createCase, duplicateCase } from "./actions";
 import { CaseForm } from "./case-form";
 
 export default async function CasesPage({
@@ -87,7 +87,7 @@ export default async function CasesPage({
                 <div className="flex items-start justify-between gap-3">
                   <Star className="size-6 text-amber-500" aria-hidden="true" />
                   <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.publicado ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
+                    className={`rounded-full px-4 py-2 text-sm font-extrabold uppercase tracking-wide ${item.publicado ? "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300" : "bg-slate-200 text-slate-700 ring-1 ring-slate-300"}`}
                   >
                     {item.publicado ? "Publicado" : "Rascunho"}
                   </span>
@@ -118,12 +118,17 @@ export default async function CasesPage({
                   <span className="text-slate-500">
                     Ordem {item.ordem ?? 100}
                   </span>
-                  <Link
-                    className="font-semibold text-primary hover:underline"
-                    href={`/admin/cases/${item.id}`}
-                  >
-                    Editar
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    <form action={duplicateCase.bind(null, item.id)}>
+                      <button className="font-semibold text-slate-600 hover:text-primary">Duplicar</button>
+                    </form>
+                    <Link
+                      className="font-semibold text-primary hover:underline"
+                      href={`/admin/cases/${item.id}`}
+                    >
+                      Editar
+                    </Link>
+                  </div>
                 </div>
               </article>
             ))}
