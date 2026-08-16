@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const optionalText = z.preprocess(
@@ -167,7 +168,7 @@ export async function createLead(
   const { supabase, user } = await context();
   if (!(await isValidStatus(supabase, parsed.data.status)))
     return { errors: { status: "Status inválido" } };
-  const { data, error } = await supabase
+  const { data, error } = await createAdminClient()
     .from("leads")
     .insert({ ...parsed.data, origem: "manual", updated_by: user.id })
     .select("id")
