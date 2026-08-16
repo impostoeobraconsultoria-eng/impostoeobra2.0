@@ -3,7 +3,7 @@ import {
   FinalCta,
   InstitutionalPage,
 } from "@/components/public/institutional-page";
-import { getWhatsAppUrl } from "@/lib/whatsapp";
+import { getWhatsappUrl } from "@/lib/config";
 import { getSiteConfig } from "@/lib/site-config";
 const description =
   "Conheça o Aviso de Privacidade da Imposto & Obra Consultoria e saiba como tratamos e protegemos seus dados pessoais.";
@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 
 export default async function PrivacyPage() {
   const config = await getSiteConfig();
+  const whatsappUrl = await getWhatsappUrl(config.whatsapp_msg_padrao);
   const email = config.empresa_email_privacidade || config.empresa_email;
   return (
     <InstitutionalPage
@@ -150,7 +151,7 @@ export default async function PrivacyPage() {
         title="Precisa falar com a nossa equipe?"
         highlight="Estamos à disposição para atender solicitações de privacidade."
         description="Fale conosco diretamente pelo WhatsApp."
-        href={getWhatsAppUrl()}
+        href={whatsappUrl}
         label="Fale conosco"
         external
       />

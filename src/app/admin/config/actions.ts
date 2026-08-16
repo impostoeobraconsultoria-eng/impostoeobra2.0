@@ -13,6 +13,10 @@ const sections = {
     empresa_cnpj: field.min(14),
     empresa_endereco_completo: field,
     empresa_telefone_institucional: field,
+    empresa_whatsapp_e164: z
+      .string()
+      .trim()
+      .regex(/^\d{10,15}$/, "Use apenas dígitos no formato E.164."),
     empresa_email: z.string().trim().email(),
     empresa_instagram_url: z.string().trim().url().or(z.literal("")),
     empresa_linkedin_url: z.string().trim().url().or(z.literal("")),

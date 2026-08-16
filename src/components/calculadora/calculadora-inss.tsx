@@ -71,7 +71,11 @@ function Field({
   );
 }
 
-export function CalculadoraInss() {
+export function CalculadoraInss({
+  whatsappNumber,
+}: {
+  whatsappNumber: string;
+}) {
   const [step, setStep] = useState(1);
   const [input, setInput] = useState(initial);
   const [nome, setNome] = useState("");
@@ -186,13 +190,13 @@ export function CalculadoraInss() {
     }).catch((error) => console.error("Erro ao enviar lead", error));
   };
   const waUrl = resultado
-    ? `https://api.whatsapp.com/send?phone=${encodeURIComponent(process.env.NEXT_PUBLIC_WHATSAPP_PHONE ?? "")}&text=${encodeURIComponent(resultado.economia > 0 ? `Olá, me chamo ${nome}!\n\nSimulei o INSS da minha obra no site.\nINSS sem deduções: ${formatBRL(resultado.inss_direto)}\nINSS estimado com deduções: ${formatBRL(resultado.inss_reduzido)}\nEconomia potencial: ${formatBRL(resultado.economia)}\n\nGostaria de um orçamento para regularizar a obra.` : `Olá, me chamo ${nome}!\n\nSimulei o INSS da minha obra no site.\nValor estimado pela norma: ${formatBRL(resultado.inss_direto)}\n\nNão declarei concreto usinado nem pré-fabricado na simulação, mas gostaria de saber se há outros benefícios fiscais aplicáveis ao meu caso. Pode me ajudar?`)}`
+    ? `https://api.whatsapp.com/send?phone=${encodeURIComponent(whatsappNumber)}&text=${encodeURIComponent(resultado.economia > 0 ? `Olá, me chamo ${nome}!\n\nSimulei o INSS da minha obra no site.\nINSS sem deduções: ${formatBRL(resultado.inss_direto)}\nINSS estimado com deduções: ${formatBRL(resultado.inss_reduzido)}\nEconomia potencial: ${formatBRL(resultado.economia)}\n\nGostaria de um orçamento para regularizar a obra.` : `Olá, me chamo ${nome}!\n\nSimulei o INSS da minha obra no site.\nValor estimado pela norma: ${formatBRL(resultado.inss_direto)}\n\nNão declarei concreto usinado nem pré-fabricado na simulação, mas gostaria de saber se há outros benefícios fiscais aplicáveis ao meu caso. Pode me ajudar?`)}`
     : "#";
 
   return (
     <section
       id="calculadora"
-      className="scroll-mt-24 rounded-[14px] border border-border bg-white p-5 shadow-soft sm:p-8"
+      className="shadow-soft scroll-mt-24 rounded-[14px] border border-border bg-white p-5 sm:p-8"
     >
       <div className="mb-7">
         <div className="flex flex-wrap items-center gap-3">

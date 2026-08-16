@@ -4,7 +4,7 @@ import {
   FinalCta,
   InstitutionalPage,
 } from "@/components/public/institutional-page";
-import { getWhatsAppUrl } from "@/lib/whatsapp";
+import { getWhatsappUrl } from "@/lib/config";
 import { getSiteConfig } from "@/lib/site-config";
 
 const description =
@@ -22,14 +22,41 @@ export const metadata: Metadata = {
 
 export default async function ContatoPage() {
   const config = await getSiteConfig();
-  const schedule = [config.horario_atendimento_dias, config.horario_atendimento_horas, config.horario_atendimento_fuso];
+  const whatsappUrl = await getWhatsappUrl(config.whatsapp_msg_padrao);
+  const schedule = [
+    config.horario_atendimento_dias,
+    config.horario_atendimento_horas,
+    config.horario_atendimento_fuso,
+  ];
   const contacts = [
-    ["WhatsApp", config.empresa_telefone_institucional, getWhatsAppUrl(), "Canal mais rápido. Resposta em horário comercial."],
-    ["E-mail", config.empresa_email, `mailto:${config.empresa_email}`, "Para envio de documentação ou consultas detalhadas."],
-    ["Telefone", config.empresa_telefone_institucional, `tel:${config.empresa_telefone_institucional.replace(/\D/g, "")}`, "Para chamadas durante o horário comercial."],
+    [
+      "WhatsApp",
+      config.empresa_telefone_institucional,
+      whatsappUrl,
+      "Canal mais rápido. Resposta em horário comercial.",
+    ],
+    [
+      "E-mail",
+      config.empresa_email,
+      `mailto:${config.empresa_email}`,
+      "Para envio de documentação ou consultas detalhadas.",
+    ],
+    [
+      "Telefone",
+      config.empresa_telefone_institucional,
+      `tel:${config.empresa_telefone_institucional.replace(/\D/g, "")}`,
+      "Para chamadas durante o horário comercial.",
+    ],
     ...(schedule.every((value) => !value)
       ? []
-      : [["Horário de atendimento", schedule[0], "", [schedule[1], schedule[2]].filter(Boolean).join(" · ")]]),
+      : [
+          [
+            "Horário de atendimento",
+            schedule[0],
+            "",
+            [schedule[1], schedule[2]].filter(Boolean).join(" · "),
+          ],
+        ]),
   ];
   return (
     <InstitutionalPage
@@ -117,7 +144,7 @@ export default async function ContatoPage() {
         title="Quer reduzir o INSS da sua obra?"
         highlight="Nossa equipe especializada está pronta para ajudar."
         description="Tire suas dúvidas diretamente pelo WhatsApp."
-        href={getWhatsAppUrl()}
+        href={whatsappUrl}
         label="Fale conosco"
         external
       />

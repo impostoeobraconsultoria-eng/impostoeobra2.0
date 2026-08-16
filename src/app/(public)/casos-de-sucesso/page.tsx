@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 import { PublicCaseCard } from "@/components/public/case-card";
+import { getWhatsappUrl } from "@/lib/config";
 import { getAllPublishedCases } from "@/lib/public-content";
-import { getConfiguredWhatsAppUrl, getSiteConfig } from "@/lib/site-config";
+import { getSiteConfig } from "@/lib/site-config";
 
 const description =
   "Veja resultados reais de clientes que regularizaram INSS de obra com nossa consultoria.";
@@ -26,6 +27,7 @@ export default async function SuccessCasesPage() {
     }),
     getSiteConfig(),
   ]);
+  const whatsappUrl = await getWhatsappUrl(config.whatsapp_msg_padrao);
   const schema = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -49,7 +51,10 @@ export default async function SuccessCasesPage() {
             Resultados dos nossos clientes
           </h1>
           <p className="mt-6 text-lg text-brandMuted">
-            {cases.length} {cases.length === 1 ? "projeto regularizado" : "projetos regularizados"}
+            {cases.length}{" "}
+            {cases.length === 1
+              ? "projeto regularizado"
+              : "projetos regularizados"}
           </p>
         </div>
       </header>
@@ -57,17 +62,30 @@ export default async function SuccessCasesPage() {
         <div className="site-container">
           {cases.length ? (
             <div className="grid md:grid-cols-2 xl:grid-cols-3">
-              {cases.map((item) => <PublicCaseCard item={item} key={item.id} />)}
+              {cases.map((item) => (
+                <PublicCaseCard item={item} key={item.id} />
+              ))}
             </div>
           ) : (
-            <p className="border-y border-border py-16 text-center text-brandMuted">Novos resultados serão publicados em breve.</p>
+            <p className="border-y border-border py-16 text-center text-brandMuted">
+              Novos resultados serão publicados em breve.
+            </p>
           )}
         </div>
       </section>
       <section className="bg-primary py-20 text-white">
         <div className="site-container flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">
-          <h2 className="max-w-3xl text-4xl font-extrabold tracking-[-.04em]">Sua obra também pode economizar</h2>
-          <a className="inline-flex min-h-14 items-center bg-white px-7 font-bold text-primary" href={getConfiguredWhatsAppUrl(config)} target="_blank" rel="noopener noreferrer">Falar no WhatsApp</a>
+          <h2 className="max-w-3xl text-4xl font-extrabold tracking-[-.04em]">
+            Sua obra também pode economizar
+          </h2>
+          <a
+            className="inline-flex min-h-14 items-center bg-white px-7 font-bold text-primary"
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Falar no WhatsApp
+          </a>
         </div>
       </section>
     </main>
