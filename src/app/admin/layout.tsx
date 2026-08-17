@@ -12,6 +12,7 @@ import {
   Gauge,
   Settings,
   Scale,
+  PackageOpen,
   Star,
   TableProperties,
   Users,
@@ -60,7 +61,12 @@ export default async function AdminLayout({
       : { data: null };
   const links =
     profile?.perfil === "admin"
-      ? [...navigation, ...adminNavigation]
+      ? [
+          ...navigation.slice(0, 4),
+          { href: "/admin/produtos", label: "Produtos", icon: PackageOpen },
+          ...navigation.slice(4),
+          ...adminNavigation,
+        ]
       : navigation;
 
   return (

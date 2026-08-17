@@ -8,8 +8,12 @@ import { ContractForm } from "@/components/admin/contract-form";
 
 export function CustomerContractDialog({
   customer,
+  products,
+  initialProduct,
 }: {
   customer: { id: string; nome: string };
+  products: { slug: string; nome: string }[];
+  initialProduct?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -44,7 +48,11 @@ export function CustomerContractDialog({
             <ContractForm
               action={createCustomerContract.bind(null, customer.id)}
               clients={[customer]}
-              values={{ cliente_id: customer.id }}
+              products={products}
+              values={{
+                cliente_id: customer.id,
+                produto: initialProduct ?? "",
+              }}
             />
           </div>
         </div>

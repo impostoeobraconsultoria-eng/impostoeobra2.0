@@ -14,6 +14,7 @@ export default async function LeadsPage({ searchParams }: Props) {
     { data: leads, error },
     { data: users },
     { data: funnelStages },
+    { data: products },
     { data: claims },
   ] = await Promise.all([
     supabase
@@ -26,6 +27,11 @@ export default async function LeadsPage({ searchParams }: Props) {
       .limit(500),
     supabase.from("users").select("id,nome").eq("ativo", true).order("nome"),
     supabase.from("funil_etapas").select("nome,cor").order("ordem"),
+    supabase
+      .from("produtos")
+      .select("slug,nome")
+      .eq("ativo", true)
+      .order("ordem"),
     supabase.auth.getClaims(),
   ]);
   const email = claims?.claims.email;
@@ -92,7 +98,7 @@ export default async function LeadsPage({ searchParams }: Props) {
         {showNew && (
           <section className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
             <h2 className="text-xl font-bold">Novo lead</h2>
-            <ManualLeadForm stages={stages} />
+            <ManualLeadForm stages={stages} products={products ?? []} />
           </section>
         )}
         <LeadsBoard

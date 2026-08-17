@@ -16,11 +16,13 @@ export default async function Page({
     .is("deleted_at", null)
     .order("criado_em", { ascending: false });
   if (searchParams?.status) q = q.eq("status", searchParams.status);
-  const [{ data }, { data: clients }, { data: claims }] = await Promise.all([
-    q,
-    s.from("clientes").select("id,nome").is("deleted_at", null).order("nome"),
-    s.auth.getClaims(),
-  ]);
+  const [{ data }, { data: clients }, { data: products }, { data: claims }] =
+    await Promise.all([
+      q,
+      s.from("clientes").select("id,nome").is("deleted_at", null).order("nome"),
+      s.from("produtos").select("slug,nome").eq("ativo", true).order("ordem"),
+      s.auth.getClaims(),
+    ]);
   const email = claims?.claims.email;
   const { data: profile } =
     typeof email === "string"
@@ -62,7 +64,11 @@ export default async function Page({
         {show && (
           <section className="mt-6 rounded-2xl border bg-white p-6">
             <h2 className="text-xl font-bold">Novo contrato</h2>
-            <ContractForm action={createContract} clients={clients ?? []} />
+            <ContractForm
+              action={createContract}
+              clients={clients ?? []}
+              products={products ?? []}
+            />
           </section>
         )}
         <form className="mt-6">
