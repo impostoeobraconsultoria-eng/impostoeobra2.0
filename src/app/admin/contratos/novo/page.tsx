@@ -10,11 +10,18 @@ export default async function NewContractPage({
   searchParams?: Record<string, string | undefined>;
 }) {
   const supabase = createClient();
-  const { data: clients } = await supabase
-    .from("clientes")
-    .select("id,nome")
-    .is("deleted_at", null)
-    .order("nome");
+  const [{ data: clients }, { data: products }] = await Promise.all([
+    supabase
+      .from("clientes")
+      .select("id,nome")
+      .is("deleted_at", null)
+      .order("nome"),
+    supabase
+      .from("produtos")
+      .select("slug,nome")
+      .eq("ativo", true)
+      .order("ordem"),
+  ]);
   return (
     <main className="px-5 py-8 sm:px-8">
       <div className="mx-auto max-w-5xl">
@@ -34,7 +41,11 @@ export default async function NewContractPage({
           </p>
         )}
         <section className="mt-6 rounded-2xl border bg-white p-6">
-          <ContractForm action={createContract} clients={clients ?? []} />
+          <ContractForm
+            action={createContract}
+            clients={clients ?? []}
+            products={products ?? []}
+          />
         </section>
       </div>
     </main>

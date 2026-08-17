@@ -34,6 +34,7 @@ export default async function Page({
     { data: a },
     { data: documents },
     { data: relatedEvents },
+    { data: products },
     config,
   ] = await Promise.all([
     s
@@ -64,6 +65,7 @@ export default async function Page({
       .is("deleted_at", null)
       .order("data_hora_inicio", { ascending: false })
       .limit(10),
+    s.from("produtos").select("slug,nome,ativo").order("ordem"),
     getConfigMap(),
   ]);
   if (!c) notFound();
@@ -183,6 +185,7 @@ export default async function Page({
             <ContractForm
               action={updateContract.bind(null, params.id)}
               clients={clients ?? []}
+              products={products ?? []}
               values={c}
             />
           </section>

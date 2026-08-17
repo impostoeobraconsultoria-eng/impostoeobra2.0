@@ -6,7 +6,13 @@ import { createLead, type CreateLeadState } from "@/app/admin/leads/actions";
 
 const initialState: CreateLeadState = {};
 
-export function ManualLeadForm({ stages }: { stages: { nome: string }[] }) {
+export function ManualLeadForm({
+  stages,
+  products,
+}: {
+  stages: { nome: string }[];
+  products: { slug: string; nome: string }[];
+}) {
   const [state, action] = useFormState(createLead, initialState);
   return (
     <form
@@ -20,7 +26,20 @@ export function ManualLeadForm({ stages }: { stages: { nome: string }[] }) {
       <Field name="whatsapp" label="WhatsApp" />
       <Field name="uf" label="UF" />
       <Field name="cidade" label="Cidade" />
-      <Field name="produto" label="Produto" />
+      <label className="text-sm font-semibold">
+        Produto
+        <select
+          name="produto"
+          className="mt-1 w-full rounded-lg border px-3 py-2.5 font-normal"
+        >
+          <option value="">— Selecione um produto —</option>
+          {products.map((product) => (
+            <option key={product.slug} value={product.slug}>
+              {product.nome}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="text-sm font-semibold">
         Status{" "}
         <span aria-hidden="true" className="text-red-600">

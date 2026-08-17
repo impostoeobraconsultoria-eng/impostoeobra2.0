@@ -45,6 +45,7 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
     { data: documents },
     { data: funnelStages },
     { data: relatedEvents },
+    { data: products },
     config,
   ] = await Promise.all([
     supabase
@@ -77,6 +78,7 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
       .is("deleted_at", null)
       .order("data_hora_inicio", { ascending: false })
       .limit(10),
+    supabase.from("produtos").select("slug,nome,ativo").order("ordem"),
     getConfigMap(),
   ]);
   if (error || !lead) notFound();
@@ -206,7 +208,26 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
                     ))}
                   </select>
                 </label>
-                <Input name="produto" label="Produto" value={lead.produto} />
+                <label className="field">
+                  Produto
+                  <select
+                    name="produto"
+                    defaultValue={lead.produto ?? ""}
+                    className="input"
+                  >
+                    <option value="">— Selecione um produto —</option>
+                    {(products ?? []).map((product) => (
+                      <option
+                        key={product.slug}
+                        value={product.slug}
+                        disabled={!product.ativo}
+                      >
+                        {product.nome}
+                        {product.ativo ? "" : " (inativo)"}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <Input
                   name="valor_potencial"
                   label="Valor potencial"

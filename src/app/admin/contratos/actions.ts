@@ -29,7 +29,7 @@ function parse(f: FormData) {
   const schema = z.object({
     cliente_id: z.string().uuid(),
     numero: z.string().trim().max(80).nullable(),
-    produto: z.enum(["obra_andamento", "obra_finalizada"]),
+    produto: z.string().trim().min(1).max(160),
     status: z.enum(statuses),
     valor_total: z.number().nonnegative().nullable(),
     valor_pago: z.number().nonnegative().nullable(),
@@ -59,6 +59,8 @@ export async function createContract(f: FormData) {
   const p = parse(f);
   if (!p.success) redirect("/admin/contratos/novo?error=invalid");
   const { supabase, user } = await context();
+  if (!(await isValidProduct(supabase, p.data.produto)))
+    redirect("/admin/contratos/novo?error=product");
   const { data, error } = await supabase
     .from("contratos")
     .insert(p.data)
@@ -82,6 +84,8 @@ export async function createCustomerContract(customerId: string, f: FormData) {
   const p = parse(f);
   if (!p.success) redirect(`/admin/clientes/${customerId}?error=contract`);
   const { supabase, user } = await context();
+  if (!(await isValidProduct(supabase, p.data.produto)))
+    redirect(`/admin/clientes/${customerId}?error=contract`);
   const { data, error } = await supabase
     .from("contratos")
     .insert(p.data)
@@ -104,6 +108,8 @@ export async function updateContract(id: string, f: FormData) {
   const p = parse(f);
   if (!p.success) redirect(`/admin/contratos/${id}?error=invalid`);
   const { supabase, user } = await context();
+  if (!(await isValidProduct(supabase, p.data.produto, true)))
+    redirect(`/admin/contratos/${id}?error=invalid`);
   const { error } = await supabase
     .from("contratos")
     .update(p.data)
@@ -120,6 +126,17 @@ export async function updateContract(id: string, f: FormData) {
   revalidatePath("/admin");
   revalidatePath("/admin/contratos");
   redirect(`/admin/contratos/${id}?saved=1`);
+}
+
+async function isValidProduct(
+  supabase: ReturnType<typeof createClient>,
+  slug: string,
+  includeInactive = false,
+) {
+  let query = supabase.from("produtos").select("id").eq("slug", slug);
+  if (!includeInactive) query = query.eq("ativo", true);
+  const { data } = await query.maybeSingle();
+  return Boolean(data);
 }
 export async function addContractNote(id: string, f: FormData) {
   const note = z.string().trim().min(2).max(3000).safeParse(f.get("nota"));
@@ -146,15 +163,13 @@ export async function softDeleteContract(id: string) {
     .eq("id", id)
     .is("deleted_at", null);
   if (error) return { ok: false, error: error.message };
-  await supabase
-    .from("atividades")
-    .insert({
-      ref_tipo: "contrato",
-      ref_id: id,
-      tipo: "exclusao",
-      descricao: "Contrato movido para a lixeira",
-      autor_id: user.id,
-    });
+  await supabase.from("atividades").insert({
+    ref_tipo: "contrato",
+    ref_id: id,
+    tipo: "exclusao",
+    descricao: "Contrato movido para a lixeira",
+    autor_id: user.id,
+  });
   revalidatePath("/admin/contratos");
   revalidatePath("/admin/contratos/lixeira");
   revalidatePath("/admin");
@@ -171,15 +186,13 @@ export async function restoreContract(id: string) {
     .eq("id", id)
     .not("deleted_at", "is", null);
   if (error) return { ok: false, error: error.message };
-  await supabase
-    .from("atividades")
-    .insert({
-      ref_tipo: "contrato",
-      ref_id: id,
-      tipo: "restauracao",
-      descricao: "Contrato restaurado da lixeira",
-      autor_id: user.id,
-    });
+  await supabase.from("atividades").insert({
+    ref_tipo: "contrato",
+    ref_id: id,
+    tipo: "restauracao",
+    descricao: "Contrato restaurado da lixeira",
+    autor_id: user.id,
+  });
   revalidatePath("/admin/contratos");
   revalidatePath("/admin/contratos/lixeira");
   revalidatePath("/admin");

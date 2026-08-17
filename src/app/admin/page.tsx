@@ -106,10 +106,7 @@ function LeadsLineChart({
             r="1.2"
             fill="#0071e3"
           >
-            <title>
-              {shortDate.format(new Date(`${value.day}T12:00:00`))}:{" "}
-              {value.count}
-            </title>
+            <title>{`${shortDate.format(new Date(`${value.day}T12:00:00`))}: ${value.count} leads`}</title>
           </circle>
         ))}
       </svg>

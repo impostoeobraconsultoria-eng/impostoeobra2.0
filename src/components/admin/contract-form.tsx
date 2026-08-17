@@ -1,15 +1,17 @@
 export function ContractForm({
   action,
   clients,
+  products,
   values = {},
 }: {
   action: (f: FormData) => void | Promise<void>;
   clients: Array<{ id: string; nome: string }>;
+  products: Array<{ slug: string; nome: string; ativo?: boolean }>;
   values?: Record<string, unknown>;
 }) {
   const currentProduct = String(values.produto ?? "");
-  const productValue = ["obra_andamento", "obra_finalizada"].includes(
-    currentProduct,
+  const productValue = products.some(
+    (product) => product.slug === currentProduct,
   )
     ? currentProduct
     : "";
@@ -35,21 +37,29 @@ export function ContractForm({
         </select>
       </label>
       <label className="field">
-        Modalidade *
+        Produto *
         <select
           name="produto"
           required
           defaultValue={productValue}
           className="input"
         >
-          <option value="">Selecione</option>
-          <option value="obra_andamento">Obra em andamento</option>
-          <option value="obra_finalizada">Obra finalizada</option>
+          <option value="">— Selecione um produto —</option>
+          {products.map((product) => (
+            <option
+              key={product.slug}
+              value={product.slug}
+              disabled={product.ativo === false}
+            >
+              {product.nome}
+              {product.ativo === false ? " (inativo)" : ""}
+            </option>
+          ))}
         </select>
         {currentProduct && !productValue && (
           <span className="mt-1 block text-xs font-semibold text-amber-700">
-            Modalidade legada inválida: {currentProduct}. Escolha uma opção
-            válida antes de salvar.
+            Produto legado inválido: {currentProduct}. Escolha uma opção válida
+            antes de salvar.
           </span>
         )}
       </label>

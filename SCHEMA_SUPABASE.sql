@@ -278,6 +278,24 @@ create index idx_contratos_cliente on public.contratos(cliente_id) where deleted
 create index idx_contratos_status on public.contratos(status) where deleted_at is null;
 
 -- =============================================================================
+-- 7.1. TABELA produtos (catálogo dinâmico de serviços)
+-- =============================================================================
+
+create table public.produtos (
+  id                    uuid primary key default gen_random_uuid(),
+  slug                  text unique not null,
+  nome                  text not null,
+  descricao             text,
+  template_contrato_arq text,
+  ordem                 integer default 100,
+  ativo                 boolean not null default true,
+  criado_em             timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+
+create index idx_produtos_ativos on public.produtos(ordem) where ativo = true;
+
+-- =============================================================================
 -- 8. TABELA atividades (timeline unificada)
 -- =============================================================================
 
@@ -399,6 +417,7 @@ create trigger trg_clientes_updated    before update on public.clientes     for 
 create trigger trg_cliente_notas_updated before update on public.cliente_notas for each row execute function public.set_updated_at();
 create trigger trg_eventos_agenda_updated before update on public.eventos_agenda for each row execute function public.set_updated_at();
 create trigger trg_contratos_updated   before update on public.contratos    for each row execute function public.set_updated_at();
+create trigger trg_produtos_updated    before update on public.produtos     for each row execute function public.set_updated_at();
 create trigger trg_artigos_updated     before update on public.artigos      for each row execute function public.set_updated_at();
 create trigger trg_cases_updated       before update on public.cases        for each row execute function public.set_updated_at();
 create trigger trg_equipe_juridica_updated before update on public.equipe_juridica for each row execute function public.set_updated_at();
@@ -483,6 +502,7 @@ alter table public.clientes     enable row level security;
 alter table public.cliente_notas enable row level security;
 alter table public.eventos_agenda enable row level security;
 alter table public.contratos    enable row level security;
+alter table public.produtos     enable row level security;
 alter table public.atividades   enable row level security;
 alter table public.artigos      enable row level security;
 alter table public.cases        enable row level security;
@@ -587,6 +607,12 @@ create policy contratos_update_active on public.contratos
 create policy contratos_delete_admin on public.contratos
   for delete using (public.is_admin());
 
+-- -------- PRODUTOS --------
+create policy produtos_select_active on public.produtos
+  for select using (public.is_active_user());
+create policy produtos_write_admin on public.produtos
+  for all using (public.is_admin()) with check (public.is_admin());
+
 -- -------- ATIVIDADES --------
 create policy atividades_select_active on public.atividades
   for select using (public.is_active_user());
@@ -642,6 +668,11 @@ create policy faq_write_active on public.faq
 insert into public.users (email, nome, perfil, ativo)
 values ('pauloricardos@me.com', 'Paulo Ricardo', 'admin', true)
 on conflict (email) do nothing;
+
+insert into public.produtos (slug, nome, descricao, template_contrato_arq, ordem, ativo) values
+  ('obra_andamento', 'Regularização de obra em andamento', 'Regularização de INSS de obra que ainda está em execução.', 'contrato_obra_andamento.docx', 10, true),
+  ('obra_finalizada', 'Regularização de obra finalizada', 'Regularização de INSS de obra já concluída.', 'contrato_obra_finalizada.docx', 20, true)
+on conflict (slug) do nothing;
 
 -- Config default
 insert into public.config (chave, valor, descricao) values

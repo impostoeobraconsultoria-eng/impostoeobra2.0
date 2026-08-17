@@ -46,6 +46,7 @@ export default async function CustomerDetailPage({
     { data: documents },
     { data: relatedEvents },
     { data: claims },
+    { data: products },
     config,
   ] = await Promise.all([
     supabase
@@ -86,9 +87,21 @@ export default async function CustomerDetailPage({
       .order("data_hora_inicio", { ascending: false })
       .limit(10),
     supabase.auth.getClaims(),
+    supabase
+      .from("produtos")
+      .select("slug,nome")
+      .eq("ativo", true)
+      .order("ordem"),
     getConfigMap(),
   ]);
   if (!customer) notFound();
+  const { data: originLead } = customer.lead_id_origem
+    ? await supabase
+        .from("leads")
+        .select("produto")
+        .eq("id", customer.lead_id_origem)
+        .maybeSingle()
+    : { data: null };
   const email = claims?.claims.email;
   const { data: profile } =
     typeof email === "string"
@@ -291,6 +304,8 @@ export default async function CustomerDetailPage({
               action={
                 <CustomerContractDialog
                   customer={{ id: customer.id, nome: customer.nome }}
+                  products={products ?? []}
+                  initialProduct={originLead?.produto}
                 />
               }
             >

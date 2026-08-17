@@ -58,19 +58,6 @@ const fields = [
   "escopo_servico",
 ] as const;
 
-const templateMap = {
-  obra_andamento: {
-    file: "contrato_obra_andamento.docx",
-    modalidade: "obra em andamento",
-    documentType: "contrato_andamento" as const,
-  },
-  obra_finalizada: {
-    file: "contrato_obra_finalizada.docx",
-    modalidade: "obra finalizada",
-    documentType: "contrato_finalizada" as const,
-  },
-} as const;
-
 export async function POST(request: Request) {
   try {
     const user = await requireDocumentUser();
@@ -100,13 +87,16 @@ export async function POST(request: Request) {
         { error: "Cliente do contrato não encontrado." },
         { status: 422 },
       );
-    const product = contrato.produto as keyof typeof templateMap;
-    const templateDefinition = templateMap[product];
-    if (!templateDefinition)
+    const { data: product, error: productError } = await admin
+      .from("produtos")
+      .select("nome,template_contrato_arq")
+      .eq("slug", contrato.produto)
+      .eq("ativo", true)
+      .maybeSingle();
+    if (productError || !product?.template_contrato_arq)
       return NextResponse.json(
         {
-          error:
-            "Este contrato tem modalidade inválida. Edite e escolha uma modalidade válida antes de gerar a minuta.",
+          error: `Produto "${contrato.produto}" não encontrado, inativo ou sem template. Cadastre o template em /admin/produtos ou atualize o produto do contrato.`,
         },
         { status: 422 },
       );
@@ -160,13 +150,17 @@ export async function POST(request: Request) {
         "Escopo customizado conforme alinhado entre as partes.",
     };
     const values = mergeAndNormalize(defaults, parsed.data.params, fields);
-    const buffer = await generateDocx(templateDefinition.file, values);
-    const modalidade = templateDefinition.modalidade;
+    const buffer = await generateDocx(product.template_contrato_arq, values);
+    const modalidade = product.nome;
     const nomeArquivo = fileName(
       `Contrato ${values.numero_contrato} — ${values.contratante_nome} (${modalidade}) — ${new Date().toISOString().slice(0, 10)}.docx`,
     );
     const result = await persistDocx({
-      tipo: templateDefinition.documentType,
+      tipo:
+        contrato.produto === "obra_finalizada" ||
+        product.template_contrato_arq === "contrato_obra_finalizada.docx"
+          ? "contrato_finalizada"
+          : "contrato_andamento",
       refTipo: "contrato",
       refId: contrato.id,
       nomeArquivo,
