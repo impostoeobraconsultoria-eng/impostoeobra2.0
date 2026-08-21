@@ -196,7 +196,9 @@ export async function convertLead(id: string) {
     p_lead_id: id,
   });
   if (error || !data) redirect(`/admin/leads/${id}?error=convert`);
+  revalidatePath("/admin");
   revalidatePath("/admin/leads");
+  revalidatePath("/admin/leads/convertidos");
   revalidatePath("/admin/clientes");
   redirect(`/admin/clientes/${data}?saved=converted`);
 }

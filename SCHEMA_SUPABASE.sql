@@ -136,6 +136,7 @@ create table public.leads (
 
   -- Conversão em cliente
   cliente_id               uuid,  -- FK criada depois (referência circular)
+  convertido_em            timestamptz,
 
   -- Sistema
   legacy_id                text,  -- id da planilha antiga (para rastrear migração)
@@ -148,6 +149,8 @@ create index idx_leads_status on public.leads(status) where deleted_at is null;
 create index idx_leads_responsavel on public.leads(responsavel_id) where deleted_at is null;
 create index idx_leads_data on public.leads(data_hora desc) where deleted_at is null;
 create index idx_leads_uf on public.leads(uf) where deleted_at is null;
+create index idx_leads_ativos_kanban on public.leads(status)
+  where deleted_at is null and convertido_em is null;
 
 -- =============================================================================
 -- 6. TABELA clientes
@@ -686,6 +689,7 @@ insert into public.config (chave, valor, descricao) values
   ('dpo_nome', 'Paulo Ricardo da Silva Santana', 'Nome do Encarregado de Dados Pessoais (DPO)'),
   ('empresa_email_privacidade', '', 'Email do DPO; usa empresa_email quando vazio'),
   ('empresa_whatsapp_e164', '5561993982653', 'WhatsApp institucional em formato E.164, somente dígitos, usado nos links do site'),
+  ('whatsapp_msg_cliente_default', '', 'Mensagem opcional ao abrir o WhatsApp de um cliente; vazia abre o chat direto'),
   ('horario_atendimento_dias', 'Segunda a sexta', 'Dias de atendimento'),
   ('horario_atendimento_horas', 'Das 09h às 19h', 'Horas de atendimento'),
   ('horario_atendimento_fuso', 'horário de Brasília', 'Fuso do atendimento'),

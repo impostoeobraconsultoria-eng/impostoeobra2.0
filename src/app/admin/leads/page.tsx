@@ -23,6 +23,7 @@ export default async function LeadsPage({ searchParams }: Props) {
         "id,data_hora,nome,ddd,whatsapp,email,uf,cidade,produto,status,responsavel_id,valor_potencial,observacoes",
       )
       .is("deleted_at", null)
+      .is("convertido_em", null)
       .order("data_hora", { ascending: false })
       .limit(500),
     supabase.from("users").select("id,nome").eq("ativo", true).order("nome"),
@@ -69,6 +70,12 @@ export default async function LeadsPage({ searchParams }: Props) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link
+              href="/admin/leads/convertidos"
+              className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700"
+            >
+              Convertidos
+            </Link>
             {isAdmin && (
               <Link
                 href="/admin/leads/lixeira"

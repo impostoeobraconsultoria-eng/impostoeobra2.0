@@ -138,19 +138,26 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .from("leads")
       .select("id,status", { count: "exact" })
       .is("deleted_at", null)
+      .is("convertido_em", null)
       .gte("data_hora", monthStart)
       .lt("data_hora", nextMonth),
     supabase
       .from("leads")
       .select("id", { count: "exact", head: true })
       .is("deleted_at", null)
+      .is("convertido_em", null)
       .gte("data_hora", previousMonthStart)
       .lt("data_hora", monthStart),
-    supabase.from("leads").select("status").is("deleted_at", null),
+    supabase
+      .from("leads")
+      .select("status")
+      .is("deleted_at", null)
+      .is("convertido_em", null),
     supabase
       .from("leads")
       .select("data_hora")
       .is("deleted_at", null)
+      .is("convertido_em", null)
       .gte("data_hora", thirtyDaysAgo)
       .order("data_hora"),
     supabase

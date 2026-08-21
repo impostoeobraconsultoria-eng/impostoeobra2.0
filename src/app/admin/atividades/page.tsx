@@ -9,7 +9,7 @@ import {
 
 import { createClient } from "@/lib/supabase/server";
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 50;
 const REF_TYPES = ["lead", "cliente", "contrato", "sistema"] as const;
 const ACTIVITY_TYPES = [
   "criacao",
@@ -81,9 +81,10 @@ export default async function ActivitiesPage({
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-primary">CRM</p>
-            <h1 className="text-3xl font-bold">Atividades</h1>
+            <h1 className="text-3xl font-bold">Feed de atividades</h1>
             <p className="mt-2 text-sm text-slate-500">
-              Histórico unificado de leads, clientes e contratos.
+              Últimas movimentações de leads, clientes e contratos, com filtro
+              por autor.
             </p>
           </div>
           <div className="rounded-2xl border bg-white px-5 py-3 text-right">
