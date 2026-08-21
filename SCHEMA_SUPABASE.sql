@@ -299,6 +299,34 @@ create table public.produtos (
 create index idx_produtos_ativos on public.produtos(ordem) where ativo = true;
 
 -- =============================================================================
+-- 7.2. TABELAS notificacoes e leituras individuais
+-- =============================================================================
+
+create table public.notificacoes (
+  id uuid primary key default gen_random_uuid(),
+  destinatario_id uuid references public.users(id) on delete cascade,
+  tipo text not null check (tipo in ('lead_novo','lead_parado','vau_desatualizada','evento_agenda','sistema')),
+  titulo text not null,
+  mensagem text,
+  link text,
+  ref_tipo text,
+  ref_id uuid,
+  lida boolean not null default false,
+  lida_em timestamptz,
+  criado_em timestamptz not null default now()
+);
+create index idx_notif_destinatario_naolidas on public.notificacoes(destinatario_id, criado_em desc) where lida = false;
+create index idx_notif_globais_naolidas on public.notificacoes(criado_em desc) where destinatario_id is null and lida = false;
+
+create table public.notificacoes_leituras (
+  notificacao_id uuid not null references public.notificacoes(id) on delete cascade,
+  usuario_id uuid not null references public.users(id) on delete cascade,
+  lida_em timestamptz not null default now(),
+  primary key (notificacao_id, usuario_id)
+);
+create index idx_notificacoes_leituras_usuario on public.notificacoes_leituras(usuario_id, lida_em desc);
+
+-- =============================================================================
 -- 8. TABELA atividades (timeline unificada)
 -- =============================================================================
 
@@ -506,6 +534,8 @@ alter table public.cliente_notas enable row level security;
 alter table public.eventos_agenda enable row level security;
 alter table public.contratos    enable row level security;
 alter table public.produtos     enable row level security;
+alter table public.notificacoes enable row level security;
+alter table public.notificacoes_leituras enable row level security;
 alter table public.atividades   enable row level security;
 alter table public.artigos      enable row level security;
 alter table public.cases        enable row level security;
@@ -616,6 +646,26 @@ create policy produtos_select_active on public.produtos
 create policy produtos_write_admin on public.produtos
   for all using (public.is_admin()) with check (public.is_admin());
 
+-- -------- NOTIFICACOES --------
+create policy notif_select_own on public.notificacoes
+  for select to authenticated using (
+    public.is_active_user() and (
+      destinatario_id is null or destinatario_id = public.current_active_user_id()
+    )
+  );
+create policy notif_delete_admin on public.notificacoes
+  for delete to authenticated using (public.is_admin());
+-- INSERT somente via service_role.
+
+create policy notif_leituras_select_own on public.notificacoes_leituras
+  for select to authenticated using (usuario_id = public.current_active_user_id());
+create policy notif_leituras_insert_own on public.notificacoes_leituras
+  for insert to authenticated with check (usuario_id = public.current_active_user_id());
+create policy notif_leituras_update_own on public.notificacoes_leituras
+  for update to authenticated
+  using (usuario_id = public.current_active_user_id())
+  with check (usuario_id = public.current_active_user_id());
+
 -- -------- ATIVIDADES --------
 create policy atividades_select_active on public.atividades
   for select using (public.is_active_user());
@@ -690,6 +740,8 @@ insert into public.config (chave, valor, descricao) values
   ('empresa_email_privacidade', '', 'Email do DPO; usa empresa_email quando vazio'),
   ('empresa_whatsapp_e164', '5561993982653', 'WhatsApp institucional em formato E.164, somente dígitos, usado nos links do site'),
   ('whatsapp_msg_cliente_default', '', 'Mensagem opcional ao abrir o WhatsApp de um cliente; vazia abre o chat direto'),
+  ('notif_lead_parado_dias', '7', 'Dias sem atualização para alertar sobre lead parado'),
+  ('notif_vau_max_dias', '30', 'Dias máximos sem atualização da tabela VAU'),
   ('horario_atendimento_dias', 'Segunda a sexta', 'Dias de atendimento'),
   ('horario_atendimento_horas', 'Das 09h às 19h', 'Horas de atendimento'),
   ('horario_atendimento_fuso', 'horário de Brasília', 'Fuso do atendimento'),

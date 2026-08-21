@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { listNotifications } from "@/lib/notifications";
+import { NotificationBell } from "@/components/admin/notification-bell";
 
 export const metadata: Metadata = {
   title: "Admin | Imposto & Obra",
@@ -68,6 +70,9 @@ export default async function AdminLayout({
           ...adminNavigation,
         ]
       : navigation;
+  const notificationData = profile
+    ? await listNotifications(10)
+    : { notifications: [], unread: 0 };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
@@ -126,7 +131,14 @@ export default async function AdminLayout({
                 ))}
               </nav>
             </details>
-            <div className="ml-auto text-right">
+            <div className="ml-auto">
+              <NotificationBell
+                initialNotifications={notificationData.notifications}
+                initialUnread={notificationData.unread}
+                initialNow={Date.now()}
+              />
+            </div>
+            <div className="text-right">
               <p className="text-sm font-semibold">
                 {profile?.nome || "Usuário"}
               </p>

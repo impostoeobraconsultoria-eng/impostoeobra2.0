@@ -26,9 +26,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
   const now = new Date();
-  const sevenDaysFromNow = new Date(
-    now.getTime() + 7 * 24 * 60 * 60 * 1000,
-  );
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const [{ data: candidates, error }, { data: users }, { data: configs }] =
     await Promise.all([
       supabase
@@ -46,7 +44,7 @@ export async function GET(request: NextRequest) {
         .limit(500),
       supabase
         .from("users")
-        .select("email,nome")
+        .select("id,email,nome")
         .eq("ativo", true)
         .not("email", "is", null),
       supabase
@@ -109,6 +107,21 @@ export async function GET(request: NextRequest) {
         .eq("id", event.id)
         .is("lembrete_enviado_em", null);
       if (updateError) throw updateError;
+      const notifications = (users ?? []).map((user) => ({
+        destinatario_id: user.id,
+        tipo: "evento_agenda",
+        titulo: `Lembrete: ${event.titulo}`,
+        mensagem: `${start.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "2-digit", month: "2-digit" })} às ${start.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}`,
+        link: `/admin/agenda?evento=${event.id}`,
+        ref_tipo: "evento",
+        ref_id: event.id,
+      }));
+      if (notifications.length) {
+        const { error: notificationError } = await supabase
+          .from("notificacoes")
+          .insert(notifications);
+        if (notificationError) throw notificationError;
+      }
       enviados += messages.length;
     } catch (sendError) {
       erros += 1;

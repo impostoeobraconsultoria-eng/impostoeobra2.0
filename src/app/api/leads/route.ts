@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
   const lead = { ...parsed.data };
   delete lead.timestamp;
   delete lead.website;
-  const { data, error } = await createAdminClient()
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("leads")
     .insert({ ...lead, origem: "simulador" })
     .select("id")
@@ -53,6 +54,21 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+
+  const location = lead.uf ? ` da UF ${lead.uf}` : "";
+  const { error: notificationError } = await admin.from("notificacoes").insert({
+    tipo: "lead_novo",
+    titulo: `Novo lead: ${lead.nome}`,
+    mensagem: `${lead.nome}${location} preencheu o simulador.`,
+    link: `/admin/leads/${data.id}`,
+    ref_tipo: "lead",
+    ref_id: data.id,
+  });
+  if (notificationError)
+    console.error("Falha ao criar notificação de lead", {
+      leadId: data.id,
+      code: notificationError.code,
+    });
 
   console.info("Lead registrado", { id: data.id, origem: "simulador" });
   return NextResponse.json({ ok: true, id: data.id }, { status: 201 });
