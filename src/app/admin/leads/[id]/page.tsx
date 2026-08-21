@@ -212,7 +212,15 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
             role="alert"
             className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700"
           >
-            Não foi possível salvar. Revise os dados e tente novamente.
+            {searchParams.error === "convert"
+              ? "Não foi possível converter o lead em cliente. Verifique os dados e tente novamente."
+              : searchParams.error === "already_converted"
+                ? "Este lead já foi convertido em cliente."
+                : searchParams.error === "lead_not_found"
+                  ? "O lead não foi encontrado ou foi excluído."
+                  : searchParams.error === "invalid_phone"
+                    ? "Informe um WhatsApp brasileiro válido, com DDD e celular iniciado por 9."
+                    : "Não foi possível salvar. Revise os dados e tente novamente."}
           </p>
         )}
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">

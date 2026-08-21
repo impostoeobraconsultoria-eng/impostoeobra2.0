@@ -66,7 +66,15 @@ export async function createContract(f: FormData) {
     .insert(p.data)
     .select("id")
     .single();
-  if (error || !data) redirect("/admin/contratos/novo?error=save");
+  if (error || !data) {
+    console.error("Falha ao criar contrato", {
+      code: error?.code,
+      message: error?.message,
+    });
+    redirect(
+      `/admin/contratos/novo?error=${error?.code === "23505" ? "duplicate" : "save"}`,
+    );
+  }
   await supabase.from("atividades").insert({
     ref_tipo: "contrato",
     ref_id: data.id,

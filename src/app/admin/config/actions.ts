@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  type TemplateKey,
+  validateDocxTemplate,
+} from "@/lib/docx-template-validation";
 
 const field = z.string().trim().max(20_000);
 const sections = {
@@ -103,22 +107,49 @@ export async function saveTemplates(formData: FormData) {
     chave,
     valor,
   }));
+  const uploads: { key: TemplateKey; fileName: string; buffer: ArrayBuffer }[] =
+    [];
   for (const [key, fileName] of templateFiles) {
     const file = formData.get(key);
     if (!(file instanceof File) || file.size === 0) continue;
-    if (
-      !file.name.toLowerCase().endsWith(".docx") ||
-      file.size > 10 * 1024 * 1024
-    )
-      redirect("/admin/config?tab=templates&error=invalid_file");
+    if (!file.name.toLowerCase().endsWith(".docx"))
+      redirect("/admin/config?tab=templates&error=invalid_extension");
+    if (file.size > 10 * 1024 * 1024)
+      redirect("/admin/config?tab=templates&error=file_too_large");
+    const buffer = await file.arrayBuffer();
+    const validation = validateDocxTemplate(buffer, key);
+    if (validation.invalid)
+      redirect("/admin/config?tab=templates&error=invalid_docx");
+    if (!validation.ok)
+      redirect(
+        `/admin/config?tab=templates&error=missing_placeholders&details=${encodeURIComponent(validation.missing.join(","))}`,
+      );
+    uploads.push({ key, fileName, buffer });
+  }
+  for (const { key, fileName, buffer } of uploads) {
     const { error } = await supabase.storage
       .from("templates")
-      .upload(fileName, await file.arrayBuffer(), {
+      .upload(fileName, buffer, {
         contentType:
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         upsert: true,
       });
-    if (error) redirect("/admin/config?tab=templates&error=upload");
+    if (error) {
+      console.error("Falha ao substituir template DOCX", {
+        key,
+        fileName,
+        code: error.name,
+        message: error.message,
+      });
+      const code = /row-level security|unauthorized|forbidden/i.test(
+        error.message,
+      )
+        ? "upload_permission"
+        : /payload|size|large/i.test(error.message)
+          ? "file_too_large"
+          : "upload";
+      redirect(`/admin/config?tab=templates&error=${code}`);
+    }
     configRows.push({ chave: key, valor: fileName });
   }
   const { error } = await supabase
@@ -198,8 +229,7 @@ export async function saveFunnel(formData: FormData) {
       .update({ ultima_etapa_kanban: stage.nome })
       .eq("ultima_etapa_kanban", previousName)
       .is("deleted_at", null);
-    if (inactiveHistoryError)
-      redirect("/admin/config?tab=funil&error=save");
+    if (inactiveHistoryError) redirect("/admin/config?tab=funil&error=save");
   }
   const added = normalized
     .filter((stage) => !stage.id)
@@ -236,7 +266,11 @@ export async function saveFunnel(formData: FormData) {
 
 const reasonSchema = z.object({
   id: z.string().uuid().optional(),
-  slug: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(100),
+  slug: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .max(100),
   rotulo: z.string().trim().min(2).max(100),
   ativo: z.boolean(),
   reativavel_padrao: z.boolean(),
@@ -244,15 +278,36 @@ const reasonSchema = z.object({
 
 export async function saveInactivationReasons(formData: FormData) {
   let raw: unknown;
-  try { raw = JSON.parse(String(formData.get("motivos") ?? "[]")); }
-  catch { redirect("/admin/config?tab=motivos&error=invalid"); }
+  try {
+    raw = JSON.parse(String(formData.get("motivos") ?? "[]"));
+  } catch {
+    redirect("/admin/config?tab=motivos&error=invalid");
+  }
   const parsed = z.array(reasonSchema).min(1).max(50).safeParse(raw);
   if (!parsed.success) redirect("/admin/config?tab=motivos&error=invalid");
   const { supabase } = await getAdminContext();
-  const existing = parsed.data.filter((item) => item.id).map((item, ordem) => ({ id: item.id!, rotulo: item.rotulo, ativo: item.ativo, reativavel_padrao: item.reativavel_padrao, ordem }));
-  const added = parsed.data.filter((item) => !item.id).map((item, index) => ({ slug: item.slug, rotulo: item.rotulo, ativo: item.ativo, reativavel_padrao: item.reativavel_padrao, ordem: existing.length + index }));
+  const existing = parsed.data
+    .filter((item) => item.id)
+    .map((item, ordem) => ({
+      id: item.id!,
+      rotulo: item.rotulo,
+      ativo: item.ativo,
+      reativavel_padrao: item.reativavel_padrao,
+      ordem,
+    }));
+  const added = parsed.data
+    .filter((item) => !item.id)
+    .map((item, index) => ({
+      slug: item.slug,
+      rotulo: item.rotulo,
+      ativo: item.ativo,
+      reativavel_padrao: item.reativavel_padrao,
+      ordem: existing.length + index,
+    }));
   if (existing.length) {
-    const { error } = await supabase.from("motivos_inativacao").upsert(existing, { onConflict: "id" });
+    const { error } = await supabase
+      .from("motivos_inativacao")
+      .upsert(existing, { onConflict: "id" });
     if (error) redirect("/admin/config?tab=motivos&error=save");
   }
   if (added.length) {

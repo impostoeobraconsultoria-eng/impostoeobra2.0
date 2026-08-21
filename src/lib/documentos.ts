@@ -122,6 +122,28 @@ export async function generateDocx(
   return buffer;
 }
 
+export function publicDocumentError(
+  error: unknown,
+  operation: "proposta" | "contrato" | "material",
+) {
+  const message = error instanceof Error ? error.message : "";
+  if (/Template .* não encontrado/i.test(message))
+    return "O template configurado não foi encontrado. Verifique o arquivo em Configurações → Templates.";
+  if (/placeholder/i.test(message))
+    return "O template contém variáveis inválidas ou não preenchidas. Revise o DOCX em Configurações → Templates.";
+  if (/zip|corrupt|docx|file type/i.test(message))
+    return "O template configurado está corrompido ou não é um DOCX válido.";
+  if (/upload/i.test(message))
+    return "Não foi possível armazenar o documento gerado. Tente novamente em alguns instantes.";
+  if (/registrar documento|registrar atividade/i.test(message))
+    return "O arquivo foi gerado, mas não foi possível registrar o histórico. A operação foi desfeita com segurança; tente novamente.";
+  if (/assinar download/i.test(message))
+    return "O documento foi gerado, mas o link de download não pôde ser criado. Tente baixar novamente pelo histórico de documentos.";
+  return operation === "material"
+    ? "Não foi possível registrar o material de apoio. Tente novamente."
+    : `Não foi possível gerar ${operation === "proposta" ? "a proposta" : "o contrato"}. Revise os dados e tente novamente.`;
+}
+
 function safeFileSegment(value: string) {
   return value
     .normalize("NFKD")

@@ -37,7 +37,13 @@ export default async function NewContractPage({
         </header>
         {searchParams?.error && (
           <p className="mt-5 rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-700">
-            Não foi possível salvar. Revise os campos obrigatórios.
+            {searchParams.error === "invalid"
+              ? "Revise os campos obrigatórios e os valores informados."
+              : searchParams.error === "product"
+                ? "Selecione um produto ativo antes de criar o contrato."
+                : searchParams.error === "duplicate"
+                  ? "Já existe um contrato com esse número. Informe outro número."
+                  : "Os dados são válidos, mas o contrato não pôde ser salvo. Tente novamente."}
           </p>
         )}
         <section className="mt-6 rounded-2xl border bg-white p-6">

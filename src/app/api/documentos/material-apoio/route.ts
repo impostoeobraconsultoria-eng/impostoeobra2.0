@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import {
   fileName,
+  publicDocumentError,
   registerMaterialSupport,
   requireDocumentUser,
 } from "@/lib/documentos";
@@ -47,10 +48,7 @@ export async function POST(request: Request) {
     console.error("Erro ao registrar material de apoio", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Falha ao registrar material.",
+        error: publicDocumentError(error, "material"),
       },
       { status: 500 },
     );

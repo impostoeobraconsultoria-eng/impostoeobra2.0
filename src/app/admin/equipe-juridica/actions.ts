@@ -78,7 +78,9 @@ export async function createMember(formData: FormData) {
     fotoUrl = await uploadPhoto(supabase, formData.get("foto"));
   } catch (error) {
     console.error("Falha no upload da foto da equipe", error);
-    redirect("/admin/equipe-juridica?new=1&error=image");
+    redirect(
+      `/admin/equipe-juridica?new=1&error=${error instanceof Error && error.message.startsWith("Use uma foto") ? "image_invalid" : "image_upload"}`,
+    );
   }
   const { error } = await supabase
     .from("equipe_juridica")
@@ -105,7 +107,9 @@ export async function updateMember(id: string, formData: FormData) {
     fotoUrl = (await uploadPhoto(supabase, formData.get("foto"))) ?? fotoUrl;
   } catch (error) {
     console.error("Falha no upload da foto da equipe", error);
-    redirect(`/admin/equipe-juridica?edit=${id}&error=image`);
+    redirect(
+      `/admin/equipe-juridica?edit=${id}&error=${error instanceof Error && error.message.startsWith("Use uma foto") ? "image_invalid" : "image_upload"}`,
+    );
   }
   const { error } = await supabase
     .from("equipe_juridica")
@@ -120,7 +124,10 @@ export async function deleteMember(id: string) {
   if (!z.string().uuid().safeParse(id).success)
     return { ok: false, error: "Membro inválido." };
   const supabase = await adminContext();
-  const { error } = await supabase.from("equipe_juridica").delete().eq("id", id);
+  const { error } = await supabase
+    .from("equipe_juridica")
+    .delete()
+    .eq("id", id);
   if (error) return { ok: false, error: error.message };
   refresh();
   return { ok: true };
@@ -132,7 +139,10 @@ export async function reorderMembers(ids: string[]) {
   const supabase = await adminContext();
   const updates = await Promise.all(
     parsed.data.map((id, index) =>
-      supabase.from("equipe_juridica").update({ ordem: (index + 1) * 10 }).eq("id", id),
+      supabase
+        .from("equipe_juridica")
+        .update({ ordem: (index + 1) * 10 })
+        .eq("id", id),
     ),
   );
   const failed = updates.find(({ error }) => error);

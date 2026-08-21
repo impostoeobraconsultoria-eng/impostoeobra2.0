@@ -27,11 +27,13 @@ export default function NewArticlePage({
 
 function ErrorMessage({ code }: { code: string }) {
   const text =
-    code === "image"
-      ? "A imagem é inválida ou não pôde ser enviada."
-      : code === "save"
-        ? "Não foi possível salvar. Verifique se o slug já existe."
-        : "Revise os campos obrigatórios.";
+    code === "image_invalid"
+      ? "Imagem rejeitada: use PNG, JPG ou WebP de até 5 MB."
+      : code === "image_upload"
+        ? "A imagem é válida, mas o Storage recusou o envio. Tente novamente; se persistir, contate o suporte."
+        : code === "save"
+          ? "Não foi possível salvar. Verifique se o slug já existe."
+          : "Revise os campos obrigatórios.";
   return (
     <p className="mt-5 rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-700">
       {text}

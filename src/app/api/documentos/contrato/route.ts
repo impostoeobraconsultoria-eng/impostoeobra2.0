@@ -11,6 +11,7 @@ import {
   mergeAndNormalize,
   money,
   persistDocx,
+  publicDocumentError,
   requireDocumentUser,
 } from "@/lib/documentos";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -174,8 +175,7 @@ export async function POST(request: Request) {
     console.error("Erro ao gerar contrato", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Falha ao gerar contrato.",
+        error: publicDocumentError(error, "contrato"),
       },
       { status: 500 },
     );
