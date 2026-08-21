@@ -57,6 +57,19 @@ create table public.config (
   updated_at timestamptz not null default now()
 );
 
+-- Etapas dinâmicas do Kanban (substitui funcionalmente config.etapas_funil)
+create table public.funil_etapas (
+  id         uuid primary key default gen_random_uuid(),
+  nome       text not null,
+  ordem      integer not null check (ordem >= 0),
+  cor        text,
+  e_fechada  boolean not null default false,
+  criado_em  timestamptz not null default now(),
+  constraint funil_etapas_nome_not_blank check (length(btrim(nome)) between 1 and 100),
+  constraint funil_etapas_cor_hex check (cor is null or cor = '' or cor ~ '^#[0-9A-Fa-f]{6}$')
+);
+create index idx_funil_etapas_ordem on public.funil_etapas (ordem, criado_em);
+
 -- =============================================================================
 -- 5. TABELA leads
 -- =============================================================================
@@ -123,6 +136,7 @@ create table public.leads (
 
   -- Conversão em cliente
   cliente_id               uuid,  -- FK criada depois (referência circular)
+  convertido_em            timestamptz,
 
   -- Sistema
   legacy_id                text,  -- id da planilha antiga (para rastrear migração)
@@ -135,6 +149,8 @@ create index idx_leads_status on public.leads(status) where deleted_at is null;
 create index idx_leads_responsavel on public.leads(responsavel_id) where deleted_at is null;
 create index idx_leads_data on public.leads(data_hora desc) where deleted_at is null;
 create index idx_leads_uf on public.leads(uf) where deleted_at is null;
+create index idx_leads_ativos_kanban on public.leads(status)
+  where deleted_at is null and convertido_em is null;
 
 -- =============================================================================
 -- 6. TABELA clientes
@@ -183,6 +199,7 @@ create table public.clientes (
   pix                   text,
 
   obs_contrato          text,
+  link_dossie           text,
   legacy_id             text,
   criado_em             timestamptz not null default now(),
   criado_por            uuid references public.users(id) on delete set null,
@@ -192,6 +209,44 @@ create table public.clientes (
 
 create index idx_clientes_nome on public.clientes(nome) where deleted_at is null;
 create index idx_clientes_cpf on public.clientes(cpf) where deleted_at is null;
+
+-- Notas privadas da vista 360 do cliente
+create table public.cliente_notas (
+  id           uuid primary key default gen_random_uuid(),
+  cliente_id   uuid not null references public.clientes(id) on delete cascade,
+  autor_id     uuid references public.users(id) on delete set null,
+  conteudo     text not null,
+  criado_em    timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+  deleted_at   timestamptz
+);
+create index idx_cliente_notas_cliente
+  on public.cliente_notas(cliente_id, criado_em desc)
+  where deleted_at is null;
+
+create table public.eventos_agenda (
+  id uuid primary key default gen_random_uuid(),
+  titulo text not null,
+  descricao text,
+  tipo text not null check (tipo in ('reuniao','follow_up','prazo','tarefa_interna')),
+  data_hora_inicio timestamptz not null,
+  data_hora_fim timestamptz,
+  dia_inteiro boolean not null default false,
+  lembrete_minutos integer,
+  lembrete_enviado_em timestamptz,
+  ref_tipo text check (ref_tipo in ('lead','cliente','contrato')),
+  ref_id uuid,
+  criado_por uuid references public.users(id) on delete set null,
+  responsavel_id uuid references public.users(id) on delete set null,
+  status text not null default 'agendado' check (status in ('agendado','concluido','cancelado')),
+  criado_em timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+create index idx_eventos_data on public.eventos_agenda(data_hora_inicio) where deleted_at is null;
+create index idx_eventos_ref on public.eventos_agenda(ref_tipo,ref_id) where deleted_at is null;
+create index idx_eventos_lembrete on public.eventos_agenda(data_hora_inicio,lembrete_minutos)
+  where deleted_at is null and lembrete_minutos is not null and lembrete_enviado_em is null and status='agendado';
 
 -- Agora que clientes existe, adiciona FK em leads
 alter table public.leads
@@ -224,6 +279,24 @@ create table public.contratos (
 
 create index idx_contratos_cliente on public.contratos(cliente_id) where deleted_at is null;
 create index idx_contratos_status on public.contratos(status) where deleted_at is null;
+
+-- =============================================================================
+-- 7.1. TABELA produtos (catálogo dinâmico de serviços)
+-- =============================================================================
+
+create table public.produtos (
+  id                    uuid primary key default gen_random_uuid(),
+  slug                  text unique not null,
+  nome                  text not null,
+  descricao             text,
+  template_contrato_arq text,
+  ordem                 integer default 100,
+  ativo                 boolean not null default true,
+  criado_em             timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+
+create index idx_produtos_ativos on public.produtos(ordem) where ativo = true;
 
 -- =============================================================================
 -- 8. TABELA atividades (timeline unificada)
@@ -294,6 +367,26 @@ create table public.cases (
 create index idx_cases_publicado on public.cases(publicado, ordem);
 
 -- =============================================================================
+-- 10.1. TABELA equipe_juridica (conteúdo institucional)
+-- =============================================================================
+
+create table public.equipe_juridica (
+  id           uuid primary key default gen_random_uuid(),
+  nome         text not null,
+  oab          text,
+  papel        text not null,
+  descricao    text,
+  foto_url     text,
+  ordem        integer not null default 100,
+  publicado    boolean not null default true,
+  criado_em    timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+create index idx_equipe_publicada on public.equipe_juridica(publicado, ordem)
+  where publicado = true;
+
+-- =============================================================================
 -- 11. TABELA faq (perguntas frequentes gerais)
 -- =============================================================================
 
@@ -324,9 +417,13 @@ $$ language plpgsql;
 create trigger trg_users_updated       before update on public.users        for each row execute function public.set_updated_at();
 create trigger trg_leads_updated       before update on public.leads        for each row execute function public.set_updated_at();
 create trigger trg_clientes_updated    before update on public.clientes     for each row execute function public.set_updated_at();
+create trigger trg_cliente_notas_updated before update on public.cliente_notas for each row execute function public.set_updated_at();
+create trigger trg_eventos_agenda_updated before update on public.eventos_agenda for each row execute function public.set_updated_at();
 create trigger trg_contratos_updated   before update on public.contratos    for each row execute function public.set_updated_at();
+create trigger trg_produtos_updated    before update on public.produtos     for each row execute function public.set_updated_at();
 create trigger trg_artigos_updated     before update on public.artigos      for each row execute function public.set_updated_at();
 create trigger trg_cases_updated       before update on public.cases        for each row execute function public.set_updated_at();
+create trigger trg_equipe_juridica_updated before update on public.equipe_juridica for each row execute function public.set_updated_at();
 create trigger trg_faq_updated         before update on public.faq          for each row execute function public.set_updated_at();
 create trigger trg_vau_updated         before update on public.vau          for each row execute function public.set_updated_at();
 create trigger trg_config_updated      before update on public.config       for each row execute function public.set_updated_at();
@@ -342,7 +439,10 @@ begin
     where email = auth.jwt()->>'email' and ativo = true
   );
 end;
-$$ language plpgsql security definer stable;
+$$ language plpgsql
+   security definer
+   stable
+   set search_path = public, pg_temp;
 
 create or replace function public.is_admin() returns boolean as $$
 begin
@@ -351,7 +451,45 @@ begin
     where email = auth.jwt()->>'email' and ativo = true and perfil = 'admin'
   );
 end;
-$$ language plpgsql security definer stable;
+$$ language plpgsql
+   security definer
+   stable
+   set search_path = public, pg_temp;
+
+-- EXECUTE restrito a authenticated/anon (não PUBLIC — hardening)
+revoke execute on function public.is_active_user() from public;
+revoke execute on function public.is_admin() from public;
+grant execute on function public.is_active_user() to authenticated, anon;
+grant execute on function public.is_admin() to authenticated, anon;
+
+create or replace function public.current_active_user_id()
+returns uuid language sql security definer stable
+set search_path = public, pg_temp as $$
+  select id from public.users
+   where email = auth.jwt()->>'email' and ativo = true
+   limit 1;
+$$;
+revoke execute on function public.current_active_user_id() from public;
+grant execute on function public.current_active_user_id() to authenticated;
+
+-- RPC para atualizar ultimo_acesso do próprio usuário (chamada no callback OAuth)
+-- SECURITY DEFINER porque UPDATE em users é restrito a admin pela policy geral,
+-- mas queremos permitir que qualquer usuário ativo atualize apenas o próprio
+-- ultimo_acesso (nada mais).
+create or replace function public.registrar_ultimo_acesso() returns void as $$
+begin
+  update public.users
+     set ultimo_acesso = now()
+   where email = auth.jwt()->>'email'
+     and ativo = true;
+end;
+$$ language plpgsql
+   security definer
+   volatile
+   set search_path = public, pg_temp;
+
+revoke execute on function public.registrar_ultimo_acesso() from public;
+grant execute on function public.registrar_ultimo_acesso() to authenticated;
 
 -- =============================================================================
 -- 14. ROW LEVEL SECURITY
@@ -361,12 +499,17 @@ $$ language plpgsql security definer stable;
 alter table public.users        enable row level security;
 alter table public.vau          enable row level security;
 alter table public.config       enable row level security;
+alter table public.funil_etapas enable row level security;
 alter table public.leads        enable row level security;
 alter table public.clientes     enable row level security;
+alter table public.cliente_notas enable row level security;
+alter table public.eventos_agenda enable row level security;
 alter table public.contratos    enable row level security;
+alter table public.produtos     enable row level security;
 alter table public.atividades   enable row level security;
 alter table public.artigos      enable row level security;
 alter table public.cases        enable row level security;
+alter table public.equipe_juridica enable row level security;
 alter table public.faq          enable row level security;
 
 -- -------- USERS --------
@@ -395,11 +538,21 @@ create policy config_select_active on public.config
 create policy config_write_admin on public.config
   for all using (public.is_admin()) with check (public.is_admin());
 
+-- -------- FUNIL_ETAPAS --------
+create policy funil_etapas_select_active on public.funil_etapas
+  for select to authenticated using (public.is_active_user());
+create policy funil_etapas_insert_admin on public.funil_etapas
+  for insert to authenticated with check (public.is_admin());
+create policy funil_etapas_update_admin on public.funil_etapas
+  for update to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy funil_etapas_delete_admin on public.funil_etapas
+  for delete to authenticated using (public.is_admin());
+
 -- -------- LEADS --------
--- INSERT liberado para anon (webhook público da calculadora)
-create policy leads_insert_public on public.leads
-  for insert to anon with check (true);
--- SELECT/UPDATE/DELETE só para usuários ativos
+-- IMPORTANTE: inserts em leads NÃO usam RLS.
+-- Todos passam pelo endpoint /api/leads (Next.js), que valida com Zod e usa
+-- SUPABASE_SERVICE_ROLE_KEY (bypassa RLS). Não criamos policy INSERT anon aqui
+-- pra evitar chamadas diretas à Data API sem validação.
 create policy leads_select_active on public.leads
   for select using (public.is_active_user());
 create policy leads_update_active on public.leads
@@ -413,9 +566,37 @@ create policy clientes_select_active on public.clientes
 create policy clientes_insert_active on public.clientes
   for insert with check (public.is_active_user());
 create policy clientes_update_active on public.clientes
-  for update using (public.is_active_user()) with check (public.is_active_user());
+  for update to authenticated
+  using ((select public.is_active_user()) and (deleted_at is null or (select public.is_admin())))
+  with check ((select public.is_active_user()) and (deleted_at is null or (select public.is_admin())));
 create policy clientes_delete_admin on public.clientes
   for delete using (public.is_admin());
+
+-- -------- CLIENTE_NOTAS --------
+create policy cliente_notas_select_active on public.cliente_notas
+  for select using (public.is_active_user());
+create policy cliente_notas_insert_own on public.cliente_notas
+  for insert to authenticated
+  with check (autor_id = public.current_active_user_id());
+create policy cliente_notas_update_author_or_admin on public.cliente_notas
+  for update to authenticated
+  using (autor_id = public.current_active_user_id() or public.is_admin())
+  with check (autor_id = public.current_active_user_id() or public.is_admin());
+create policy cliente_notas_delete_admin on public.cliente_notas
+  for delete using (public.is_admin());
+
+-- -------- EVENTOS_AGENDA --------
+create policy eventos_select_active on public.eventos_agenda
+  for select using (public.is_active_user());
+create policy eventos_insert_own on public.eventos_agenda
+  for insert to authenticated with check (criado_por = public.current_active_user_id());
+create policy eventos_update_active on public.eventos_agenda
+  for update to authenticated using (public.is_active_user()) with check (public.is_active_user());
+create policy eventos_delete_admin on public.eventos_agenda
+  for delete to authenticated using (public.is_admin());
+revoke update on table public.eventos_agenda from authenticated;
+grant update (titulo,descricao,tipo,data_hora_inicio,data_hora_fim,dia_inteiro,lembrete_minutos,ref_tipo,ref_id,responsavel_id,status)
+  on table public.eventos_agenda to authenticated;
 
 -- -------- CONTRATOS --------
 create policy contratos_select_active on public.contratos
@@ -423,15 +604,25 @@ create policy contratos_select_active on public.contratos
 create policy contratos_insert_active on public.contratos
   for insert with check (public.is_active_user());
 create policy contratos_update_active on public.contratos
-  for update using (public.is_active_user()) with check (public.is_active_user());
+  for update to authenticated
+  using ((select public.is_active_user()) and (deleted_at is null or (select public.is_admin())))
+  with check ((select public.is_active_user()) and (deleted_at is null or (select public.is_admin())));
 create policy contratos_delete_admin on public.contratos
   for delete using (public.is_admin());
+
+-- -------- PRODUTOS --------
+create policy produtos_select_active on public.produtos
+  for select using (public.is_active_user());
+create policy produtos_write_admin on public.produtos
+  for all using (public.is_admin()) with check (public.is_admin());
 
 -- -------- ATIVIDADES --------
 create policy atividades_select_active on public.atividades
   for select using (public.is_active_user());
 create policy atividades_insert_active on public.atividades
-  for insert with check (public.is_active_user() or auth.role() = 'anon');  -- webhook pode logar criação
+  for insert to authenticated with check (public.is_active_user());
+-- Nota: inserts vindos do webhook /api/leads passam pela SUPABASE_SERVICE_ROLE_KEY
+-- (bypassa RLS), então não é necessário permitir anon aqui.
 create policy atividades_update_admin on public.atividades
   for update using (public.is_admin()) with check (public.is_admin());
 create policy atividades_delete_admin on public.atividades
@@ -454,6 +645,16 @@ create policy cases_select_active on public.cases
 create policy cases_write_active on public.cases
   for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
 
+-- -------- EQUIPE JURÍDICA --------
+create policy equipe_select_public on public.equipe_juridica
+  for select to anon using (publicado = true);
+create policy equipe_select_active on public.equipe_juridica
+  for select to authenticated using (public.is_active_user());
+create policy equipe_write_admin on public.equipe_juridica
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+grant select on table public.equipe_juridica to anon;
+grant select, insert, update, delete on table public.equipe_juridica to authenticated;
+
 -- -------- FAQ --------
 create policy faq_select_public on public.faq
   for select to anon using (publicado = true);
@@ -471,13 +672,57 @@ insert into public.users (email, nome, perfil, ativo)
 values ('pauloricardos@me.com', 'Paulo Ricardo', 'admin', true)
 on conflict (email) do nothing;
 
+insert into public.produtos (slug, nome, descricao, template_contrato_arq, ordem, ativo) values
+  ('obra_andamento', 'Regularização de obra em andamento', 'Regularização de INSS de obra que ainda está em execução.', 'contrato_obra_andamento.docx', 10, true),
+  ('obra_finalizada', 'Regularização de obra finalizada', 'Regularização de INSS de obra já concluída.', 'contrato_obra_finalizada.docx', 20, true)
+on conflict (slug) do nothing;
+
 -- Config default
 insert into public.config (chave, valor, descricao) values
   ('etapas_funil', 'Novo Lead,Contato iniciado,Em negociacao,Proposta enviada,Aguardando resposta,Fechado — ganho,Fechado — perdido,Sem retorno', 'Etapas do Kanban (separadas por vírgula)'),
   ('msg_whatsapp_padrao', 'Ola {nome}! Sou consultor da Imposto & Obra. Vimos sua simulacao de INSS e podemos te ajudar a regularizar a obra. Posso te enviar uma proposta?', 'Mensagem padrão de WhatsApp'),
   ('produtos', 'obra_andamento,obra_finalizada', 'Produtos ativos do CRM'),
-  ('vau_vigencia', 'Maio/2026', 'Vigência atual da tabela VAU')
+  ('vau_vigencia', 'Maio/2026', 'Vigência atual da tabela VAU'),
+  ('agenda_lembrete_default_min', '1440', 'Minutos antes do evento para lembrete padrão'),
+  ('resend_from_email', 'agenda@impostoeobra.com.br', 'Email remetente dos lembretes da agenda'),
+  ('resend_from_name', 'Imposto & Obra — Agenda', 'Nome exibido no remetente dos lembretes'),
+  ('dpo_nome', 'Paulo Ricardo da Silva Santana', 'Nome do Encarregado de Dados Pessoais (DPO)'),
+  ('empresa_email_privacidade', '', 'Email do DPO; usa empresa_email quando vazio'),
+  ('empresa_whatsapp_e164', '5561993982653', 'WhatsApp institucional em formato E.164, somente dígitos, usado nos links do site'),
+  ('whatsapp_msg_cliente_default', '', 'Mensagem opcional ao abrir o WhatsApp de um cliente; vazia abre o chat direto'),
+  ('horario_atendimento_dias', 'Segunda a sexta', 'Dias de atendimento'),
+  ('horario_atendimento_horas', 'Das 09h às 19h', 'Horas de atendimento'),
+  ('horario_atendimento_fuso', 'horário de Brasília', 'Fuso do atendimento'),
+  ('home_qtd_cases', '2', 'Quantidade de cases exibidos na home')
 on conflict (chave) do nothing;
+
+insert into public.equipe_juridica (nome, oab, papel, descricao, ordem, publicado)
+select 'Dr. Paulo Ricardo da Silva Santana', 'OAB/DF nº 72.326',
+  'Advogado tributarista · Fundador',
+  'Responsável pela estratégia jurídica da consultoria, análise de cobranças, aplicação de reduções legais e impugnações administrativas perante a Receita Federal.',
+  10, true
+where not exists (
+  select 1 from public.equipe_juridica where nome = 'Dr. Paulo Ricardo da Silva Santana'
+);
+
+insert into public.equipe_juridica (nome, oab, papel, descricao, ordem, publicado)
+select 'Dr. Wenderson Siqueira', 'OAB/DF nº 57.162',
+  'Advogado tributarista · Consultor parceiro',
+  'Atua em temas de direito tributário e previdenciário aplicados à construção civil, reforçando o time em casos complexos e na estratégia processual.',
+  20, true
+where not exists (
+  select 1 from public.equipe_juridica where nome = 'Dr. Wenderson Siqueira'
+);
+
+insert into public.funil_etapas (nome, ordem, cor, e_fechada) values
+  ('Novo Lead', 0, '#0B76C6', false),
+  ('Contato iniciado', 1, '#2563EB', false),
+  ('Em negociacao', 2, '#7C3AED', false),
+  ('Proposta enviada', 3, '#D97706', false),
+  ('Aguardando resposta', 4, '#EA580C', false),
+  ('Fechado — ganho', 5, '#3AB97A', true),
+  ('Fechado — perdido', 6, '#D93025', true),
+  ('Sem retorno', 7, '#5B6265', false);
 
 -- Tabela VAU inicial (Maio/2026)
 insert into public.vau (uf, casa_popular, comercial, conj_pop, galpao, res_multi, res_uni, garagens, vigencia) values

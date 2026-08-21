@@ -1,0 +1,235 @@
+.page {
+  min-height: 100vh;
+  background: #dfe3e8;
+  padding: 88px 20px 28px;
+  overflow-x: auto;
+}
+.sheet {
+  display: grid;
+  grid-template-columns: 1.04fr 0.96fr 0.8fr;
+  width: 297mm;
+  height: 210mm;
+  margin: 0 auto;
+  background: #f7f8f9;
+  color: #2e3234;
+  font-family: Montserrat, Arial, sans-serif;
+}
+.info,
+.center,
+.panel {
+  padding: 30px 28px;
+}
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  border-right: 1px solid #d4d9dc;
+}
+.logo {
+  height: 48px;
+  display: flex;
+  align-items: center;
+}
+.infoTitle,
+.kicker {
+  margin: 7px 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #0b76c6;
+}
+.infoList {
+  font-size: 11.5px;
+  line-height: 1.55;
+  border-top: 1px solid #d4d9dc;
+  padding-top: 11px;
+}
+.infoList strong {
+  color: #2e3234;
+  font-weight: 700;
+}
+.values {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #d4d9dc;
+  border: 1px solid #d4d9dc;
+}
+.blueBox,
+.yellowBox {
+  padding: 13px 10px;
+  text-align: left;
+  background: #fff;
+}
+.blueBox {
+  grid-row: span 2;
+  background: #0b76c6;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.yellowBox {
+  background: #e7ecf0;
+}
+.boxLabel {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+.boxValue {
+  display: block;
+  margin-top: 8px;
+  font-size: 17px;
+  font-weight: 800;
+}
+.fineBox {
+  font-size: 10px;
+}
+.total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-top: 2px solid #2e3234;
+  padding-top: 10px;
+}
+.total span {
+  font-size: 13px;
+  font-weight: 700;
+}
+.total strong {
+  font-size: 27px;
+}
+.installments {
+  font-size: 10px;
+  text-align: right;
+}
+.info > .conditions {
+  display: none;
+}
+.center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-right: 1px solid #d4d9dc;
+}
+.centerTitle {
+  margin: 12px 0 16px;
+  font-size: 32px;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  font-weight: 800;
+}
+.centerText {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #5b6265;
+}
+.savingCard {
+  margin: 28px 0;
+  border-top: 1px solid #d4d9dc;
+  border-bottom: 1px solid #d4d9dc;
+  padding: 20px 0;
+}
+.savingCard span {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  font-weight: 800;
+  color: #0b76c6;
+}
+.savingCard strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 28px;
+  color: #3ab97a;
+}
+.conditions {
+  font-size: 10.5px;
+}
+.conditions strong {
+  font-size: 11px;
+}
+.conditions ul {
+  padding-left: 16px;
+  margin-top: 8px;
+  line-height: 1.65;
+  list-style: disc;
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  background: #0b76c6;
+  color: #fff;
+}
+.donut {
+  display: block;
+  width: 180px;
+  height: 180px;
+  margin: 6px auto;
+}
+.donutBig {
+  font-size: 27px;
+  font-weight: 800;
+  fill: #fff;
+  text-anchor: middle;
+}
+.donutSmall {
+  font-size: 7px;
+  font-weight: 600;
+  fill: #fff;
+  text-anchor: middle;
+}
+.panelText {
+  font-size: 10.5px;
+  line-height: 1.55;
+  text-align: center;
+}
+.highlight {
+  padding: 15px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.5;
+  text-align: center;
+}
+.contact {
+  margin-top: auto;
+}
+.contact h2 {
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: 800;
+}
+.contact p {
+  margin-bottom: 5px;
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+@page {
+  size: A4 landscape;
+  margin: 0;
+}
+@media (max-width: 900px) {
+  .page {
+    padding-inline: 8px;
+  }
+  .sheet {
+    transform-origin: top left;
+  }
+}
+@media print {
+  .page {
+    width: 297mm;
+    height: 210mm;
+    min-height: 0;
+    padding: 0;
+    background: #f7f8f9;
+    overflow: visible;
+  }
+  .sheet {
+    margin: 0;
+  }
+}

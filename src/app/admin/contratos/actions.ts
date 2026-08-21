@@ -1,0 +1,214 @@
+"use server";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+
+const statuses = ["em vigor", "concluído", "cancelado"] as const;
+async function context() {
+  const supabase = createClient();
+  const { data: c } = await supabase.auth.getClaims();
+  if (typeof c?.claims.email !== "string") throw new Error("Sessão expirada");
+  const { data: u } = await supabase
+    .from("users")
+    .select("id,perfil")
+    .eq("email", c.claims.email)
+    .eq("ativo", true)
+    .single();
+  if (!u) throw new Error("Não autorizado");
+  return { supabase, user: u };
+}
+async function adminContext() {
+  const value = await context();
+  if (value.user.perfil !== "admin")
+    throw new Error("Acesso restrito a administradores.");
+  return value;
+}
+function parse(f: FormData) {
+  const raw = Object.fromEntries(f);
+  const schema = z.object({
+    cliente_id: z.string().uuid(),
+    numero: z.string().trim().max(80).nullable(),
+    produto: z.string().trim().min(1).max(160),
+    status: z.enum(statuses),
+    valor_total: z.number().nonnegative().nullable(),
+    valor_pago: z.number().nonnegative().nullable(),
+    forma_pagamento: z.string().trim().max(160).nullable(),
+    parcelas: z.number().int().positive().nullable(),
+    data_assinatura: z.string().nullable(),
+    data_inicio: z.string().nullable(),
+    data_conclusao: z.string().nullable(),
+    observacoes: z.string().trim().max(3000).nullable(),
+  });
+  const n = (k: string) => (raw[k] === "" ? null : Number(raw[k]));
+  const t = (k: string) => (raw[k] === "" ? null : String(raw[k]));
+  return schema.safeParse({
+    ...raw,
+    numero: t("numero"),
+    valor_total: n("valor_total"),
+    valor_pago: n("valor_pago"),
+    forma_pagamento: t("forma_pagamento"),
+    parcelas: n("parcelas"),
+    data_assinatura: t("data_assinatura"),
+    data_inicio: t("data_inicio"),
+    data_conclusao: t("data_conclusao"),
+    observacoes: t("observacoes"),
+  });
+}
+export async function createContract(f: FormData) {
+  const p = parse(f);
+  if (!p.success) redirect("/admin/contratos/novo?error=invalid");
+  const { supabase, user } = await context();
+  if (!(await isValidProduct(supabase, p.data.produto)))
+    redirect("/admin/contratos/novo?error=product");
+  const { data, error } = await supabase
+    .from("contratos")
+    .insert(p.data)
+    .select("id")
+    .single();
+  if (error || !data) redirect("/admin/contratos/novo?error=save");
+  await supabase.from("atividades").insert({
+    ref_tipo: "contrato",
+    ref_id: data.id,
+    tipo: "criacao",
+    descricao: "Contrato criado",
+    autor_id: user.id,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/contratos");
+  redirect(`/admin/contratos/${data.id}?saved=1`);
+}
+
+export async function createCustomerContract(customerId: string, f: FormData) {
+  f.set("cliente_id", customerId);
+  const p = parse(f);
+  if (!p.success) redirect(`/admin/clientes/${customerId}?error=contract`);
+  const { supabase, user } = await context();
+  if (!(await isValidProduct(supabase, p.data.produto)))
+    redirect(`/admin/clientes/${customerId}?error=contract`);
+  const { data, error } = await supabase
+    .from("contratos")
+    .insert(p.data)
+    .select("id")
+    .single();
+  if (error || !data) redirect(`/admin/clientes/${customerId}?error=contract`);
+  await supabase.from("atividades").insert({
+    ref_tipo: "contrato",
+    ref_id: data.id,
+    tipo: "criacao",
+    descricao: "Contrato criado a partir da vista do cliente",
+    autor_id: user.id,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/contratos");
+  revalidatePath(`/admin/clientes/${customerId}`);
+  redirect(`/admin/clientes/${customerId}?saved=contract`);
+}
+export async function updateContract(id: string, f: FormData) {
+  const p = parse(f);
+  if (!p.success) redirect(`/admin/contratos/${id}?error=invalid`);
+  const { supabase, user } = await context();
+  if (!(await isValidProduct(supabase, p.data.produto, true)))
+    redirect(`/admin/contratos/${id}?error=invalid`);
+  const { error } = await supabase
+    .from("contratos")
+    .update(p.data)
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) redirect(`/admin/contratos/${id}?error=save`);
+  await supabase.from("atividades").insert({
+    ref_tipo: "contrato",
+    ref_id: id,
+    tipo: "edicao",
+    descricao: "Contrato atualizado",
+    autor_id: user.id,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/contratos");
+  redirect(`/admin/contratos/${id}?saved=1`);
+}
+
+async function isValidProduct(
+  supabase: ReturnType<typeof createClient>,
+  slug: string,
+  includeInactive = false,
+) {
+  let query = supabase.from("produtos").select("id").eq("slug", slug);
+  if (!includeInactive) query = query.eq("ativo", true);
+  const { data } = await query.maybeSingle();
+  return Boolean(data);
+}
+export async function addContractNote(id: string, f: FormData) {
+  const note = z.string().trim().min(2).max(3000).safeParse(f.get("nota"));
+  if (!note.success) redirect(`/admin/contratos/${id}?error=note`);
+  const { supabase, user } = await context();
+  await supabase.from("atividades").insert({
+    ref_tipo: "contrato",
+    ref_id: id,
+    tipo: "nota",
+    descricao: note.data,
+    autor_id: user.id,
+  });
+  revalidatePath(`/admin/contratos/${id}`);
+  redirect(`/admin/contratos/${id}?saved=note`);
+}
+
+export async function softDeleteContract(id: string) {
+  if (!z.string().uuid().safeParse(id).success)
+    return { ok: false, error: "Contrato inválido." };
+  const { supabase, user } = await adminContext();
+  const { error } = await supabase
+    .from("contratos")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) return { ok: false, error: error.message };
+  await supabase.from("atividades").insert({
+    ref_tipo: "contrato",
+    ref_id: id,
+    tipo: "exclusao",
+    descricao: "Contrato movido para a lixeira",
+    autor_id: user.id,
+  });
+  revalidatePath("/admin/contratos");
+  revalidatePath("/admin/contratos/lixeira");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function restoreContract(id: string) {
+  if (!z.string().uuid().safeParse(id).success)
+    return { ok: false, error: "Contrato inválido." };
+  const { supabase, user } = await adminContext();
+  const { error } = await supabase
+    .from("contratos")
+    .update({ deleted_at: null })
+    .eq("id", id)
+    .not("deleted_at", "is", null);
+  if (error) return { ok: false, error: error.message };
+  await supabase.from("atividades").insert({
+    ref_tipo: "contrato",
+    ref_id: id,
+    tipo: "restauracao",
+    descricao: "Contrato restaurado da lixeira",
+    autor_id: user.id,
+  });
+  revalidatePath("/admin/contratos");
+  revalidatePath("/admin/contratos/lixeira");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function permanentlyDeleteContract(id: string) {
+  if (!z.string().uuid().safeParse(id).success)
+    return { ok: false, error: "Contrato inválido." };
+  const { supabase } = await adminContext();
+  const { error } = await supabase
+    .from("contratos")
+    .delete()
+    .eq("id", id)
+    .not("deleted_at", "is", null);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/contratos/lixeira");
+  return { ok: true };
+}

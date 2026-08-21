@@ -10,7 +10,7 @@
     --card-foreground: 0 0% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 12%;
-    --primary: 210 100% 45%;
+    --primary: 205 89% 41%;
     --primary-foreground: 0 0% 100%;
     --secondary: 220 23% 98%;
     --secondary-foreground: 0 0% 12%;
@@ -20,9 +20,9 @@
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 210 100% 45%;
+    --border: 200 9% 85%;
+    --input: 200 9% 85%;
+    --ring: 205 89% 41%;
     --radius: 0.875rem;
   }
 
@@ -32,14 +32,182 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family:
-      Inter,
-      system-ui,
-      -apple-system,
-      "Segoe UI",
-      Roboto,
-      Helvetica,
-      Arial,
-      sans-serif;
+    font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+    min-height: 100vh;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  a:focus-visible,
+  button:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2;
+  }
+}
+
+@media print {
+  html,
+  body {
+    width: 297mm;
+    height: 210mm;
+    background: #ecedef !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .admin-sidebar,
+  .admin-header,
+  .material-toolbar {
+    display: none !important;
+  }
+
+  .admin-shell {
+    padding-left: 0 !important;
+  }
+}
+
+@layer components {
+  .site-container {
+    @apply mx-auto w-full max-w-[1440px] px-5 sm:px-8 lg:px-16;
+  }
+
+  .public-v2 *,
+  .public-v2 *::before,
+  .public-v2 *::after {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .public-v2 section,
+  .public-v2 article,
+  .public-v2 input,
+  .public-v2 select,
+  .public-v2 textarea,
+  .public-v2 button {
+    border-color: #d4d9dc;
+  }
+
+  .editorial-label {
+    @apply text-[11px] font-bold uppercase tracking-[.24em] text-primary;
+  }
+
+  .editorial-title {
+    @apply text-[40px] font-extrabold leading-[1.02] tracking-[-.03em] text-text sm:text-[44px];
+  }
+
+  .btn-primary,
+  .btn-outline {
+    @apply inline-flex min-h-14 items-center justify-center px-7 text-sm font-bold transition-colors;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-hover;
+  }
+
+  .btn-outline {
+    @apply border border-border bg-transparent text-text hover:border-primary hover:text-primary;
+  }
+
+  .calculator-editorial > div {
+    @apply border border-border bg-page;
+  }
+
+  .institutional-content > p {
+    @apply mb-5 text-[15px] leading-7 text-brandMuted;
+  }
+
+  .institutional-content > .lead {
+    @apply mb-8 text-[18px] font-medium leading-8 text-text;
+  }
+
+  .institutional-content h2 {
+    @apply mb-4 mt-10 border-t border-border pt-8 text-[28px] font-extrabold tracking-[-.025em] text-text;
+  }
+
+  .institutional-content h3 {
+    @apply mb-2 mt-7 text-xl font-bold text-text;
+  }
+
+  .institutional-content ul,
+  .institutional-content ol {
+    @apply mb-6 ml-5 space-y-3 text-[15px] leading-7 text-brandMuted;
+  }
+
+  .institutional-content ul {
+    @apply list-disc;
+  }
+
+  .institutional-content ol {
+    @apply list-decimal;
+  }
+
+  .institutional-content a:not([class]) {
+    @apply font-semibold text-primary hover:underline;
+  }
+
+  .institutional-content strong {
+    @apply font-bold text-text;
+  }
+
+  .institutional-content nav {
+    @apply my-10 border-y border-border bg-page p-7;
+  }
+
+  .institutional-content nav ol {
+    @apply columns-1 gap-x-12 sm:columns-2;
+  }
+
+  .article-html > p {
+    @apply mb-4 text-[17px] leading-relaxed text-slate-700;
+  }
+
+  .article-html h2 {
+    @apply mb-3 mt-8 scroll-mt-28 text-2xl font-bold tracking-tight text-slate-950;
+  }
+
+  .article-html h3 {
+    @apply mb-2 mt-6 text-xl font-bold text-slate-950;
+  }
+
+  .article-html ul,
+  .article-html ol {
+    @apply mb-5 ml-5 space-y-2 text-base leading-relaxed text-slate-700;
+  }
+
+  .article-html ul {
+    @apply list-disc;
+  }
+
+  .article-html ol {
+    @apply list-decimal;
+  }
+
+  .article-html a {
+    @apply font-semibold text-primary hover:underline;
+  }
+
+  .article-html img {
+    @apply my-6 h-auto max-w-full;
+  }
+
+  .field {
+    @apply text-sm font-semibold text-slate-700;
+  }
+
+  .input {
+    @apply mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal text-slate-950 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15;
+  }
+
+  .material-toolbar {
+    @apply fixed inset-x-0 top-0 z-50 flex min-h-16 items-center justify-between gap-3 border-b bg-white px-4 shadow-sm sm:px-6;
+  }
+
+  .material-toolbar button {
+    @apply inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold;
+  }
+
+  .material-toolbar button.primary {
+    @apply border-primary bg-primary text-white;
   }
 }
