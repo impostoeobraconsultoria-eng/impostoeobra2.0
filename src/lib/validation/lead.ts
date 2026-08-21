@@ -2,6 +2,7 @@ import { z } from "zod";
 import { parseBrazilianMobile } from "@/lib/ddds-brasileiros";
 
 const nonNegativeNumber = z.number().finite().nonnegative().max(1_000_000_000);
+const attribution = z.string().trim().max(1000).nullable().optional();
 
 export const leadSchema = z
   .object({
@@ -9,6 +10,14 @@ export const leadSchema = z
     nome: z.string().trim().min(2).max(160),
     telefone: z.string().min(1),
     email: z.email().max(254).nullable().optional(),
+    utm_source: attribution,
+    utm_medium: attribution,
+    utm_campaign: attribution,
+    utm_content: attribution,
+    utm_term: attribution,
+    gclid: attribution,
+    fbclid: attribution,
+    referrer: z.string().trim().max(2000).nullable().optional(),
     resp: z.enum(["Pessoa Física", "Pessoa Jurídica"]),
     dest: z.enum([
       "Residencial Unifamiliar",

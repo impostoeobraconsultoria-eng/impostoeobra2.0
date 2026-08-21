@@ -1,11 +1,25 @@
--- Conversão atômica de lead em cliente.
--- SECURITY INVOKER: todas as operações continuam submetidas às policies RLS
--- da sessão autenticada que chamou a função.
+-- V4.4 — analytics do funil, qualificação e atribuição first-touch.
 
-update public.leads
-   set convertido_em = coalesce(updated_at, data_hora, now())
- where cliente_id is not null
-   and convertido_em is null;
+alter table public.leads
+  add column if not exists qualificado_em timestamptz;
+
+alter table public.clientes
+  add column if not exists utm_source text,
+  add column if not exists utm_medium text,
+  add column if not exists utm_campaign text,
+  add column if not exists utm_content text,
+  add column if not exists utm_term text,
+  add column if not exists gclid text,
+  add column if not exists fbclid text,
+  add column if not exists referrer text;
+
+create index if not exists idx_clientes_utm_source
+  on public.clientes(utm_source)
+  where utm_source is not null and deleted_at is null;
+
+create index if not exists idx_clientes_utm_campaign
+  on public.clientes(utm_campaign)
+  where utm_campaign is not null and deleted_at is null;
 
 create or replace function public.converter_lead_em_cliente(p_lead_id uuid)
 returns uuid
