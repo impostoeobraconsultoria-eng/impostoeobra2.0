@@ -22,6 +22,10 @@ import {
 } from "@/lib/documentos";
 import { calcularComplementar } from "@/lib/leads";
 import { createClient } from "@/lib/supabase/server";
+import { BrazilianPhoneInput } from "@/components/ui/brazilian-phone-input";
+import { formatBrazilianMobile } from "@/lib/ddds-brasileiros";
+import { findRecurrencesForRecord } from "@/lib/recurrence";
+import { RecurrenceAlert } from "@/components/admin/recurrence-alert";
 
 type Props = {
   params: { id: string };
@@ -89,6 +93,11 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
     getConfigMap(),
   ]);
   if (error || !lead) notFound();
+  const recurrenceMatches = await findRecurrencesForRecord({
+    phone: lead.telefone_normalizado,
+    email: lead.email,
+    excludeLeadId: lead.id,
+  });
   const complementary = calcularComplementar(lead);
   const whatsappPhone = `${lead.ddd ?? ""}${lead.whatsapp ?? ""}`.replace(
     /\D/g,
@@ -139,7 +148,11 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
             <p className="text-sm font-semibold text-primary">Lead</p>
             <div className="mt-1 flex flex-wrap items-center gap-3">
               <h1 className="text-3xl font-bold">{lead.nome}</h1>
-              {lead.status_ativacao === "inativo" && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-800">INATIVO</span>}
+              {lead.status_ativacao === "inativo" && (
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-800">
+                  INATIVO
+                </span>
+              )}
             </div>
             <p className="mt-2 text-sm text-slate-500">
               Recebido em {dateTime.format(new Date(lead.data_hora))}
@@ -193,6 +206,7 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
             Alterações salvas com sucesso.
           </p>
         )}
+        <RecurrenceAlert matches={recurrenceMatches} />
         {searchParams?.error && (
           <p
             role="alert"
@@ -212,8 +226,13 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
                   value={lead.email}
                   type="email"
                 />
-                <Input name="ddd" label="DDD" value={lead.ddd} />
-                <Input name="whatsapp" label="WhatsApp" value={lead.whatsapp} />
+                <label className="field">
+                  WhatsApp com DDD
+                  <BrazilianPhoneInput
+                    value={formatBrazilianMobile(lead.ddd, lead.whatsapp)}
+                    required
+                  />
+                </label>
                 <Input name="uf" label="UF" value={lead.uf} />
                 <Input name="cidade" label="Cidade" value={lead.cidade} />
                 <label className="field">

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseBrazilianMobile } from "@/lib/ddds-brasileiros";
 
 const nonNegativeNumber = z.number().finite().nonnegative().max(1_000_000_000);
 
@@ -6,8 +7,7 @@ export const leadSchema = z
   .object({
     timestamp: z.iso.datetime().optional(),
     nome: z.string().trim().min(2).max(160),
-    ddd: z.string().regex(/^\d{2}$/),
-    whatsapp: z.string().regex(/^\d{8,9}$/),
+    telefone: z.string().min(1),
     email: z.email().max(254).nullable().optional(),
     resp: z.enum(["Pessoa Física", "Pessoa Jurídica"]),
     dest: z.enum([
@@ -79,6 +79,15 @@ export const leadSchema = z
     website: z.literal("").optional(),
   })
   .strict()
+  .superRefine((lead, context) => {
+    const phone = parseBrazilianMobile(lead.telefone);
+    if (!phone.ok)
+      context.addIssue({
+        code: "custom",
+        message: phone.error,
+        path: ["telefone"],
+      });
+  })
   .refine(
     (lead) =>
       lead.a_construcao +

@@ -1,3 +1,6 @@
+import { BrazilianPhoneInput } from "@/components/ui/brazilian-phone-input";
+import { formatBrazilianMobile } from "@/lib/ddds-brasileiros";
+
 export function CustomerForm({
   action,
   values = {},
@@ -10,8 +13,6 @@ export function CustomerForm({
     ["cpf", "CPF"],
     ["cnpj", "CNPJ"],
     ["email", "E-mail"],
-    ["ddd", "DDD"],
-    ["telefone", "Telefone"],
     ["profissao", "Profissão"],
     ["end_logradouro", "Endereço"],
     ["end_bairro", "Bairro"],
@@ -43,6 +44,14 @@ export function CustomerForm({
           />
         </label>
       ))}
+      <label className="field">
+        WhatsApp com DDD
+        <BrazilianPhoneInput
+          name="telefone_contato"
+          value={formatBrazilianMobile(values.ddd, values.telefone)}
+          required
+        />
+      </label>
       <button className="rounded-full bg-accent px-5 py-3 font-bold text-white lg:col-span-3">
         Salvar cliente
       </button>

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { leadSchema } from "@/lib/validation/lead";
+import { parseBrazilianMobile } from "@/lib/ddds-brasileiros";
 
 export const runtime = "nodejs";
 
@@ -37,13 +38,36 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const lead = { ...parsed.data };
-  delete lead.timestamp;
-  delete lead.website;
+  const phone = parseBrazilianMobile(parsed.data.telefone);
+  if (!phone.ok)
+    return NextResponse.json(
+      { ok: false, error: phone.error, fields: { telefone: [phone.error] } },
+      { status: 422 },
+    );
+  const {
+    timestamp: _timestamp,
+    website: _website,
+    telefone: _telefone,
+    ...lead
+  } = parsed.data;
+  void _timestamp;
+  void _website;
+  void _telefone;
   const admin = createAdminClient();
+  const matches = await findRecurrences(
+    admin,
+    phone.data.telefoneNormalizado,
+    lead.email,
+  );
   const { data, error } = await admin
     .from("leads")
-    .insert({ ...lead, origem: "simulador" })
+    .insert({
+      ...lead,
+      ddd: phone.data.ddd,
+      whatsapp: phone.data.whatsapp,
+      telefone_normalizado: phone.data.telefoneNormalizado,
+      origem: "simulador",
+    })
     .select("id")
     .single();
 
@@ -70,6 +94,85 @@ export async function POST(request: NextRequest) {
       code: notificationError.code,
     });
 
+  if (matches.leads.length || matches.clientes.length) {
+    const { error: recurrenceError } = await admin.from("atividades").insert({
+      ref_tipo: "lead",
+      ref_id: data.id,
+      tipo: "lead_recorrente_detectado",
+      descricao: "Possível recorrência detectada por telefone ou e-mail",
+      metadata_json: {
+        leads_encontrados: matches.leads,
+        clientes_encontrados: matches.clientes,
+      },
+    });
+    if (recurrenceError)
+      console.error("Falha ao registrar recorrência", {
+        leadId: data.id,
+        code: recurrenceError.code,
+      });
+  }
+
   console.info("Lead registrado", { id: data.id, origem: "simulador" });
   return NextResponse.json({ ok: true, id: data.id }, { status: 201 });
+}
+
+async function findRecurrences(
+  admin: ReturnType<typeof createAdminClient>,
+  phone: string,
+  email?: string | null,
+) {
+  const leadQueries = [
+    admin
+      .from("leads")
+      .select("id")
+      .eq("telefone_normalizado", phone)
+      .is("deleted_at", null)
+      .is("convertido_em", null),
+  ];
+  const customerQueries = [
+    admin
+      .from("clientes")
+      .select("id")
+      .eq("telefone_normalizado", phone)
+      .is("deleted_at", null),
+  ];
+  if (email) {
+    const safeEmail = email
+      .trim()
+      .toLowerCase()
+      .replace(/[\\%_]/g, "\\$&");
+    leadQueries.push(
+      admin
+        .from("leads")
+        .select("id")
+        .ilike("email", safeEmail)
+        .is("deleted_at", null)
+        .is("convertido_em", null),
+    );
+    customerQueries.push(
+      admin
+        .from("clientes")
+        .select("id")
+        .ilike("email", safeEmail)
+        .is("deleted_at", null),
+    );
+  }
+  const results = await Promise.all([...leadQueries, ...customerQueries]);
+  const leadCount = leadQueries.length;
+  return {
+    leads: Array.from(
+      new Set(
+        results
+          .slice(0, leadCount)
+          .flatMap((result) => (result.data ?? []).map((item) => item.id)),
+      ),
+    ),
+    clientes: Array.from(
+      new Set(
+        results
+          .slice(leadCount)
+          .flatMap((result) => (result.data ?? []).map((item) => item.id)),
+      ),
+    ),
+  };
 }
