@@ -12,6 +12,7 @@ export type ArticleSummary = {
   titulo: string;
   subtitulo: string | null;
   categoria: string | null;
+  cluster: string | null;
   data_publicacao: string | null;
   updated_at: string;
 };
@@ -29,7 +30,9 @@ export const getPublishedArticles = cache(
   async (): Promise<ArticleSummary[]> => {
     const { data, error } = await createPublicClient()
       .from("artigos")
-      .select("slug,titulo,subtitulo,categoria,data_publicacao,updated_at")
+      .select(
+        "slug,titulo,subtitulo,categoria,cluster,data_publicacao,updated_at",
+      )
       .eq("publicado", true)
       .order("data_publicacao", { ascending: false, nullsFirst: false });
 
@@ -43,7 +46,7 @@ export const getPublishedArticle = cache(
     const { data, error } = await createPublicClient()
       .from("artigos")
       .select(
-        "slug,titulo,subtitulo,meta_description,og_image_url,conteudo_html,faq,schema_type,categoria,tags,data_publicacao,updated_at",
+        "slug,titulo,subtitulo,meta_description,og_image_url,conteudo_html,faq,schema_type,categoria,cluster,tags,data_publicacao,updated_at",
       )
       .eq("publicado", true)
       .eq("slug", slug)
@@ -51,6 +54,21 @@ export const getPublishedArticle = cache(
 
     if (error) throw new Error(`Falha ao carregar artigo: ${error.message}`);
     return data;
+  },
+);
+
+export const getRelatedArticles = cache(
+  async (slug: string, cluster: string | null): Promise<ArticleSummary[]> => {
+    const articles = (await getPublishedArticles()).filter(
+      (item) => item.slug !== slug,
+    );
+    const sameCluster = articles.filter(
+      (item) => cluster && item.cluster === cluster,
+    );
+    const complementary = articles.filter(
+      (item) => !sameCluster.some((same) => same.slug === item.slug),
+    );
+    return [...sameCluster, ...complementary].slice(0, 2);
   },
 );
 

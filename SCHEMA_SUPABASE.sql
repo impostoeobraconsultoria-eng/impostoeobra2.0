@@ -445,6 +445,7 @@ create table public.artigos (
   schema_type       text default 'Article',
   prioridade_seo    numeric(2,1) default 0.8,
   categoria         text,
+  cluster           text,  -- arquitetura SEO: Regularização, Cobranças, Erros, Custos ou Sistemas RFB
   tags              text[] default '{}',
   publicado         boolean not null default false,
   data_publicacao   timestamptz,

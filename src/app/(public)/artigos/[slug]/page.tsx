@@ -8,6 +8,7 @@ import {
   getArticleSchemaType,
   getPublishedArticle,
   getPublishedArticles,
+  getRelatedArticles,
   parseArticleFaq,
   sanitizeArticleHtml,
 } from "@/lib/articles";
@@ -56,6 +57,7 @@ export default async function ArticlePage({ params }: Props) {
   const article = await getPublishedArticle(params.slug);
   if (!article) notFound();
   const faq = parseArticleFaq(article.faq);
+  const related = await getRelatedArticles(article.slug, article.cluster);
   const date = article.data_publicacao
     ? new Intl.DateTimeFormat("pt-BR", {
         dateStyle: "long",
@@ -125,6 +127,40 @@ export default async function ArticlePage({ params }: Props) {
               </div>
             </section>
           )}
+          <section
+            className="my-12 border-y border-border py-9"
+            aria-labelledby="continue-reading"
+          >
+            <p className="editorial-label">Arquitetura pilar-cluster</p>
+            <h2 id="continue-reading">Continue lendo</h2>
+            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+              {related.map((item) => (
+                <article
+                  key={item.slug}
+                  className="border border-border bg-page p-5"
+                >
+                  {item.cluster && (
+                    <p className="!mb-2 !text-xs font-bold uppercase tracking-wide text-primary">
+                      {item.cluster}
+                    </p>
+                  )}
+                  <h3 className="!my-0 !text-base !leading-snug">
+                    <Link href={`/artigos/${item.slug}`}>{item.titulo}</Link>
+                  </h3>
+                </article>
+              ))}
+              <article className="border border-primary bg-primary p-5 text-white">
+                <p className="!mb-2 !text-xs font-bold uppercase tracking-wide text-white/75">
+                  Conteúdo pilar
+                </p>
+                <h3 className="!my-0 !text-base !leading-snug">
+                  <Link className="text-white" href="/guia-inss-de-obra">
+                    Guia completo do INSS de obra
+                  </Link>
+                </h3>
+              </article>
+            </div>
+          </section>
           <FinalCta
             title="Quer regularizar sua obra com economia?"
             highlight="Simule o INSS em 2 minutos."

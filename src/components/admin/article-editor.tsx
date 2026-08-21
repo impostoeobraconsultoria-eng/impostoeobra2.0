@@ -31,6 +31,7 @@ export type ArticleEditorValue = {
   schema_type?: string | null;
   prioridade_seo?: number | string | null;
   categoria?: string | null;
+  cluster?: string | null;
   tags?: string[] | null;
   publicado?: boolean;
 };
@@ -136,6 +137,25 @@ export function ArticleEditor({
             maxLength={80}
             defaultValue={value.categoria ?? ""}
           />
+        </label>
+        <label className="field">
+          Cluster de conteúdo
+          <select
+            className="input"
+            name="cluster"
+            defaultValue={value.cluster ?? ""}
+          >
+            <option value="">— Selecione —</option>
+            {[
+              "Regularização",
+              "Cobranças",
+              "Erros",
+              "Custos",
+              "Sistemas RFB",
+            ].map((cluster) => (
+              <option key={cluster}>{cluster}</option>
+            ))}
+          </select>
         </label>
         <label className="field lg:col-span-2">
           Meta description

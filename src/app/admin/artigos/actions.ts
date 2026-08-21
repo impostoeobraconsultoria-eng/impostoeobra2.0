@@ -19,6 +19,9 @@ const articleSchema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   meta_description: optionalText(170),
   categoria: optionalText(80),
+  cluster: z
+    .enum(["Regularização", "Cobranças", "Erros", "Custos", "Sistemas RFB"])
+    .nullable(),
   tags: z.array(z.string().trim().min(1).max(50)).max(20),
   prioridade_seo: z.number().min(0).max(1),
   schema_type: z.enum(["Article", "BlogPosting", "NewsArticle"]),
@@ -83,6 +86,7 @@ function parseArticle(formData: FormData) {
     slug: formData.get("slug"),
     meta_description: formData.get("meta_description"),
     categoria: formData.get("categoria"),
+    cluster: formData.get("cluster") || null,
     tags: String(formData.get("tags") || "")
       .split(",")
       .map((tag) => tag.trim())
