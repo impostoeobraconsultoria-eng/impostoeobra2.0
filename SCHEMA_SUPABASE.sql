@@ -70,6 +70,20 @@ create table public.funil_etapas (
 );
 create index idx_funil_etapas_ordem on public.funil_etapas (ordem, criado_em);
 
+-- Motivos configuráveis para retirar oportunidades do Kanban sem excluí-las
+create table public.motivos_inativacao (
+  id                uuid primary key default gen_random_uuid(),
+  slug              text unique not null,
+  rotulo            text not null,
+  ordem             integer not null default 100,
+  reativavel_padrao boolean not null default true,
+  ativo             boolean not null default true,
+  criado_em         timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+create index idx_motivos_ativos on public.motivos_inativacao(ordem)
+  where ativo = true;
+
 -- =============================================================================
 -- 5. TABELA leads
 -- =============================================================================
@@ -93,6 +107,29 @@ create table public.leads (
   responsavel_id           uuid references public.users(id) on delete set null,
   valor_potencial          numeric(12,2),
   observacoes              text,
+
+  -- Ciclo de vida comercial (inativação é diferente de soft delete)
+  status_ativacao          text not null default 'ativo'
+                            check (status_ativacao in ('ativo','inativo')),
+  motivo_inativacao_id     uuid references public.motivos_inativacao(id) on delete set null,
+  detalhamento_inativacao  text,
+  inativado_em             timestamptz,
+  inativado_por            uuid references public.users(id) on delete set null,
+  contato_futuro           boolean,
+  data_contato_futuro      date,
+  ultima_etapa_kanban      text,
+  ultimo_contato_em        timestamptz,
+
+  -- Telefone normalizado e atribuição de campanha
+  telefone_normalizado     text,
+  utm_source               text,
+  utm_medium               text,
+  utm_campaign             text,
+  utm_content              text,
+  utm_term                 text,
+  gclid                    text,
+  fbclid                   text,
+  referrer                 text,
 
   -- Inputs da obra (simulador)
   resp                     text,
@@ -150,7 +187,17 @@ create index idx_leads_responsavel on public.leads(responsavel_id) where deleted
 create index idx_leads_data on public.leads(data_hora desc) where deleted_at is null;
 create index idx_leads_uf on public.leads(uf) where deleted_at is null;
 create index idx_leads_ativos_kanban on public.leads(status)
-  where deleted_at is null and convertido_em is null;
+  where deleted_at is null and convertido_em is null and status_ativacao = 'ativo';
+create index idx_leads_inativos on public.leads(inativado_em desc)
+  where deleted_at is null and status_ativacao = 'inativo';
+create index idx_leads_contato_futuro on public.leads(data_contato_futuro)
+  where deleted_at is null and status_ativacao = 'inativo' and contato_futuro = true;
+create index idx_leads_tel_norm on public.leads(telefone_normalizado)
+  where deleted_at is null;
+create index idx_leads_utm_source on public.leads(utm_source)
+  where utm_source is not null and deleted_at is null;
+create index idx_leads_utm_campaign on public.leads(utm_campaign)
+  where utm_campaign is not null and deleted_at is null;
 
 -- =============================================================================
 -- 6. TABELA clientes
@@ -172,6 +219,7 @@ create table public.clientes (
   -- Contato
   ddd                   text,
   telefone              text,
+  telefone_normalizado  text,
   email                 text,
 
   -- Endereço residencial
@@ -209,6 +257,8 @@ create table public.clientes (
 
 create index idx_clientes_nome on public.clientes(nome) where deleted_at is null;
 create index idx_clientes_cpf on public.clientes(cpf) where deleted_at is null;
+create index idx_clientes_tel_norm on public.clientes(telefone_normalizado)
+  where deleted_at is null;
 
 -- Notas privadas da vista 360 do cliente
 create table public.cliente_notas (
@@ -279,6 +329,25 @@ create table public.contratos (
 
 create index idx_contratos_cliente on public.contratos(cliente_id) where deleted_at is null;
 create index idx_contratos_status on public.contratos(status) where deleted_at is null;
+
+-- Histórico auditável dos documentos gerados para leads, clientes e contratos
+create table public.documentos_gerados (
+  id             uuid primary key default gen_random_uuid(),
+  tipo           text not null check (tipo in ('proposta','contrato_andamento','contrato_finalizada','material_apoio')),
+  ref_tipo       text not null check (ref_tipo in ('lead','cliente','contrato')),
+  ref_id         uuid not null,
+  nome_arquivo   text not null,
+  storage_path   text,
+  storage_bucket text default 'documentos',
+  mime_type      text,
+  tamanho_bytes  integer,
+  params_json    jsonb,
+  gerado_em      timestamptz not null default now(),
+  gerado_por     uuid references public.users(id) on delete set null,
+  observacao     text
+);
+create index idx_documentos_ref on public.documentos_gerados(ref_tipo, ref_id, gerado_em desc);
+create index idx_documentos_tipo on public.documentos_gerados(tipo, gerado_em desc);
 
 -- =============================================================================
 -- 7.1. TABELA produtos (catálogo dinâmico de serviços)
@@ -455,6 +524,7 @@ create trigger trg_equipe_juridica_updated before update on public.equipe_juridi
 create trigger trg_faq_updated         before update on public.faq          for each row execute function public.set_updated_at();
 create trigger trg_vau_updated         before update on public.vau          for each row execute function public.set_updated_at();
 create trigger trg_config_updated      before update on public.config       for each row execute function public.set_updated_at();
+create trigger trg_motivos_inativacao_updated before update on public.motivos_inativacao for each row execute function public.set_updated_at();
 
 -- =============================================================================
 -- 13. FUNÇÃO helper: is_admin() e is_active_user()
@@ -500,6 +570,31 @@ $$;
 revoke execute on function public.current_active_user_id() from public;
 grant execute on function public.current_active_user_id() to authenticated;
 
+-- Normaliza telefones brasileiros para E.164 sem o sinal de mais.
+-- A validação de DDD/celular é feita também no servidor da aplicação.
+create or replace function public.normalizar_telefone_br(input text) returns text
+language plpgsql immutable
+set search_path = public, pg_temp as $$
+declare
+  digits text;
+begin
+  if input is null or length(trim(input)) = 0 then return null; end if;
+  digits := regexp_replace(input, '\D', '', 'g');
+  if length(digits) = 10 or length(digits) = 11 then
+    digits := '55' || digits;
+  end if;
+  if length(digits) not in (12, 13) then return null; end if;
+  return digits;
+end;
+$$;
+revoke execute on function public.normalizar_telefone_br(text) from public;
+grant execute on function public.normalizar_telefone_br(text) to anon, authenticated;
+
+-- RPCs transacionais do ciclo de vida são definidas no arquivo
+-- CORRECAO_RPC_CICLO_LEADS.sql e usam SECURITY INVOKER. Mantê-las separadas
+-- evita duplicar aqui mais de 200 linhas de lógica operacional, sem ocultar
+-- que fazem parte do schema atual.
+
 -- RPC para atualizar ultimo_acesso do próprio usuário (chamada no callback OAuth)
 -- SECURITY DEFINER porque UPDATE em users é restrito a admin pela policy geral,
 -- mas queremos permitir que qualquer usuário ativo atualize apenas o próprio
@@ -528,11 +623,13 @@ alter table public.users        enable row level security;
 alter table public.vau          enable row level security;
 alter table public.config       enable row level security;
 alter table public.funil_etapas enable row level security;
+alter table public.motivos_inativacao enable row level security;
 alter table public.leads        enable row level security;
 alter table public.clientes     enable row level security;
 alter table public.cliente_notas enable row level security;
 alter table public.eventos_agenda enable row level security;
 alter table public.contratos    enable row level security;
+alter table public.documentos_gerados enable row level security;
 alter table public.produtos     enable row level security;
 alter table public.notificacoes enable row level security;
 alter table public.notificacoes_leituras enable row level security;
@@ -577,6 +674,12 @@ create policy funil_etapas_update_admin on public.funil_etapas
   for update to authenticated using (public.is_admin()) with check (public.is_admin());
 create policy funil_etapas_delete_admin on public.funil_etapas
   for delete to authenticated using (public.is_admin());
+
+-- -------- MOTIVOS_INATIVACAO --------
+create policy motivos_select_active on public.motivos_inativacao
+  for select to authenticated using (public.is_active_user());
+create policy motivos_write_admin on public.motivos_inativacao
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- -------- LEADS --------
 -- IMPORTANTE: inserts em leads NÃO usam RLS.
@@ -639,6 +742,14 @@ create policy contratos_update_active on public.contratos
   with check ((select public.is_active_user()) and (deleted_at is null or (select public.is_admin())));
 create policy contratos_delete_admin on public.contratos
   for delete using (public.is_admin());
+
+-- -------- DOCUMENTOS_GERADOS --------
+create policy documentos_select_active on public.documentos_gerados
+  for select to authenticated using (public.is_active_user());
+create policy documentos_insert_active on public.documentos_gerados
+  for insert to authenticated with check (public.is_active_user());
+create policy documentos_delete_admin on public.documentos_gerados
+  for delete to authenticated using (public.is_admin());
 
 -- -------- PRODUTOS --------
 create policy produtos_select_active on public.produtos
@@ -727,6 +838,23 @@ insert into public.produtos (slug, nome, descricao, template_contrato_arq, ordem
   ('obra_finalizada', 'Regularização de obra finalizada', 'Regularização de INSS de obra já concluída.', 'contrato_obra_finalizada.docx', 20, true)
 on conflict (slug) do nothing;
 
+insert into public.motivos_inativacao (slug, rotulo, ordem, reativavel_padrao) values
+  ('sem_resposta', 'Sem resposta após tentativas de contato', 10, true),
+  ('desistiu_contratacao', 'Desistiu da contratação', 20, true),
+  ('proposta_preco', 'Proposta não aceita — preço', 30, true),
+  ('proposta_condicoes', 'Proposta não aceita — condições comerciais', 40, true),
+  ('contratou_outro', 'Contratou outro fornecedor', 50, false),
+  ('decidiu_nao_realizar', 'Decidiu não realizar o serviço', 60, false),
+  ('adiou_decisao', 'Adiou a decisão / sem previsão', 70, true),
+  ('sem_orcamento', 'Sem orçamento no momento', 80, true),
+  ('fora_escopo', 'Demanda fora do escopo', 90, false),
+  ('nao_qualificado', 'Lead não qualificado', 100, false),
+  ('contato_invalido', 'Contato inválido / não localizado', 110, false),
+  ('duplicado', 'Duplicado', 120, false),
+  ('ja_era_cliente', 'Já era cliente', 130, false),
+  ('outro', 'Outro', 900, true)
+on conflict (slug) do nothing;
+
 -- Config default
 insert into public.config (chave, valor, descricao) values
   ('etapas_funil', 'Novo Lead,Contato iniciado,Em negociacao,Proposta enviada,Aguardando resposta,Fechado — ganho,Fechado — perdido,Sem retorno', 'Etapas do Kanban (separadas por vírgula)'),
@@ -742,6 +870,14 @@ insert into public.config (chave, valor, descricao) values
   ('whatsapp_msg_cliente_default', '', 'Mensagem opcional ao abrir o WhatsApp de um cliente; vazia abre o chat direto'),
   ('notif_lead_parado_dias', '7', 'Dias sem atualização para alertar sobre lead parado'),
   ('notif_vau_max_dias', '30', 'Dias máximos sem atualização da tabela VAU'),
+  ('inativacao_reativar_horario_padrao', '09:00', 'Horário padrão do follow-up criado ao inativar um lead'),
+  ('ga4_event_simulacao_iniciada', 'simulacao_iniciada', 'Evento GA4 ao iniciar a simulação'),
+  ('ga4_event_generate_lead', 'generate_lead', 'Evento GA4 após persistir um lead'),
+  ('ga4_event_qualify_lead', 'qualify_lead', 'Evento GA4 ao qualificar um lead'),
+  ('ga4_event_close_convert_lead', 'close_convert_lead', 'Evento GA4 ao converter lead em cliente'),
+  ('ga4_traffic_type_internal', 'internal', 'Valor de traffic_type para navegadores internos'),
+  ('lcp_meta_ms', '2500', 'Meta de LCP mobile em milissegundos'),
+  ('landing_calculadora_slug', 'calculadora-inss-de-obra', 'Slug da landing dedicada da calculadora'),
   ('horario_atendimento_dias', 'Segunda a sexta', 'Dias de atendimento'),
   ('horario_atendimento_horas', 'Das 09h às 19h', 'Horas de atendimento'),
   ('horario_atendimento_fuso', 'horário de Brasília', 'Fuso do atendimento'),

@@ -3,19 +3,22 @@ import {
   Building2,
   FileText,
   GitBranch,
+  ListRestart,
   MessageSquareText,
   Settings,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { saveConfigSection, saveFunnel, saveTemplates } from "./actions";
+import { saveConfigSection, saveFunnel, saveInactivationReasons, saveTemplates } from "./actions";
 import { FunnelEditor } from "./funnel-editor";
+import { InactivationReasonsEditor } from "./inactivation-reasons-editor";
 
 const tabs = [
   ["empresa", "Dados da Empresa", Building2],
   ["comunicacao", "Comunicação", MessageSquareText],
   ["templates", "Templates", FileText],
   ["funil", "Funil", GitBranch],
+  ["motivos", "Motivos de inativação", ListRestart],
   ["sistema", "Sistema", Settings],
 ] as const;
 type Tab = (typeof tabs)[number][0];
@@ -27,12 +30,13 @@ export default async function ConfigPage({
   searchParams?: Record<string, string | undefined>;
 }) {
   const supabase = createClient();
-  const [{ data: configs, error }, { data: loadedStages }] = await Promise.all([
+  const [{ data: configs, error }, { data: loadedStages }, { data: reasons }] = await Promise.all([
     supabase.from("config").select("chave,valor"),
     supabase
       .from("funil_etapas")
       .select("id,nome,ordem,cor,e_fechada")
       .order("ordem"),
+    supabase.from("motivos_inativacao").select("id,slug,rotulo,ativo,reativavel_padrao").order("ordem"),
   ]);
   const values = Object.fromEntries(
     (configs ?? []).map((item) => [item.chave, item.valor ?? ""]),
@@ -130,6 +134,7 @@ export default async function ConfigPage({
                 />
               </>
             )}
+            {active === "motivos" && <><SectionTitle title="Motivos de inativação" description="Arraste para ordenar. Motivos desativados deixam de aparecer em novas inativações, sem afetar o histórico." /><InactivationReasonsEditor initialReasons={reasons ?? []} action={saveInactivationReasons} /></>}
             {active === "sistema" && <SystemForm values={values} />}
           </section>
         </div>

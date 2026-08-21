@@ -193,6 +193,13 @@ export async function saveFunnel(formData: FormData) {
       .eq("status", previousName)
       .is("deleted_at", null);
     if (error) redirect("/admin/config?tab=funil&error=save");
+    const { error: inactiveHistoryError } = await supabase
+      .from("leads")
+      .update({ ultima_etapa_kanban: stage.nome })
+      .eq("ultima_etapa_kanban", previousName)
+      .is("deleted_at", null);
+    if (inactiveHistoryError)
+      redirect("/admin/config?tab=funil&error=save");
   }
   const added = normalized
     .filter((stage) => !stage.id)
@@ -225,6 +232,36 @@ export async function saveFunnel(formData: FormData) {
   revalidatePath("/admin/leads");
   revalidatePath("/admin/config");
   redirect("/admin/config?tab=funil&saved=1");
+}
+
+const reasonSchema = z.object({
+  id: z.string().uuid().optional(),
+  slug: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(100),
+  rotulo: z.string().trim().min(2).max(100),
+  ativo: z.boolean(),
+  reativavel_padrao: z.boolean(),
+});
+
+export async function saveInactivationReasons(formData: FormData) {
+  let raw: unknown;
+  try { raw = JSON.parse(String(formData.get("motivos") ?? "[]")); }
+  catch { redirect("/admin/config?tab=motivos&error=invalid"); }
+  const parsed = z.array(reasonSchema).min(1).max(50).safeParse(raw);
+  if (!parsed.success) redirect("/admin/config?tab=motivos&error=invalid");
+  const { supabase } = await getAdminContext();
+  const existing = parsed.data.filter((item) => item.id).map((item, ordem) => ({ id: item.id!, rotulo: item.rotulo, ativo: item.ativo, reativavel_padrao: item.reativavel_padrao, ordem }));
+  const added = parsed.data.filter((item) => !item.id).map((item, index) => ({ slug: item.slug, rotulo: item.rotulo, ativo: item.ativo, reativavel_padrao: item.reativavel_padrao, ordem: existing.length + index }));
+  if (existing.length) {
+    const { error } = await supabase.from("motivos_inativacao").upsert(existing, { onConflict: "id" });
+    if (error) redirect("/admin/config?tab=motivos&error=save");
+  }
+  if (added.length) {
+    const { error } = await supabase.from("motivos_inativacao").insert(added);
+    if (error) redirect("/admin/config?tab=motivos&error=save");
+  }
+  revalidatePath("/admin/leads");
+  revalidatePath("/admin/config");
+  redirect("/admin/config?tab=motivos&saved=1");
 }
 
 function refreshConfig() {

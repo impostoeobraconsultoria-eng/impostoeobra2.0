@@ -5,6 +5,7 @@ import { ArrowLeft, LockKeyhole, MessageCircle, Save } from "lucide-react";
 import { addLeadNote, updateLead } from "@/app/admin/leads/actions";
 import { convertLead } from "@/app/admin/clientes/actions";
 import { DocumentActions } from "@/components/admin/document-actions";
+import { LeadLifecycleActions } from "@/components/admin/lead-lifecycle-actions";
 import {
   DocumentHistory,
   type DocumentHistoryItem,
@@ -46,6 +47,7 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
     { data: funnelStages },
     { data: relatedEvents },
     { data: products },
+    { data: inactivationReasons },
     config,
   ] = await Promise.all([
     supabase
@@ -79,6 +81,11 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
       .order("data_hora_inicio", { ascending: false })
       .limit(10),
     supabase.from("produtos").select("slug,nome,ativo").order("ordem"),
+    supabase
+      .from("motivos_inativacao")
+      .select("id,rotulo,reativavel_padrao")
+      .eq("ativo", true)
+      .order("ordem"),
     getConfigMap(),
   ]);
   if (error || !lead) notFound();
@@ -130,12 +137,25 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
         <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-primary">Lead</p>
-            <h1 className="mt-1 text-3xl font-bold">{lead.nome}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-bold">{lead.nome}</h1>
+              {lead.status_ativacao === "inativo" && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-800">INATIVO</span>}
+            </div>
             <p className="mt-2 text-sm text-slate-500">
               Recebido em {dateTime.format(new Date(lead.data_hora))}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <LeadLifecycleActions
+              leadId={lead.id}
+              leadName={lead.nome}
+              inactive={lead.status_ativacao === "inativo"}
+              reasons={inactivationReasons ?? []}
+              stages={(funnelStages ?? []).map((stage) => stage.nome)}
+              lastStage={lead.ultima_etapa_kanban}
+              futureContact={lead.contato_futuro}
+              futureDate={lead.data_contato_futuro}
+            />
             {whatsappUrl && (
               <a
                 href={whatsappUrl}

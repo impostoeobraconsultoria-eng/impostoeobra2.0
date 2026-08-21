@@ -325,6 +325,116 @@ async function isValidStatus(
   return Boolean(data);
 }
 
+const inactivationSchema = z
+  .object({
+    motivoId: z.string().uuid(),
+    detalhamento: z.string().trim().max(500).default(""),
+    contatoFuturo: z.boolean(),
+    dataContatoFuturo: z.string().date().nullable(),
+  })
+  .refine(
+    (value) => !value.contatoFuturo || Boolean(value.dataContatoFuturo),
+    { message: "Informe a data da próxima tentativa." },
+  );
+
+export async function inactivateLead(
+  id: string,
+  input: z.input<typeof inactivationSchema>,
+) {
+  const parsed = z
+    .object({ id: z.string().uuid(), input: inactivationSchema })
+    .safeParse({ id, input });
+  if (!parsed.success)
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  const { supabase } = await context();
+  const { error } = await supabase.rpc("inativar_lead", {
+    p_lead_id: parsed.data.id,
+    p_motivo_id: parsed.data.input.motivoId,
+    p_detalhamento: parsed.data.input.detalhamento,
+    p_contato_futuro: parsed.data.input.contatoFuturo,
+    p_data_contato_futuro: parsed.data.input.contatoFuturo
+      ? parsed.data.input.dataContatoFuturo
+      : null,
+  });
+  if (error) {
+    console.error("Falha ao inativar lead", { leadId: id, code: error.code, message: error.message });
+    return { ok: false, error: friendlyLifecycleError(error.message) };
+  }
+  revalidateLeadLifecycle(id);
+  return { ok: true };
+}
+
+export async function reactivateLead(id: string, stage: string) {
+  const parsed = z
+    .object({ id: z.string().uuid(), stage: z.string().trim().min(1).max(100) })
+    .safeParse({ id, stage });
+  if (!parsed.success) return { ok: false, error: "Etapa inválida." };
+  const { supabase } = await context();
+  const { error } = await supabase.rpc("reativar_lead", {
+    p_lead_id: parsed.data.id,
+    p_etapa: parsed.data.stage,
+  });
+  if (error) {
+    console.error("Falha ao reativar lead", { leadId: id, code: error.code, message: error.message });
+    return { ok: false, error: friendlyLifecycleError(error.message) };
+  }
+  revalidateLeadLifecycle(id);
+  return { ok: true };
+}
+
+export async function updateLeadFutureContact(
+  id: string,
+  input: { contatoFuturo: boolean; dataContatoFuturo: string | null },
+) {
+  const parsed = z
+    .object({
+      id: z.string().uuid(),
+      contatoFuturo: z.boolean(),
+      dataContatoFuturo: z.string().date().nullable(),
+    })
+    .refine((value) => !value.contatoFuturo || Boolean(value.dataContatoFuturo), {
+      message: "Informe a data da próxima tentativa.",
+    })
+    .safeParse({ id, ...input });
+  if (!parsed.success)
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  const { supabase } = await context();
+  const { error } = await supabase.rpc("atualizar_contato_futuro_lead", {
+    p_lead_id: parsed.data.id,
+    p_contato_futuro: parsed.data.contatoFuturo,
+    p_data_contato_futuro: parsed.data.contatoFuturo
+      ? parsed.data.dataContatoFuturo
+      : null,
+  });
+  if (error) {
+    console.error("Falha ao atualizar contato futuro", { leadId: id, code: error.code, message: error.message });
+    return { ok: false, error: friendlyLifecycleError(error.message) };
+  }
+  revalidateLeadLifecycle(id);
+  return { ok: true };
+}
+
+function revalidateLeadLifecycle(id: string) {
+  revalidatePath("/admin");
+  revalidatePath("/admin/leads");
+  revalidatePath("/admin/leads/inativos");
+  revalidatePath("/admin/agenda");
+  revalidatePath(`/admin/leads/${id}`);
+}
+
+function friendlyLifecycleError(message: string) {
+  const expected = [
+    "Usuário não autorizado.",
+    "O detalhamento deve ter no máximo 500 caracteres.",
+    "A próxima tentativa deve ser a partir de amanhã.",
+    "Lead não encontrado ou já convertido.",
+    "Lead inativo não encontrado.",
+    "Motivo de inativação inválido ou inativo.",
+    "Etapa do funil inválida.",
+  ];
+  return expected.find((item) => message.includes(item)) ?? "Não foi possível atualizar o ciclo de vida do lead.";
+}
+
 export async function addLeadNote(id: string, formData: FormData) {
   const note = z
     .string()
