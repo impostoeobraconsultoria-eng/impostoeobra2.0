@@ -31,6 +31,20 @@ export const getPublishedFaq = cache(async (): Promise<PublicFaq[]> => {
   return data;
 });
 
+export const getPublishedFaqByCategory = cache(
+  async (category: string): Promise<PublicFaq[]> => {
+    const { data, error } = await createPublicClient()
+      .from("faq")
+      .select("id,pergunta,resposta")
+      .eq("publicado", true)
+      .eq("categoria", category)
+      .order("ordem", { ascending: true });
+
+    if (error) throw new Error(`Falha ao carregar FAQ: ${error.message}`);
+    return data;
+  },
+);
+
 export const getPublishedCases = cache(async (): Promise<PublicCase[]> => {
   const { data, error } = await createPublicClient()
     .from("cases")
