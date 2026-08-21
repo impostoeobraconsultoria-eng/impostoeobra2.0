@@ -5,6 +5,10 @@ import { useMemo, useState, useTransition } from "react";
 import { Ellipsis, LayoutGrid, List, LoaderCircle, Trash2 } from "lucide-react";
 
 import { softDeleteLead, updateLeadStatus } from "@/app/admin/leads/actions";
+import {
+  LeadLifecycleActions,
+  type InactivationReason,
+} from "@/components/admin/lead-lifecycle-actions";
 import type { LeadRecord } from "@/lib/leads";
 
 type User = { id: string; nome: string | null };
@@ -18,12 +22,14 @@ export function LeadsBoard({
   users,
   stages,
   isAdmin,
+  reasons,
   initialStatus = "",
 }: {
   initialLeads: LeadRecord[];
   users: User[];
   stages: { nome: string; cor: string | null }[];
   isAdmin: boolean;
+  reasons: InactivationReason[];
   initialStatus?: string;
 }) {
   const [view, setView] = useState<"kanban" | "table">("kanban");
@@ -205,29 +211,37 @@ export function LeadsBoard({
                         >
                           {lead.nome}
                         </Link>
-                        {isAdmin && (
-                          <details
-                            className="relative"
-                            onClick={(event) => event.stopPropagation()}
+                        <details
+                          className="relative"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <summary
+                            className="list-none rounded-md p-1 text-slate-500 hover:bg-slate-100"
+                            aria-label={`Ações de ${lead.nome}`}
                           >
-                            <summary
-                              className="list-none rounded-md p-1 text-slate-500 hover:bg-slate-100"
-                              aria-label={`Ações de ${lead.nome}`}
-                            >
-                              <Ellipsis className="size-4" />
-                            </summary>
-                            <div className="absolute right-0 top-7 z-10 w-32 rounded-lg border bg-white p-1 shadow-lg">
+                            <Ellipsis className="size-4" />
+                          </summary>
+                          <div className="absolute right-0 top-7 z-10 w-44 rounded-lg border bg-white p-1 shadow-lg">
+                            <LeadLifecycleActions
+                              leadId={lead.id}
+                              leadName={lead.nome}
+                              reasons={reasons}
+                              compact
+                              onSuccess={() => setLeads((items) => items.filter((item) => item.id !== lead.id))}
+                            />
+                            {isAdmin && (
                               <button
                                 type="button"
+                                title="Ação administrativa. Para leads perdidos, use 'Inativar'"
                                 onClick={() => removeLead(lead.id, lead.nome)}
                                 className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-semibold text-red-700 hover:bg-red-50"
                               >
                                 <Trash2 className="size-4" />
-                                Excluir
+                                Excluir lead
                               </button>
-                            </div>
-                          </details>
-                        )}
+                            )}
+                          </div>
+                        </details>
                       </div>
                       <p className="mt-1 text-xs text-slate-500">
                         {[lead.cidade, lead.uf].filter(Boolean).join(" / ") ||

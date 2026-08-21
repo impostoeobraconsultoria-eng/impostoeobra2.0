@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Trash2, X } from "lucide-react";
+import { Archive, Plus, Trash2, X } from "lucide-react";
 
 import { ManualLeadForm } from "@/components/admin/manual-lead-form";
 import { LeadsBoard } from "@/components/admin/leads-board";
@@ -15,6 +15,7 @@ export default async function LeadsPage({ searchParams }: Props) {
     { data: users },
     { data: funnelStages },
     { data: products },
+    { data: reasons },
     { data: claims },
   ] = await Promise.all([
     supabase
@@ -24,6 +25,7 @@ export default async function LeadsPage({ searchParams }: Props) {
       )
       .is("deleted_at", null)
       .is("convertido_em", null)
+      .eq("status_ativacao", "ativo")
       .order("data_hora", { ascending: false })
       .limit(500),
     supabase.from("users").select("id,nome").eq("ativo", true).order("nome"),
@@ -31,6 +33,11 @@ export default async function LeadsPage({ searchParams }: Props) {
     supabase
       .from("produtos")
       .select("slug,nome")
+      .eq("ativo", true)
+      .order("ordem"),
+    supabase
+      .from("motivos_inativacao")
+      .select("id,rotulo,reativavel_padrao")
       .eq("ativo", true)
       .order("ordem"),
     supabase.auth.getClaims(),
@@ -76,6 +83,9 @@ export default async function LeadsPage({ searchParams }: Props) {
             >
               Convertidos
             </Link>
+            <Link href="/admin/leads/inativos" className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700">
+              <Archive className="size-4" /> Inativos
+            </Link>
             {isAdmin && (
               <Link
                 href="/admin/leads/lixeira"
@@ -113,6 +123,7 @@ export default async function LeadsPage({ searchParams }: Props) {
           users={users ?? []}
           stages={stages}
           isAdmin={isAdmin}
+          reasons={reasons ?? []}
           initialStatus={initialStatus}
         />
       </div>

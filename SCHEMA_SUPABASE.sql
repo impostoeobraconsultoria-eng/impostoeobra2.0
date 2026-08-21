@@ -590,6 +590,11 @@ $$;
 revoke execute on function public.normalizar_telefone_br(text) from public;
 grant execute on function public.normalizar_telefone_br(text) to anon, authenticated;
 
+-- RPCs transacionais do ciclo de vida são definidas no arquivo
+-- CORRECAO_RPC_CICLO_LEADS.sql e usam SECURITY INVOKER. Mantê-las separadas
+-- evita duplicar aqui mais de 200 linhas de lógica operacional, sem ocultar
+-- que fazem parte do schema atual.
+
 -- RPC para atualizar ultimo_acesso do próprio usuário (chamada no callback OAuth)
 -- SECURITY DEFINER porque UPDATE em users é restrito a admin pela policy geral,
 -- mas queremos permitir que qualquer usuário ativo atualize apenas o próprio

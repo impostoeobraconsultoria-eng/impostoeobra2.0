@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   BarChart3,
+  Archive,
   BookOpenText,
   BriefcaseBusiness,
   CalendarDays,
@@ -30,6 +31,7 @@ export const metadata: Metadata = {
 const navigation = [
   { href: "/admin", label: "Dashboard", icon: Gauge },
   { href: "/admin/leads", label: "Leads", icon: BarChart3 },
+  { href: "/admin/leads/inativos", label: "Leads inativos", icon: Archive },
   { href: "/admin/clientes", label: "Clientes", icon: Users },
   { href: "/admin/contratos", label: "Contratos", icon: BriefcaseBusiness },
   { href: "/admin/atividades", label: "Atividades", icon: FileText },
@@ -64,9 +66,9 @@ export default async function AdminLayout({
   const links =
     profile?.perfil === "admin"
       ? [
-          ...navigation.slice(0, 4),
+          ...navigation.slice(0, 5),
           { href: "/admin/produtos", label: "Produtos", icon: PackageOpen },
-          ...navigation.slice(4),
+          ...navigation.slice(5),
           ...adminNavigation,
         ]
       : navigation;

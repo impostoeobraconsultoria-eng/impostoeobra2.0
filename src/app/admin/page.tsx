@@ -139,6 +139,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .select("id,status", { count: "exact" })
       .is("deleted_at", null)
       .is("convertido_em", null)
+      .eq("status_ativacao", "ativo")
       .gte("data_hora", monthStart)
       .lt("data_hora", nextMonth),
     supabase
@@ -146,18 +147,21 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .select("id", { count: "exact", head: true })
       .is("deleted_at", null)
       .is("convertido_em", null)
+      .eq("status_ativacao", "ativo")
       .gte("data_hora", previousMonthStart)
       .lt("data_hora", monthStart),
     supabase
       .from("leads")
       .select("status")
       .is("deleted_at", null)
-      .is("convertido_em", null),
+      .is("convertido_em", null)
+      .eq("status_ativacao", "ativo"),
     supabase
       .from("leads")
       .select("data_hora")
       .is("deleted_at", null)
       .is("convertido_em", null)
+      .eq("status_ativacao", "ativo")
       .gte("data_hora", thirtyDaysAgo)
       .order("data_hora"),
     supabase

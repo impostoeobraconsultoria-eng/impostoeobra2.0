@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
       .select("id,nome,status,updated_at")
       .is("deleted_at", null)
       .is("convertido_em", null)
+      .eq("status_ativacao", "ativo")
       .lt("updated_at", leadLimit)
       .order("updated_at")
       .limit(500),
