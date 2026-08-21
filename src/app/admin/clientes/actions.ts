@@ -211,7 +211,19 @@ export async function convertLead(id: string) {
   const { data, error } = await supabase.rpc("converter_lead_em_cliente", {
     p_lead_id: id,
   });
-  if (error || !data) redirect(`/admin/leads/${id}?error=convert`);
+  if (error || !data) {
+    console.error("Falha ao converter lead em cliente", {
+      leadId: id,
+      code: error?.code,
+      message: error?.message,
+    });
+    const reason = /já convertido/i.test(error?.message ?? "")
+      ? "already_converted"
+      : /não encontrado/i.test(error?.message ?? "")
+        ? "lead_not_found"
+        : "convert";
+    redirect(`/admin/leads/${id}?error=${reason}`);
+  }
   revalidatePath("/admin");
   revalidatePath("/admin/leads");
   revalidatePath("/admin/leads/convertidos");

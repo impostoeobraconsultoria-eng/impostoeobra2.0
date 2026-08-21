@@ -129,7 +129,9 @@ export async function createArticle(formData: FormData) {
     ogImageUrl = await uploadOgImage(supabase, formData.get("og_image"));
   } catch (error) {
     console.error("Falha ao enviar imagem OG", error);
-    redirect("/admin/artigos/novo?error=image");
+    redirect(
+      `/admin/artigos/novo?error=${error instanceof Error && error.message.startsWith("Imagem OG inválida") ? "image_invalid" : "image_upload"}`,
+    );
   }
   const now = new Date().toISOString();
   const { data, error } = await supabase
@@ -169,7 +171,9 @@ export async function updateArticle(id: string, formData: FormData) {
       (await uploadOgImage(supabase, formData.get("og_image"))) ?? ogImageUrl;
   } catch (error) {
     console.error("Falha ao enviar imagem OG", error);
-    redirect(`/admin/artigos/${id}?error=image`);
+    redirect(
+      `/admin/artigos/${id}?error=${error instanceof Error && error.message.startsWith("Imagem OG inválida") ? "image_invalid" : "image_upload"}`,
+    );
   }
   const { error } = await supabase
     .from("artigos")

@@ -9,7 +9,12 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { saveConfigSection, saveFunnel, saveInactivationReasons, saveTemplates } from "./actions";
+import {
+  saveConfigSection,
+  saveFunnel,
+  saveInactivationReasons,
+  saveTemplates,
+} from "./actions";
 import { FunnelEditor } from "./funnel-editor";
 import { InactivationReasonsEditor } from "./inactivation-reasons-editor";
 
@@ -30,14 +35,18 @@ export default async function ConfigPage({
   searchParams?: Record<string, string | undefined>;
 }) {
   const supabase = createClient();
-  const [{ data: configs, error }, { data: loadedStages }, { data: reasons }] = await Promise.all([
-    supabase.from("config").select("chave,valor"),
-    supabase
-      .from("funil_etapas")
-      .select("id,nome,ordem,cor,e_fechada")
-      .order("ordem"),
-    supabase.from("motivos_inativacao").select("id,slug,rotulo,ativo,reativavel_padrao").order("ordem"),
-  ]);
+  const [{ data: configs, error }, { data: loadedStages }, { data: reasons }] =
+    await Promise.all([
+      supabase.from("config").select("chave,valor"),
+      supabase
+        .from("funil_etapas")
+        .select("id,nome,ordem,cor,e_fechada")
+        .order("ordem"),
+      supabase
+        .from("motivos_inativacao")
+        .select("id,slug,rotulo,ativo,reativavel_padrao")
+        .order("ordem"),
+    ]);
   const values = Object.fromEntries(
     (configs ?? []).map((item) => [item.chave, item.valor ?? ""]),
   ) as ConfigMap;
@@ -90,7 +99,9 @@ export default async function ConfigPage({
           <Notice tone="success">Alterações salvas com sucesso.</Notice>
         )}
         {searchParams?.error && (
-          <Notice tone="error">{errorMessage(searchParams.error)}</Notice>
+          <Notice tone="error">
+            {errorMessage(searchParams.error, searchParams.details)}
+          </Notice>
         )}
         {error && (
           <Notice tone="error">
@@ -134,7 +145,18 @@ export default async function ConfigPage({
                 />
               </>
             )}
-            {active === "motivos" && <><SectionTitle title="Motivos de inativação" description="Arraste para ordenar. Motivos desativados deixam de aparecer em novas inativações, sem afetar o histórico." /><InactivationReasonsEditor initialReasons={reasons ?? []} action={saveInactivationReasons} /></>}
+            {active === "motivos" && (
+              <>
+                <SectionTitle
+                  title="Motivos de inativação"
+                  description="Arraste para ordenar. Motivos desativados deixam de aparecer em novas inativações, sem afetar o histórico."
+                />
+                <InactivationReasonsEditor
+                  initialReasons={reasons ?? []}
+                  action={saveInactivationReasons}
+                />
+              </>
+            )}
             {active === "sistema" && <SystemForm values={values} />}
           </section>
         </div>
@@ -506,12 +528,26 @@ function Notice({
     </p>
   );
 }
-function errorMessage(code: string) {
+function errorMessage(code: string, details?: string) {
+  if (code === "missing_placeholders") {
+    const fields = (details ?? "")
+      .split(",")
+      .filter(Boolean)
+      .map((field) => `{{${field}}}`)
+      .join(", ");
+    return `Template rejeitado: os seguintes placeholders obrigatórios não foram encontrados: ${fields || "variáveis obrigatórias"}. Verifique se você não removeu essas variáveis do template.`;
+  }
   return (
     {
       invalid: "Revise os campos informados.",
-      invalid_file: "Envie somente arquivos DOCX de até 10 MB.",
-      upload: "Não foi possível trocar o template.",
+      invalid_extension: "Template rejeitado: envie somente um arquivo DOCX.",
+      file_too_large: "Template rejeitado: arquivo excede 10 MB.",
+      invalid_docx:
+        "Template rejeitado: o arquivo está corrompido ou não é um DOCX válido.",
+      upload_permission:
+        "Não foi possível trocar o template porque o Storage recusou a permissão. Entre novamente como administrador e tente de novo.",
+      upload:
+        "Não foi possível trocar o template por uma falha no armazenamento. Tente novamente; se persistir, contate o suporte.",
       duplicate_stage: "Os nomes das etapas não podem se repetir.",
       stage_in_use: "Não é possível remover uma etapa que ainda contém leads.",
       save: "Não foi possível salvar as alterações.",

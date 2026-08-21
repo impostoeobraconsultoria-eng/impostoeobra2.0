@@ -49,7 +49,11 @@ export default async function EditArticlePage({
         )}
         {searchParams?.error && (
           <p className="mt-5 rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-700">
-            Não foi possível salvar. Revise os campos e a imagem.
+            {searchParams.error === "image_invalid"
+              ? "Imagem rejeitada: use PNG, JPG ou WebP de até 5 MB."
+              : searchParams.error === "image_upload"
+                ? "A imagem é válida, mas não pôde ser enviada ao Storage. Tente novamente."
+                : "Não foi possível salvar. Revise os campos informados."}
           </p>
         )}
         <ArticleEditor

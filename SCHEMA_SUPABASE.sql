@@ -960,6 +960,31 @@ on conflict (uf) do nothing;
 -- create policy "og_images_admin_update" on storage.objects for update to authenticated using (bucket_id = 'og-images' and public.is_active_user());
 -- create policy "og_images_admin_delete" on storage.objects for delete to authenticated using (bucket_id = 'og-images' and public.is_active_user());
 
+-- Bucket privado de templates DOCX. A substituição com upsert exige as três
+-- permissões abaixo (SELECT + INSERT + UPDATE). Apenas administradores podem
+-- ler ou alterar os arquivos-base usados na geração de documentos.
+update storage.buckets
+   set file_size_limit = 10485760,
+       allowed_mime_types = array['application/vnd.openxmlformats-officedocument.wordprocessingml.document']::text[]
+ where id = 'templates';
+
+drop policy if exists templates_admin_select on storage.objects;
+drop policy if exists templates_admin_insert on storage.objects;
+drop policy if exists templates_admin_update on storage.objects;
+
+create policy templates_admin_select on storage.objects
+  for select to authenticated
+  using (bucket_id = 'templates' and public.is_admin());
+
+create policy templates_admin_insert on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'templates' and public.is_admin());
+
+create policy templates_admin_update on storage.objects
+  for update to authenticated
+  using (bucket_id = 'templates' and public.is_admin())
+  with check (bucket_id = 'templates' and public.is_admin());
+
 -- =============================================================================
 -- FIM DO SCHEMA
 -- =============================================================================

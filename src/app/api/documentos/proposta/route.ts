@@ -10,6 +10,7 @@ import {
   joinAddress,
   mergeAndNormalize,
   persistDocx,
+  publicDocumentError,
   requireDocumentUser,
 } from "@/lib/documentos";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -139,8 +140,7 @@ export async function POST(request: Request) {
     console.error("Erro ao gerar proposta", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Falha ao gerar proposta.",
+        error: publicDocumentError(error, "proposta"),
       },
       { status: 500 },
     );
