@@ -1,7 +1,7 @@
 // Atualize a data junto com qualquer alteração material na página correspondente.
 export const pagesMeta = {
   home: { slug: "/", lastmod: "2026-08-21" },
-  guia: { slug: "/guia-inss-de-obra", lastmod: "2026-08-15" },
+  guia: { slug: "/guia-inss-de-obra", lastmod: "2026-08-21" },
   calculadora: { slug: "/calculadora-inss-de-obra", lastmod: "2026-08-21" },
   artigos: { slug: "/artigos", lastmod: "2026-08-15" },
   cases: { slug: "/casos-de-sucesso", lastmod: "2026-08-16" },
