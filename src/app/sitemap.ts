@@ -1,4 +1,6 @@
 import type { MetadataRoute } from "next";
+
+import { pagesMeta } from "@/content/pages-meta";
 import { createPublicClient } from "@/lib/supabase/public";
 
 export const revalidate = 3600;
@@ -7,75 +9,117 @@ const siteUrl = (
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://impostoeobra.com.br"
 ).replace(/\/$/, "");
 
-const fixedRoutes: MetadataRoute.Sitemap = [
-  {
-    url: `${siteUrl}/`,
-    lastModified: new Date(),
-    changeFrequency: "weekly",
-    priority: 1,
-  },
-  {
-    url: `${siteUrl}/guia-inss-de-obra`,
-    lastModified: new Date(),
-    changeFrequency: "monthly",
-    priority: 0.95,
-  },
-  {
-    url: `${siteUrl}/artigos`,
-    lastModified: new Date(),
-    changeFrequency: "weekly",
-    priority: 0.9,
-  },
-  {
-    url: `${siteUrl}/casos-de-sucesso`,
-    lastModified: new Date(),
-    changeFrequency: "monthly",
-    priority: 0.8,
-  },
-  {
-    url: `${siteUrl}/sobre`,
-    lastModified: new Date(),
-    changeFrequency: "yearly",
-    priority: 0.6,
-  },
-  {
-    url: `${siteUrl}/contato`,
-    lastModified: new Date(),
-    changeFrequency: "yearly",
-    priority: 0.6,
-  },
-  {
-    url: `${siteUrl}/politica/aviso-de-privacidade`,
-    lastModified: new Date(),
-    changeFrequency: "yearly",
-    priority: 0.5,
-  },
-];
+type DynamicDates = { articles?: Date; cases?: Date; faq?: Date };
+
+function date(value: string) {
+  return new Date(`${value}T00:00:00.000Z`);
+}
+
+function newest(values: Array<string | null | undefined>, fallback: Date) {
+  const timestamps = [
+    fallback.getTime(),
+    ...values
+      .filter((value): value is string => Boolean(value))
+      .map((value) => new Date(value).getTime())
+      .filter(Number.isFinite),
+  ];
+  return new Date(Math.max(...timestamps));
+}
+
+function fixedRoutes(dynamic: DynamicDates): MetadataRoute.Sitemap {
+  const homeDate = date(pagesMeta.home.lastmod);
+  return [
+    {
+      url: `${siteUrl}${pagesMeta.home.slug}`,
+      lastModified: dynamic.cases
+        ? newest([dynamic.cases.toISOString()], homeDate)
+        : homeDate,
+      changeFrequency: "weekly",
+      priority: 1,
+    },
+    {
+      url: `${siteUrl}${pagesMeta.guia.slug}`,
+      lastModified: dynamic.faq
+        ? newest([dynamic.faq.toISOString()], date(pagesMeta.guia.lastmod))
+        : date(pagesMeta.guia.lastmod),
+      changeFrequency: "monthly",
+      priority: 0.95,
+    },
+    {
+      url: `${siteUrl}${pagesMeta.artigos.slug}`,
+      lastModified: dynamic.articles ?? date(pagesMeta.artigos.lastmod),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
+    {
+      url: `${siteUrl}${pagesMeta.cases.slug}`,
+      lastModified: dynamic.cases ?? date(pagesMeta.cases.lastmod),
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    ...(
+      [pagesMeta.sobre, pagesMeta.contato, pagesMeta.privacidade] as const
+    ).map((page, index) => ({
+      url: `${siteUrl}${page.slug}`,
+      lastModified: date(page.lastmod),
+      changeFrequency: "yearly" as const,
+      priority: index < 2 ? 0.6 : 0.5,
+    })),
+  ];
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
-    const { data, error } = await createPublicClient()
-      .from("artigos")
-      .select("slug,updated_at,data_publicacao,prioridade_seo")
-      .eq("publicado", true)
-      .order("data_publicacao", { ascending: false });
+    const supabase = createPublicClient();
+    const [articleResult, caseResult, faqResult] = await Promise.all([
+      supabase
+        .from("artigos")
+        .select("slug,updated_at,data_publicacao,prioridade_seo")
+        .eq("publicado", true)
+        .order("data_publicacao", { ascending: false }),
+      supabase.from("cases").select("updated_at").eq("publicado", true),
+      supabase.from("faq").select("updated_at").eq("publicado", true),
+    ]);
+    if (articleResult.error) throw articleResult.error;
+    if (caseResult.error) throw caseResult.error;
+    if (faqResult.error) throw faqResult.error;
 
-    if (error) throw error;
-
-    const articles: MetadataRoute.Sitemap = data.map((article) => ({
-      url: `${siteUrl}/artigos/${article.slug.replace(/\.html$/, "")}`,
-      lastModified: new Date(
-        article.updated_at ?? article.data_publicacao ?? Date.now(),
+    const articles: MetadataRoute.Sitemap = articleResult.data.map(
+      (article) => ({
+        url: `${siteUrl}/artigos/${article.slug.replace(/\.html$/, "")}`,
+        lastModified: new Date(
+          article.updated_at ??
+            article.data_publicacao ??
+            pagesMeta.artigos.lastmod,
+        ),
+        changeFrequency: "monthly",
+        priority: Math.min(
+          1,
+          Math.max(0, Number(article.prioridade_seo ?? 0.8)),
+        ),
+      }),
+    );
+    const dynamic = {
+      articles: newest(
+        articleResult.data.map(
+          (article) => article.updated_at ?? article.data_publicacao,
+        ),
+        date(pagesMeta.artigos.lastmod),
       ),
-      changeFrequency: "monthly",
-      priority: Math.min(1, Math.max(0, Number(article.prioridade_seo ?? 0.8))),
-    }));
-
-    return [...fixedRoutes, ...articles];
+      cases: newest(
+        caseResult.data.map((item) => item.updated_at),
+        date(pagesMeta.cases.lastmod),
+      ),
+      faq: newest(
+        faqResult.data.map((item) => item.updated_at),
+        date(pagesMeta.guia.lastmod),
+      ),
+    };
+    return [...fixedRoutes(dynamic), ...articles];
   } catch (error) {
-    console.error("Falha ao montar artigos do sitemap", {
+    console.error("Falha ao montar sitemap dinâmico", {
       message: error instanceof Error ? error.message : "unknown",
     });
-    return fixedRoutes;
+    return fixedRoutes({});
   }
 }
