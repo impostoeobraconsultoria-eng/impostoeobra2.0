@@ -6,6 +6,10 @@ import { updateCustomer } from "@/app/admin/clientes/actions";
 import { CustomerContractDialog } from "@/components/admin/customer-contract-dialog";
 import { CustomerDossier } from "@/components/admin/customer-dossier";
 import {
+  CustomerTimeline,
+  type CustomerTimelineItem,
+} from "@/components/admin/customer-timeline";
+import {
   CustomerNotes,
   type CustomerNote,
 } from "@/components/admin/customer-notes";
@@ -113,6 +117,46 @@ export default async function CustomerDetailPage({
           .maybeSingle()
       : { data: null };
   if (!profile) notFound();
+  const contractIds = (contracts ?? []).map((contract) => contract.id);
+  const activitySelect =
+    "id,tipo,descricao,data_hora,autor:users!atividades_autor_id_fkey(nome,email)";
+  const [customerActivities, leadActivities, contractActivities] =
+    await Promise.all([
+      supabase
+        .from("atividades")
+        .select(activitySelect)
+        .eq("ref_tipo", "cliente")
+        .eq("ref_id", customer.id),
+      customer.lead_id_origem
+        ? supabase
+            .from("atividades")
+            .select(activitySelect)
+            .eq("ref_tipo", "lead")
+            .eq("ref_id", customer.lead_id_origem)
+        : Promise.resolve({ data: [] }),
+      contractIds.length
+        ? supabase
+            .from("atividades")
+            .select(activitySelect)
+            .eq("ref_tipo", "contrato")
+            .in("ref_id", contractIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+  const timeline = [
+    ...normalizeActivities(customerActivities.data, "cliente"),
+    ...normalizeActivities(leadActivities.data, "lead"),
+    ...normalizeActivities(contractActivities.data, "contrato"),
+    ...(notes ?? []).map((note) => ({
+      id: `nota-${note.id}`,
+      tipo: "nota",
+      descricao: note.conteudo,
+      data_hora: note.criado_em,
+      origem: "cliente" as const,
+      autor: normalizeAuthor(note.autor),
+    })),
+  ].sort(
+    (a, b) => new Date(b.data_hora).getTime() - new Date(a.data_hora).getTime(),
+  );
   const total = (contracts ?? []).reduce(
     (sum, contract) => sum + Number(contract.valor_total ?? 0),
     0,
@@ -125,8 +169,11 @@ export default async function CustomerDetailPage({
     /\D/g,
     "",
   );
+  const customerWhatsappMessage = String(
+    config.whatsapp_msg_cliente_default ?? "",
+  ).trim();
   const whatsappUrl = phone
-    ? `https://api.whatsapp.com/send?phone=55${phone.replace(/^55/, "")}&text=${encodeURIComponent(`Olá, ${customer.nome}! Sou da Imposto & Obra Consultoria.`)}`
+    ? `https://api.whatsapp.com/send?phone=55${phone.replace(/^55/, "")}${customerWhatsappMessage ? `&text=${encodeURIComponent(customerWhatsappMessage.replaceAll("{nome}", customer.nome))}` : ""}`
     : null;
   const today = new Date().toISOString();
   const proposalDefaults = {
@@ -203,6 +250,7 @@ export default async function CustomerDetailPage({
         )}
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
           <div className="space-y-6">
+            <CustomerTimeline items={timeline} />
             <form
               action={updateCustomer.bind(null, params.id)}
               className="space-y-6"
@@ -396,6 +444,38 @@ export default async function CustomerDetailPage({
       </div>
     </main>
   );
+}
+
+type ActivityRow = {
+  id: string;
+  tipo: string;
+  descricao: string | null;
+  data_hora: string;
+  autor:
+    | { nome: string | null; email: string }
+    | { nome: string | null; email: string }[]
+    | null;
+};
+
+function normalizeActivities(
+  rows: unknown[] | null | undefined,
+  origem: CustomerTimelineItem["origem"],
+): CustomerTimelineItem[] {
+  return (rows ?? []).map((raw) => {
+    const row = raw as ActivityRow;
+    return {
+      id: row.id,
+      tipo: row.tipo,
+      descricao: row.descricao,
+      data_hora: row.data_hora,
+      origem,
+      autor: normalizeAuthor(row.autor),
+    };
+  });
+}
+
+function normalizeAuthor(value: ActivityRow["autor"]) {
+  return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
 type FieldDef = readonly [string, string, string?, boolean?];
