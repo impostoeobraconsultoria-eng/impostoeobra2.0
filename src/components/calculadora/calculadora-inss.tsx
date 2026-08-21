@@ -77,9 +77,11 @@ function Field({
 export function CalculadoraInss({
   whatsappNumber,
   eventNames,
+  pageLocation,
 }: {
   whatsappNumber: string;
   eventNames: { started: string; generateLead: string };
+  pageLocation?: string;
 }) {
   const [step, setStep] = useState(1);
   const [input, setInput] = useState(initial);
@@ -163,10 +165,13 @@ export function CalculadoraInss({
   };
   const trackStart = () => {
     if (step !== 1) return;
-    const key = "imposto_obra_simulacao_iniciada";
+    const key = `imposto_obra_simulacao_iniciada:${pageLocation ?? "home"}`;
     if (sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, "1");
-    sendGaEvent(eventNames.started, { step: 1 });
+    sendGaEvent(eventNames.started, {
+      step: 1,
+      ...(pageLocation ? { page_location: pageLocation } : {}),
+    });
   };
   const calcular = async () => {
     if (!nome.trim()) return setErro("Informe seu nome.");
@@ -180,6 +185,7 @@ export function CalculadoraInss({
       event_category: "lead",
       event_label: "calculadora_inss_obra",
       value: r.economia || 0,
+      ...(pageLocation ? { page_location: pageLocation } : {}),
     });
     setSending(true);
     try {
@@ -207,6 +213,7 @@ export function CalculadoraInss({
         lead_id: leadId,
         value: r.economia || 0,
         currency: "BRL",
+        ...(pageLocation ? { page_location: pageLocation } : {}),
       });
     } catch (error) {
       console.error("Erro ao enviar lead", error);

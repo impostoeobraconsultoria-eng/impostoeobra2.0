@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 const navigation = [
   { href: "/", label: "Home" },
+  { href: "/calculadora-inss-de-obra", label: "Calculadora" },
   { href: "/guia-inss-de-obra", label: "Guia INSS de Obra" },
   { href: "/artigos", label: "Artigos" },
   { href: "/sobre", label: "Sobre" },

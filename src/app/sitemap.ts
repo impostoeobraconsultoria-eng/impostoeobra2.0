@@ -46,6 +46,12 @@ function fixedRoutes(dynamic: DynamicDates): MetadataRoute.Sitemap {
       priority: 0.95,
     },
     {
+      url: `${siteUrl}${pagesMeta.calculadora.slug}`,
+      lastModified: date(pagesMeta.calculadora.lastmod),
+      changeFrequency: "monthly",
+      priority: 0.95,
+    },
+    {
       url: `${siteUrl}${pagesMeta.artigos.slug}`,
       lastModified: dynamic.articles ?? date(pagesMeta.artigos.lastmod),
       changeFrequency: "weekly",

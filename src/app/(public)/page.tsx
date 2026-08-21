@@ -130,6 +130,12 @@ export default async function Home() {
                     config.ga4_event_generate_lead || "generate_lead",
                 }}
               />
+              <Link
+                className="mt-5 inline-flex border-b border-primary pb-1 text-sm font-bold text-primary"
+                href="/calculadora-inss-de-obra"
+              >
+                Ver página completa da calculadora →
+              </Link>
             </div>
           </div>
         </div>
