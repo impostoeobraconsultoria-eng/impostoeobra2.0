@@ -11,6 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:calculadora": "node --no-warnings --experimental-strip-types scripts/test-calculadora.ts",
+    "test:telefone": "node --no-warnings --experimental-strip-types scripts/test-telefone.ts",
     "migrate:artigos": "node --no-warnings --experimental-strip-types scripts/migrate-artigos-do-repo-antigo.ts",
     "migrate:crm": "node --no-warnings --experimental-strip-types scripts/migrate-crm-do-sheets.ts"
   },
@@ -32,6 +33,7 @@
     "pizzip": "3.2.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "react-imask": "7.6.1",
     "sanitize-html": "2.17.0",
     "tailwind-merge": "2.6.0",
     "tailwindcss-animate": "1.0.7",

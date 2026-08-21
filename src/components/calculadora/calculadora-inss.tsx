@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { BrazilianPhoneInput } from "@/components/ui/brazilian-phone-input";
+import { parseBrazilianMobile } from "@/lib/ddds-brasileiros";
 import {
   CATEGORIAS,
   calcularInss,
@@ -79,8 +81,7 @@ export function CalculadoraInss({
   const [step, setStep] = useState(1);
   const [input, setInput] = useState(initial);
   const [nome, setNome] = useState("");
-  const [ddd, setDdd] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<ResultadoCalculo | null>(null);
@@ -157,12 +158,9 @@ export function CalculadoraInss({
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   const calcular = () => {
-    const cleanDdd = ddd.replace(/\D/g, "");
-    const cleanWhats = whatsapp.replace(/\D/g, "");
     if (!nome.trim()) return setErro("Informe seu nome.");
-    if (cleanDdd.length !== 2) return setErro("DDD deve ter 2 dígitos.");
-    if (![8, 9].includes(cleanWhats.length))
-      return setErro("WhatsApp deve ter 8 ou 9 dígitos.");
+    const phone = parseBrazilianMobile(telefone);
+    if (!phone.ok) return setErro(phone.error);
     const r = calcularInss(calculoInput, tabela);
     setResultado(r);
     setErro("");
@@ -181,8 +179,7 @@ export function CalculadoraInss({
       body: JSON.stringify({
         timestamp: new Date().toISOString(),
         nome: nome.trim(),
-        ddd: cleanDdd,
-        whatsapp: cleanWhats,
+        telefone: phone.data.formatted,
         email: email.trim() || null,
         ...calculoInput,
         ...r,
@@ -424,30 +421,14 @@ export function CalculadoraInss({
                 onChange={(e) => setNome(e.target.value)}
               />
             </Field>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="DDD">
-                <input
-                  className={inputClass}
-                  inputMode="numeric"
-                  maxLength={2}
-                  placeholder="61"
-                  value={ddd}
-                  onChange={(e) => setDdd(e.target.value.replace(/\D/g, ""))}
-                />
-              </Field>
-              <Field label="WhatsApp">
-                <input
-                  className={inputClass}
-                  inputMode="numeric"
-                  maxLength={9}
-                  placeholder="999999999"
-                  value={whatsapp}
-                  onChange={(e) =>
-                    setWhatsapp(e.target.value.replace(/\D/g, ""))
-                  }
-                />
-              </Field>
-            </div>
+            <Field label="WhatsApp com DDD">
+              <BrazilianPhoneInput
+                className={inputClass}
+                value={telefone}
+                onValueChange={setTelefone}
+                required
+              />
+            </Field>
             <Field label="E-mail (opcional)">
               <input
                 className={inputClass}
@@ -478,8 +459,7 @@ export function CalculadoraInss({
           restart={() => {
             setInput(initial);
             setNome("");
-            setDdd("");
-            setWhatsapp("");
+            setTelefone("");
             setEmail("");
             setResultado(null);
             go(1);

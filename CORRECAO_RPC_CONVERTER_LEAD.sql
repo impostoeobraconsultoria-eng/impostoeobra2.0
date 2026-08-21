@@ -37,11 +37,11 @@ begin
   end if;
 
   insert into public.clientes (
-    lead_id_origem, nome, ddd, telefone, email,
+    lead_id_origem, nome, ddd, telefone, telefone_normalizado, email,
     obra_end_cidade, obra_end_uf, obra_tipo, criado_por
   )
   select
-    id, nome, ddd, whatsapp, email,
+    id, nome, ddd, whatsapp, telefone_normalizado, email,
     cidade, uf, tipo, v_autor_id
   from public.leads
   where id = p_lead_id

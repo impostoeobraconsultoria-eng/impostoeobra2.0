@@ -29,6 +29,10 @@ import {
   joinAddress,
 } from "@/lib/documentos";
 import { createClient } from "@/lib/supabase/server";
+import { BrazilianPhoneInput } from "@/components/ui/brazilian-phone-input";
+import { formatBrazilianMobile } from "@/lib/ddds-brasileiros";
+import { findRecurrencesForRecord } from "@/lib/recurrence";
+import { RecurrenceAlert } from "@/components/admin/recurrence-alert";
 
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -99,6 +103,11 @@ export default async function CustomerDetailPage({
     getConfigMap(),
   ]);
   if (!customer) notFound();
+  const recurrenceMatches = await findRecurrencesForRecord({
+    phone: customer.telefone_normalizado,
+    email: customer.email,
+    excludeCustomerId: customer.id,
+  });
   const { data: originLead } = customer.lead_id_origem
     ? await supabase
         .from("leads")
@@ -248,6 +257,7 @@ export default async function CustomerDetailPage({
             Não foi possível salvar. Revise os dados e tente novamente.
           </p>
         )}
+        <RecurrenceAlert matches={recurrenceMatches} />
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
           <div className="space-y-6">
             <CustomerTimeline items={timeline} />
@@ -270,13 +280,20 @@ export default async function CustomerDetailPage({
                 />
               </Card>
               <Card title="Contato">
+                <label className="field mb-4">
+                  WhatsApp com DDD
+                  <BrazilianPhoneInput
+                    name="telefone_contato"
+                    value={formatBrazilianMobile(
+                      customer.ddd,
+                      customer.telefone,
+                    )}
+                    required
+                  />
+                </label>
                 <Fields
                   values={customer}
-                  fields={[
-                    ["ddd", "DDD"],
-                    ["telefone", "Telefone"],
-                    ["email", "E-mail", "email"],
-                  ]}
+                  fields={[["email", "E-mail", "email"]]}
                 />
               </Card>
               <Card title="Endereço residencial">

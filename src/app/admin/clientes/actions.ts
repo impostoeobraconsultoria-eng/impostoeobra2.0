@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseBrazilianMobile } from "@/lib/ddds-brasileiros";
 
 async function context() {
   const supabase = createClient();
@@ -148,13 +149,24 @@ const fields = [
   "obs_contrato",
 ];
 function values(f: FormData) {
-  return Object.fromEntries(
+  const payload = Object.fromEntries(
     fields.map((k) => [k, String(f.get(k) ?? "").trim() || null]),
   );
+  const phoneRaw = String(f.get("telefone_contato") ?? "");
+  if (phoneRaw) {
+    const phone = parseBrazilianMobile(phoneRaw);
+    if (!phone.ok) return { ...payload, telefone_invalido: phone.error };
+    payload.ddd = phone.data.ddd;
+    payload.telefone = phone.data.whatsapp;
+    payload.telefone_normalizado = phone.data.telefoneNormalizado;
+  }
+  return payload;
 }
 export async function createCustomer(f: FormData) {
   const p = values(f);
-  if (!p.nome) redirect("/admin/clientes?new=1&error=invalid");
+  if (!p.nome || p.telefone_invalido)
+    redirect("/admin/clientes?new=1&error=invalid");
+  delete p.telefone_invalido;
   const { supabase, user } = await context();
   const { data, error } = await supabase
     .from("clientes")
@@ -173,10 +185,14 @@ export async function createCustomer(f: FormData) {
   redirect(`/admin/clientes/${data.id}?saved=1`);
 }
 export async function updateCustomer(id: string, f: FormData) {
+  const payload = values(f);
+  if (payload.telefone_invalido)
+    redirect(`/admin/clientes/${id}?error=invalid_phone`);
+  delete payload.telefone_invalido;
   const { supabase, user } = await context();
   const { error } = await supabase
     .from("clientes")
-    .update(values(f))
+    .update(payload)
     .eq("id", id)
     .is("deleted_at", null);
   if (error) redirect(`/admin/clientes/${id}?error=save`);
@@ -213,15 +229,13 @@ export async function softDeleteCustomer(id: string) {
     .eq("id", id)
     .is("deleted_at", null);
   if (error) return { ok: false, error: error.message };
-  await supabase
-    .from("atividades")
-    .insert({
-      ref_tipo: "cliente",
-      ref_id: id,
-      tipo: "exclusao",
-      descricao: "Cliente movido para a lixeira",
-      autor_id: user.id,
-    });
+  await supabase.from("atividades").insert({
+    ref_tipo: "cliente",
+    ref_id: id,
+    tipo: "exclusao",
+    descricao: "Cliente movido para a lixeira",
+    autor_id: user.id,
+  });
   revalidatePath("/admin/clientes");
   revalidatePath("/admin/clientes/lixeira");
   revalidatePath("/admin");
@@ -238,15 +252,13 @@ export async function restoreCustomer(id: string) {
     .eq("id", id)
     .not("deleted_at", "is", null);
   if (error) return { ok: false, error: error.message };
-  await supabase
-    .from("atividades")
-    .insert({
-      ref_tipo: "cliente",
-      ref_id: id,
-      tipo: "restauracao",
-      descricao: "Cliente restaurado da lixeira",
-      autor_id: user.id,
-    });
+  await supabase.from("atividades").insert({
+    ref_tipo: "cliente",
+    ref_id: id,
+    tipo: "restauracao",
+    descricao: "Cliente restaurado da lixeira",
+    autor_id: user.id,
+  });
   revalidatePath("/admin/clientes");
   revalidatePath("/admin/clientes/lixeira");
   revalidatePath("/admin");

@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { parseBrazilianMobile } from "@/lib/ddds-brasileiros";
 
 const optionalText = z.preprocess(
   (value) => (value === "" || value == null ? null : value),
@@ -135,7 +136,7 @@ export async function updateLeadStatus(id: string, status: string) {
 }
 
 export type CreateLeadState = {
-  errors?: Partial<Record<"nome" | "status" | "form", string>>;
+  errors?: Partial<Record<"nome" | "telefone" | "status" | "form", string>>;
 };
 
 export async function createLead(
@@ -145,8 +146,7 @@ export async function createLead(
   const schema = z.object({
     nome: z.string().trim().min(1, "Nome é obrigatório").max(160),
     email: optionalText,
-    ddd: optionalText,
-    whatsapp: optionalText,
+    telefone: z.string().trim().min(1, "Informe o WhatsApp com DDD"),
     uf: optionalText,
     cidade: optionalText,
     produto: optionalText,
@@ -160,17 +160,30 @@ export async function createLead(
     return {
       errors: {
         nome: fields.nome?.[0],
+        telefone: fields.telefone?.[0],
         status: fields.status?.[0],
         form: "Revise os campos destacados e tente novamente.",
       },
     };
   }
+  const phone = parseBrazilianMobile(parsed.data.telefone);
+  if (!phone.ok) return { errors: { telefone: phone.error } };
   const { supabase, user } = await context();
   if (!(await isValidStatus(supabase, parsed.data.status)))
     return { errors: { status: "Status inválido" } };
-  const { data, error } = await createAdminClient()
+  const { telefone: _telefone, ...payload } = parsed.data;
+  void _telefone;
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("leads")
-    .insert({ ...parsed.data, origem: "manual", updated_by: user.id })
+    .insert({
+      ...payload,
+      ddd: phone.data.ddd,
+      whatsapp: phone.data.whatsapp,
+      telefone_normalizado: phone.data.telefoneNormalizado,
+      origem: "manual",
+      updated_by: user.id,
+    })
     .select("id")
     .single();
   if (error || !data) {
@@ -184,6 +197,26 @@ export async function createLead(
     descricao: "Lead criado manualmente",
     autor_id: user.id,
   });
+  const matches = await findExistingRecords(
+    admin,
+    phone.data.telefoneNormalizado,
+    payload.email,
+    data.id,
+  );
+  if (matches.leads.length || matches.clientes.length)
+    await supabase
+      .from("atividades")
+      .insert({
+        ref_tipo: "lead",
+        ref_id: data.id,
+        tipo: "lead_recorrente_detectado",
+        descricao: "Possível recorrência detectada por telefone ou e-mail",
+        metadata_json: {
+          leads_encontrados: matches.leads,
+          clientes_encontrados: matches.clientes,
+        },
+        autor_id: user.id,
+      });
   revalidatePath("/admin");
   revalidatePath("/admin/leads");
   redirect(`/admin/leads/${data.id}?saved=1`);
@@ -282,6 +315,14 @@ export async function updateLead(id: string, formData: FormData) {
     payload[field] =
       raw === "" ? null : numericFields.has(field) ? Number(raw) : raw.trim();
   }
+  const phoneRaw = formData.get("telefone");
+  if (typeof phoneRaw === "string") {
+    const phone = parseBrazilianMobile(phoneRaw);
+    if (!phone.ok) redirect(`/admin/leads/${id}?error=invalid_phone`);
+    payload.ddd = phone.data.ddd;
+    payload.whatsapp = phone.data.whatsapp;
+    payload.telefone_normalizado = phone.data.telefoneNormalizado;
+  }
   if (
     typeof payload.nome !== "string" ||
     payload.nome.length < 2 ||
@@ -313,6 +354,67 @@ export async function updateLead(id: string, formData: FormData) {
   redirect(`/admin/leads/${id}?saved=1`);
 }
 
+async function findExistingRecords(
+  admin: ReturnType<typeof createAdminClient>,
+  phone: string,
+  email: string | null,
+  excludedLeadId: string,
+) {
+  const leadQueries = [
+    admin
+      .from("leads")
+      .select("id")
+      .eq("telefone_normalizado", phone)
+      .neq("id", excludedLeadId)
+      .is("deleted_at", null)
+      .is("convertido_em", null),
+  ];
+  const customerQueries = [
+    admin
+      .from("clientes")
+      .select("id")
+      .eq("telefone_normalizado", phone)
+      .is("deleted_at", null),
+  ];
+  if (email) {
+    const safe = email.toLowerCase().replace(/[\\%_]/g, "\\$&");
+    leadQueries.push(
+      admin
+        .from("leads")
+        .select("id")
+        .ilike("email", safe)
+        .neq("id", excludedLeadId)
+        .is("deleted_at", null)
+        .is("convertido_em", null),
+    );
+    customerQueries.push(
+      admin
+        .from("clientes")
+        .select("id")
+        .ilike("email", safe)
+        .is("deleted_at", null),
+    );
+  }
+  const results = await Promise.all([...leadQueries, ...customerQueries]);
+  const split = leadQueries.length;
+  return {
+    leads: Array.from(
+      new Set(
+        results
+          .slice(0, split)
+          .flatMap((result) => (result.data ?? []).map((row) => row.id)),
+      ),
+    ),
+    clientes: Array.from(
+      new Set(
+        results
+          .slice(split)
+          .flatMap((result) => (result.data ?? []).map((row) => row.id)),
+      ),
+    ),
+  };
+}
+
 async function isValidStatus(
   supabase: ReturnType<typeof createClient>,
   status: string,
@@ -332,10 +434,9 @@ const inactivationSchema = z
     contatoFuturo: z.boolean(),
     dataContatoFuturo: z.string().date().nullable(),
   })
-  .refine(
-    (value) => !value.contatoFuturo || Boolean(value.dataContatoFuturo),
-    { message: "Informe a data da próxima tentativa." },
-  );
+  .refine((value) => !value.contatoFuturo || Boolean(value.dataContatoFuturo), {
+    message: "Informe a data da próxima tentativa.",
+  });
 
 export async function inactivateLead(
   id: string,
@@ -345,7 +446,10 @@ export async function inactivateLead(
     .object({ id: z.string().uuid(), input: inactivationSchema })
     .safeParse({ id, input });
   if (!parsed.success)
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Dados inválidos.",
+    };
   const { supabase } = await context();
   const { error } = await supabase.rpc("inativar_lead", {
     p_lead_id: parsed.data.id,
@@ -357,7 +461,11 @@ export async function inactivateLead(
       : null,
   });
   if (error) {
-    console.error("Falha ao inativar lead", { leadId: id, code: error.code, message: error.message });
+    console.error("Falha ao inativar lead", {
+      leadId: id,
+      code: error.code,
+      message: error.message,
+    });
     return { ok: false, error: friendlyLifecycleError(error.message) };
   }
   revalidateLeadLifecycle(id);
@@ -375,7 +483,11 @@ export async function reactivateLead(id: string, stage: string) {
     p_etapa: parsed.data.stage,
   });
   if (error) {
-    console.error("Falha ao reativar lead", { leadId: id, code: error.code, message: error.message });
+    console.error("Falha ao reativar lead", {
+      leadId: id,
+      code: error.code,
+      message: error.message,
+    });
     return { ok: false, error: friendlyLifecycleError(error.message) };
   }
   revalidateLeadLifecycle(id);
@@ -392,12 +504,18 @@ export async function updateLeadFutureContact(
       contatoFuturo: z.boolean(),
       dataContatoFuturo: z.string().date().nullable(),
     })
-    .refine((value) => !value.contatoFuturo || Boolean(value.dataContatoFuturo), {
-      message: "Informe a data da próxima tentativa.",
-    })
+    .refine(
+      (value) => !value.contatoFuturo || Boolean(value.dataContatoFuturo),
+      {
+        message: "Informe a data da próxima tentativa.",
+      },
+    )
     .safeParse({ id, ...input });
   if (!parsed.success)
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Dados inválidos.",
+    };
   const { supabase } = await context();
   const { error } = await supabase.rpc("atualizar_contato_futuro_lead", {
     p_lead_id: parsed.data.id,
@@ -407,7 +525,11 @@ export async function updateLeadFutureContact(
       : null,
   });
   if (error) {
-    console.error("Falha ao atualizar contato futuro", { leadId: id, code: error.code, message: error.message });
+    console.error("Falha ao atualizar contato futuro", {
+      leadId: id,
+      code: error.code,
+      message: error.message,
+    });
     return { ok: false, error: friendlyLifecycleError(error.message) };
   }
   revalidateLeadLifecycle(id);
@@ -432,7 +554,10 @@ function friendlyLifecycleError(message: string) {
     "Motivo de inativação inválido ou inativo.",
     "Etapa do funil inválida.",
   ];
-  return expected.find((item) => message.includes(item)) ?? "Não foi possível atualizar o ciclo de vida do lead.";
+  return (
+    expected.find((item) => message.includes(item)) ??
+    "Não foi possível atualizar o ciclo de vida do lead."
+  );
 }
 
 export async function addLeadNote(id: string, formData: FormData) {
