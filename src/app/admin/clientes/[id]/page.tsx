@@ -33,6 +33,7 @@ import { BrazilianPhoneInput } from "@/components/ui/brazilian-phone-input";
 import { formatBrazilianMobile } from "@/lib/ddds-brasileiros";
 import { findRecurrencesForRecord } from "@/lib/recurrence";
 import { RecurrenceAlert } from "@/components/admin/recurrence-alert";
+import { AnalyticsEventOnLoad } from "@/components/analytics/event-on-load";
 
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -126,6 +127,17 @@ export default async function CustomerDetailPage({
           .maybeSingle()
       : { data: null };
   if (!profile) notFound();
+  const conversionEvent =
+    searchParams?.ga_event === "close_convert_lead" &&
+    searchParams.lead_id &&
+    searchParams.cliente_id
+      ? {
+          lead_id: searchParams.lead_id,
+          cliente_id: searchParams.cliente_id,
+          value: Number(searchParams.event_value ?? 0),
+          currency: "BRL",
+        }
+      : null;
   const contractIds = (contracts ?? []).map((contract) => contract.id);
   const activitySelect =
     "id,tipo,descricao,data_hora,autor:users!atividades_autor_id_fkey(nome,email)";
@@ -205,6 +217,12 @@ export default async function CustomerDetailPage({
 
   return (
     <main className="px-5 py-8 sm:px-8">
+      {conversionEvent && (
+        <AnalyticsEventOnLoad
+          name={config.ga4_event_close_convert_lead || "close_convert_lead"}
+          params={conversionEvent}
+        />
+      )}
       <div className="mx-auto max-w-[1500px]">
         <Link
           href="/admin/clientes"

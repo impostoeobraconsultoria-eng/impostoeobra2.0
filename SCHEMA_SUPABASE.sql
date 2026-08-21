@@ -130,6 +130,7 @@ create table public.leads (
   gclid                    text,
   fbclid                   text,
   referrer                 text,
+  qualificado_em           timestamptz,
 
   -- Inputs da obra (simulador)
   resp                     text,
@@ -222,6 +223,16 @@ create table public.clientes (
   telefone_normalizado  text,
   email                 text,
 
+  -- Atribuição de marketing copiada do lead de origem
+  utm_source            text,
+  utm_medium            text,
+  utm_campaign          text,
+  utm_content           text,
+  utm_term              text,
+  gclid                 text,
+  fbclid                text,
+  referrer              text,
+
   -- Endereço residencial
   end_logradouro        text,
   end_bairro            text,
@@ -259,6 +270,10 @@ create index idx_clientes_nome on public.clientes(nome) where deleted_at is null
 create index idx_clientes_cpf on public.clientes(cpf) where deleted_at is null;
 create index idx_clientes_tel_norm on public.clientes(telefone_normalizado)
   where deleted_at is null;
+create index idx_clientes_utm_source on public.clientes(utm_source)
+  where utm_source is not null and deleted_at is null;
+create index idx_clientes_utm_campaign on public.clientes(utm_campaign)
+  where utm_campaign is not null and deleted_at is null;
 
 -- Notas privadas da vista 360 do cliente
 create table public.cliente_notas (
@@ -613,6 +628,62 @@ $$ language plpgsql
 
 revoke execute on function public.registrar_ultimo_acesso() from public;
 grant execute on function public.registrar_ultimo_acesso() to authenticated;
+
+-- Conversão atômica: preserva a atribuição de marketing no cliente.
+create or replace function public.converter_lead_em_cliente(p_lead_id uuid)
+returns uuid
+language plpgsql
+security invoker
+volatile
+set search_path = public, pg_temp
+as $$
+declare
+  v_cliente_id uuid;
+  v_autor_id uuid;
+begin
+  if not public.is_active_user() then raise exception 'Usuário não autorizado'; end if;
+
+  select id into v_autor_id from public.users
+   where email = auth.jwt()->>'email' and ativo = true;
+
+  if exists (select 1 from public.leads where id = p_lead_id
+    and deleted_at is null and cliente_id is not null) then
+    raise exception 'Lead já convertido';
+  end if;
+
+  insert into public.clientes (
+    lead_id_origem, nome, ddd, telefone, telefone_normalizado, email,
+    obra_end_cidade, obra_end_uf, obra_tipo, criado_por,
+    utm_source, utm_medium, utm_campaign, utm_content, utm_term,
+    gclid, fbclid, referrer
+  )
+  select id, nome, ddd, whatsapp, telefone_normalizado, email,
+    cidade, uf, tipo, v_autor_id,
+    utm_source, utm_medium, utm_campaign, utm_content, utm_term,
+    gclid, fbclid, referrer
+  from public.leads where id = p_lead_id
+    and deleted_at is null and cliente_id is null
+  returning id into v_cliente_id;
+
+  if v_cliente_id is null then raise exception 'Lead não encontrado ou já convertido'; end if;
+
+  update public.leads set cliente_id = v_cliente_id, convertido_em = now(),
+    status = 'Fechado — ganho', updated_by = v_autor_id
+  where id = p_lead_id;
+
+  insert into public.atividades (ref_tipo, ref_id, tipo, descricao, autor_id, metadata_json)
+  values ('lead', p_lead_id, 'conversao_cliente', 'Lead convertido em cliente',
+    v_autor_id, jsonb_build_object('cliente_id', v_cliente_id, 'lead_id', p_lead_id));
+  insert into public.atividades (ref_tipo, ref_id, tipo, descricao, autor_id, metadata_json)
+  values ('cliente', v_cliente_id, 'criacao', 'Cliente criado a partir de lead',
+    v_autor_id, jsonb_build_object('lead_id', p_lead_id, 'cliente_id', v_cliente_id));
+  return v_cliente_id;
+end;
+$$;
+
+revoke execute on function public.converter_lead_em_cliente(uuid) from public;
+revoke execute on function public.converter_lead_em_cliente(uuid) from anon;
+grant execute on function public.converter_lead_em_cliente(uuid) to authenticated;
 
 -- =============================================================================
 -- 14. ROW LEVEL SECURITY

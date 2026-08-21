@@ -17,6 +17,7 @@ import {
   type EntradasCalculo,
   type ResultadoCalculo,
 } from "@/lib/calculadora";
+import { readAttribution, sendGaEvent } from "@/lib/analytics";
 
 type FormInput = {
   [K in keyof EntradasCalculo]: EntradasCalculo[K] extends number
@@ -75,8 +76,10 @@ function Field({
 
 export function CalculadoraInss({
   whatsappNumber,
+  eventNames,
 }: {
   whatsappNumber: string;
+  eventNames: { started: string; generateLead: string };
 }) {
   const [step, setStep] = useState(1);
   const [input, setInput] = useState(initial);
@@ -87,6 +90,7 @@ export function CalculadoraInss({
   const [resultado, setResultado] = useState<ResultadoCalculo | null>(null);
   const [tabela, setTabela] = useState<Record<string, number[]>>(VAU_HARDCODED);
   const [periodo, setPeriodo] = useState(VAU_PERIODO);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -157,7 +161,14 @@ export function CalculadoraInss({
       .getElementById("calculadora")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
-  const calcular = () => {
+  const trackStart = () => {
+    if (step !== 1) return;
+    const key = "imposto_obra_simulacao_iniciada";
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    sendGaEvent(eventNames.started, { step: 1 });
+  };
+  const calcular = async () => {
     if (!nome.trim()) return setErro("Informe seu nome.");
     const phone = parseBrazilianMobile(telefone);
     if (!phone.ok) return setErro(phone.error);
@@ -165,26 +176,46 @@ export function CalculadoraInss({
     setResultado(r);
     setErro("");
     setStep(4);
-    const gtag = (
-      window as typeof window & { gtag?: (...args: unknown[]) => void }
-    ).gtag;
-    gtag?.("event", "simulacao_concluida", {
+    sendGaEvent("simulacao_concluida", {
       event_category: "lead",
       event_label: "calculadora_inss_obra",
       value: r.economia || 0,
     });
-    fetch("/api/leads", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        timestamp: new Date().toISOString(),
-        nome: nome.trim(),
-        telefone: phone.data.formatted,
-        email: email.trim() || null,
-        ...calculoInput,
-        ...r,
-      }),
-    }).catch((error) => console.error("Erro ao enviar lead", error));
+    setSending(true);
+    try {
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          timestamp: new Date().toISOString(),
+          nome: nome.trim(),
+          telefone: phone.data.formatted,
+          email: email.trim() || null,
+          ...readAttribution(),
+          ...calculoInput,
+          ...r,
+        }),
+      });
+      const body: unknown = await response.json().catch(() => null);
+      const leadId =
+        body && typeof body === "object" && "id" in body
+          ? (body as { id?: unknown }).id
+          : null;
+      if (!response.ok || typeof leadId !== "string")
+        throw new Error("Resposta inválida ao registrar lead");
+      sendGaEvent(eventNames.generateLead, {
+        lead_id: leadId,
+        value: r.economia || 0,
+        currency: "BRL",
+      });
+    } catch (error) {
+      console.error("Erro ao enviar lead", error);
+      setErro(
+        "Sua simulação foi concluída, mas não conseguimos registrar seus dados. Tente novamente em alguns instantes.",
+      );
+    } finally {
+      setSending(false);
+    }
   };
   const waUrl = resultado
     ? `https://api.whatsapp.com/send?phone=${encodeURIComponent(whatsappNumber)}&text=${encodeURIComponent(resultado.economia > 0 ? `Olá, me chamo ${nome}!\n\nSimulei o INSS da minha obra no site.\nINSS sem deduções: ${formatBRL(resultado.inss_direto)}\nINSS estimado com deduções: ${formatBRL(resultado.inss_reduzido)}\nEconomia potencial: ${formatBRL(resultado.economia)}\n\nGostaria de um orçamento para regularizar a obra.` : `Olá, me chamo ${nome}!\n\nSimulei o INSS da minha obra no site.\nValor estimado pela norma: ${formatBRL(resultado.inss_direto)}\n\nNão declarei concreto usinado nem pré-fabricado na simulação, mas gostaria de saber se há outros benefícios fiscais aplicáveis ao meu caso. Pode me ajudar?`)}`
@@ -193,6 +224,7 @@ export function CalculadoraInss({
   return (
     <section
       id="calculadora"
+      onFocusCapture={trackStart}
       className="shadow-soft scroll-mt-24 rounded-[14px] border border-border bg-white p-5 sm:p-8"
     >
       <div className="mb-7">
@@ -447,7 +479,8 @@ export function CalculadoraInss({
           <Actions
             prev={() => go(2)}
             next={calcular}
-            nextLabel="Calcular agora"
+            nextLabel={sending ? "Registrando…" : "Calcular agora"}
+            disabled={sending}
             success
           />
         </div>

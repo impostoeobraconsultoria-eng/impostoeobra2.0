@@ -135,6 +135,56 @@ export async function updateLeadStatus(id: string, status: string) {
   return { ok: true };
 }
 
+export async function toggleLeadQualification(id: string) {
+  if (!z.string().uuid().safeParse(id).success)
+    return { ok: false, error: "Lead inválido." };
+  const { supabase, user } = await context();
+  const { data: lead, error: loadError } = await supabase
+    .from("leads")
+    .select("qualificado_em,status")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .is("convertido_em", null)
+    .maybeSingle();
+  if (loadError || !lead)
+    return { ok: false, error: "Lead não encontrado ou já convertido." };
+  const qualified = !lead.qualificado_em;
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      qualificado_em: qualified ? new Date().toISOString() : null,
+      updated_by: user.id,
+    })
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) {
+    console.error("Falha ao alterar qualificação do lead", {
+      leadId: id,
+      code: error.code,
+      message: error.message,
+    });
+    return { ok: false, error: "Não foi possível alterar a qualificação." };
+  }
+  const { error: activityError } = await supabase.from("atividades").insert({
+    ref_tipo: "lead",
+    ref_id: id,
+    tipo: qualified ? "lead_qualificado" : "qualificacao_removida",
+    descricao: qualified
+      ? "Lead marcado como qualificado"
+      : "Qualificação do lead removida",
+    autor_id: user.id,
+  });
+  if (activityError)
+    console.error("Falha ao registrar qualificação na timeline", {
+      leadId: id,
+      code: activityError.code,
+    });
+  revalidatePath("/admin");
+  revalidatePath("/admin/leads");
+  revalidatePath(`/admin/leads/${id}`);
+  return { ok: true, qualified, status: lead.status };
+}
+
 export type CreateLeadState = {
   errors?: Partial<Record<"nome" | "telefone" | "status" | "form", string>>;
 };
@@ -204,19 +254,17 @@ export async function createLead(
     data.id,
   );
   if (matches.leads.length || matches.clientes.length)
-    await supabase
-      .from("atividades")
-      .insert({
-        ref_tipo: "lead",
-        ref_id: data.id,
-        tipo: "lead_recorrente_detectado",
-        descricao: "Possível recorrência detectada por telefone ou e-mail",
-        metadata_json: {
-          leads_encontrados: matches.leads,
-          clientes_encontrados: matches.clientes,
-        },
-        autor_id: user.id,
-      });
+    await supabase.from("atividades").insert({
+      ref_tipo: "lead",
+      ref_id: data.id,
+      tipo: "lead_recorrente_detectado",
+      descricao: "Possível recorrência detectada por telefone ou e-mail",
+      metadata_json: {
+        leads_encontrados: matches.leads,
+        clientes_encontrados: matches.clientes,
+      },
+      autor_id: user.id,
+    });
   revalidatePath("/admin");
   revalidatePath("/admin/leads");
   redirect(`/admin/leads/${data.id}?saved=1`);

@@ -121,7 +121,15 @@ export default async function Home() {
               </p>
             </header>
             <div className="calculator-editorial lg:col-span-8">
-              <CalculadoraInss whatsappNumber={whatsappNumber} />
+              <CalculadoraInss
+                whatsappNumber={whatsappNumber}
+                eventNames={{
+                  started:
+                    config.ga4_event_simulacao_iniciada || "simulacao_iniciada",
+                  generateLead:
+                    config.ga4_event_generate_lead || "generate_lead",
+                }}
+              />
             </div>
           </div>
         </div>

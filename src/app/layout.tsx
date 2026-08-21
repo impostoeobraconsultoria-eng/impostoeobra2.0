@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import Script from "next/script";
+import { getSiteConfig } from "@/lib/site-config";
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -58,11 +59,18 @@ export function generateMetadata(): Metadata {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const config = await getSiteConfig();
+  const configuredInternalTraffic = config.ga4_traffic_type_internal;
+  const internalTraffic = /^[a-zA-Z0-9_-]{1,50}$/.test(
+    configuredInternalTraffic,
+  )
+    ? configuredInternalTraffic
+    : "internal";
   return (
     <html className={montserrat.variable} lang="pt-BR">
       <head>
@@ -75,7 +83,11 @@ export default function RootLayout({
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', '${ga4Id}');
+            gtag('config', '${ga4Id}', {
+              traffic_type: document.cookie.includes('imposto_obra_internal=true')
+                ? ${JSON.stringify(internalTraffic)}
+                : 'external'
+            });
           `}
         </Script>
       </head>

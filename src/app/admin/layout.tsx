@@ -22,6 +22,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { listNotifications } from "@/lib/notifications";
 import { NotificationBell } from "@/components/admin/notification-bell";
+import { InternalTrafficButton } from "@/components/admin/internal-traffic-button";
 
 export const metadata: Metadata = {
   title: "Admin | Imposto & Obra",
@@ -106,6 +107,7 @@ export default async function AdminLayout({
             </Link>
           ))}
         </nav>
+        <InternalTrafficButton />
         <Link
           href="/"
           className="m-4 flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"

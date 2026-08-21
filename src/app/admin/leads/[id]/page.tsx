@@ -26,6 +26,7 @@ import { BrazilianPhoneInput } from "@/components/ui/brazilian-phone-input";
 import { formatBrazilianMobile } from "@/lib/ddds-brasileiros";
 import { findRecurrencesForRecord } from "@/lib/recurrence";
 import { RecurrenceAlert } from "@/components/admin/recurrence-alert";
+import { LeadQualificationButton } from "@/components/admin/lead-qualification-button";
 
 type Props = {
   params: { id: string };
@@ -132,6 +133,16 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
     area_piscina:
       Number(lead.a_pcoberta ?? 0) + Number(lead.a_pdescoberta ?? 0),
   };
+  const originFields = [
+    ["utm_source", "UTM source"],
+    ["utm_medium", "UTM medium"],
+    ["utm_campaign", "UTM campaign"],
+    ["utm_content", "UTM content"],
+    ["utm_term", "UTM term"],
+    ["gclid", "Google click ID"],
+    ["fbclid", "Meta click ID"],
+    ["referrer", "Referência inicial"],
+  ].filter(([key]) => Boolean(lead[key]));
 
   return (
     <main className="px-5 py-8 sm:px-8">
@@ -168,6 +179,11 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
               lastStage={lead.ultima_etapa_kanban}
               futureContact={lead.contato_futuro}
               futureDate={lead.data_contato_futuro}
+            />
+            <LeadQualificationButton
+              leadId={lead.id}
+              qualified={Boolean(lead.qualificado_em)}
+              eventName={config.ga4_event_qualify_lead || "qualify_lead"}
             />
             {whatsappUrl && (
               <a
@@ -399,7 +415,25 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
                 ))}
               </div>
             </Card>
-            <Card title="5. Fundamentação do cálculo">
+            {originFields.length > 0 && (
+              <Card title="5. Origem">
+                <dl className="grid gap-4 sm:grid-cols-2">
+                  {originFields.map(([key, label]) => (
+                    <div key={key}>
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {label}
+                      </dt>
+                      <dd className="mt-1 break-all text-sm text-slate-800">
+                        {String(lead[key])}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </Card>
+            )}
+            <Card
+              title={`${originFields.length > 0 ? "6" : "5"}. Fundamentação do cálculo`}
+            >
               <p className="text-sm leading-relaxed text-slate-600">
                 O cálculo considera os parâmetros registrados no simulador e as
                 reduções previstas na IN RFB nº 2.021/2021. As informações

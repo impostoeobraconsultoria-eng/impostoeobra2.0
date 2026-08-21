@@ -208,6 +208,12 @@ export async function updateCustomer(id: string, f: FormData) {
 }
 export async function convertLead(id: string) {
   const { supabase } = await context();
+  const { data: sourceLead } = await supabase
+    .from("leads")
+    .select("valor_potencial")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
   const { data, error } = await supabase.rpc("converter_lead_em_cliente", {
     p_lead_id: id,
   });
@@ -228,7 +234,14 @@ export async function convertLead(id: string) {
   revalidatePath("/admin/leads");
   revalidatePath("/admin/leads/convertidos");
   revalidatePath("/admin/clientes");
-  redirect(`/admin/clientes/${data}?saved=converted`);
+  const query = new URLSearchParams({
+    saved: "converted",
+    ga_event: "close_convert_lead",
+    lead_id: id,
+    cliente_id: String(data),
+    event_value: String(Number(sourceLead?.valor_potencial ?? 0)),
+  });
+  redirect(`/admin/clientes/${data}?${query}`);
 }
 
 export async function softDeleteCustomer(id: string) {
