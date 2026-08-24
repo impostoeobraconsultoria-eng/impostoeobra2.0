@@ -150,10 +150,14 @@ function parseArticle(path: string, html: string): ArticleRow {
   const container = $("article.article-content").first();
   if (!container.length)
     throw new Error(`${path}: article.article-content ausente`);
-  const slug = path
+  const sourceSlug = path
     .split("/")
     .at(-1)!
     .replace(/\.html$/, "");
+  const slug =
+    sourceSlug === "artigo-notificacao-inss-obra"
+      ? "aviso-regularizacao-obra-receita-federal"
+      : sourceSlug;
   const titulo =
     container.find("h1").first().text().trim() ||
     $("meta[property='og:title']").attr("content")?.trim() ||
@@ -184,7 +188,11 @@ function parseArticle(path: string, html: string): ArticleRow {
       "href",
       href
         .replace(/\/artigos\/index\.html(?:#.*)?$/, "/artigos")
-        .replace(/(\/artigos\/[^?#]+)\.html(?=([?#]|$))/, "$1"),
+        .replace(/(\/artigos\/[^?#]+)\.html(?=([?#]|$))/, "$1")
+        .replace(
+          /\/artigos\/artigo-notificacao-inss-obra(?=([?#]|$))/,
+          "/artigos/aviso-regularizacao-obra-receita-federal",
+        ),
     );
   });
   const conteudoHtml = sanitizeContent(container.html() ?? "");
@@ -294,14 +302,15 @@ function validateArticles(articles: ArticleRow[]) {
       throw new Error(`${article.slug}: link interno .html não convertido`);
   }
   const notification = articles.find(
-    (article) => article.slug === "artigo-notificacao-inss-obra",
+    (article) =>
+      article.slug === "aviso-regularizacao-obra-receita-federal",
   );
   if (!notification?.faq.length)
     throw new Error("FAQ do artigo de notificação não foi extraída.");
 }
 
 const SEO_PRIORITY: Record<string, number> = {
-  "artigo-notificacao-inss-obra": 0.9,
+  "aviso-regularizacao-obra-receita-federal": 0.9,
   "artigo-regularizar-inss-obra": 0.9,
   "custo-regularizar-inss-obra": 0.9,
   "afericao-indireta-receita": 0.8,

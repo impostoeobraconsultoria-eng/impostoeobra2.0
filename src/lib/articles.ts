@@ -8,6 +8,30 @@ import { articleLinkAttributes } from "@/lib/article-links";
 
 export const ARTICLES_REVALIDATE_SECONDS = 3600;
 
+const LEGACY_NOTICE_ARTICLE_PATHS = new Set([
+  "/artigos/artigo-notificacao-inss-obra",
+  "/artigos/artigo-notificacao-inss-obra.html",
+]);
+const NOTICE_ARTICLE_PATH =
+  "/artigos/aviso-regularizacao-obra-receita-federal";
+
+function canonicalizeArticleHref(href: string) {
+  const trimmedHref = href.trim();
+  try {
+    const url = new URL(trimmedHref, "https://impostoeobra.com.br");
+    if (
+      (url.hostname === "impostoeobra.com.br" ||
+        url.hostname === "www.impostoeobra.com.br") &&
+      LEGACY_NOTICE_ARTICLE_PATHS.has(url.pathname)
+    ) {
+      return `${NOTICE_ARTICLE_PATH}${url.search}${url.hash}`;
+    }
+  } catch {
+    // O sanitizador tratará normalmente URLs inválidas.
+  }
+  return href;
+}
+
 export type ArticleSummary = {
   slug: string;
   titulo: string;
@@ -95,6 +119,7 @@ export function sanitizeArticleHtml(html: string) {
       h1: "h2",
       a: (_tagName, attribs) => {
         const attributes = { ...attribs };
+        attributes.href = canonicalizeArticleHref(attributes.href ?? "");
         const linkAttributes = articleLinkAttributes(attributes.href ?? "");
         if (linkAttributes.target) attributes.target = linkAttributes.target;
         else delete attributes.target;
