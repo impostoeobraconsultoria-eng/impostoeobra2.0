@@ -5,7 +5,6 @@ const nextConfig = {
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   async redirects() {
     const articleSlugs = [
-      "artigo-notificacao-inss-obra",
       "artigo-regularizar-inss-obra",
       "custo-regularizar-inss-obra",
       "afericao-indireta-receita",
@@ -18,6 +17,16 @@ const nextConfig = {
     ];
 
     return [
+      {
+        source: "/artigos/artigo-notificacao-inss-obra.html",
+        destination: "/artigos/aviso-regularizacao-obra-receita-federal",
+        statusCode: 301,
+      },
+      {
+        source: "/artigos/artigo-notificacao-inss-obra",
+        destination: "/artigos/aviso-regularizacao-obra-receita-federal",
+        statusCode: 301,
+      },
       {
         source: "/politica/aviso-de-privacidade.html",
         destination: "/politica/aviso-de-privacidade",

@@ -11,6 +11,9 @@ const siteUrl = (
 
 type DynamicDates = { articles?: Date; cases?: Date; faq?: Date };
 
+const LEGACY_NOTICE_ARTICLE_SLUG = "artigo-notificacao-inss-obra";
+const NOTICE_ARTICLE_SLUG = "aviso-regularizacao-obra-receita-federal";
+
 function date(value: string) {
   return new Date(`${value}T00:00:00.000Z`);
 }
@@ -90,9 +93,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (caseResult.error) throw caseResult.error;
     if (faqResult.error) throw faqResult.error;
 
-    const articles: MetadataRoute.Sitemap = articleResult.data.map(
+    const articlesBySlug = new Map(
+      articleResult.data.map((article) => {
+        const sourceSlug = article.slug.replace(/\.html$/, "");
+        const slug =
+          sourceSlug === LEGACY_NOTICE_ARTICLE_SLUG
+            ? NOTICE_ARTICLE_SLUG
+            : sourceSlug;
+        return [slug, { ...article, slug }] as const;
+      }),
+    );
+    const articles: MetadataRoute.Sitemap = Array.from(
+      articlesBySlug.values(),
       (article) => ({
-        url: `${siteUrl}/artigos/${article.slug.replace(/\.html$/, "")}`,
+        url: `${siteUrl}/artigos/${article.slug}`,
         lastModified: new Date(
           article.updated_at ??
             article.data_publicacao ??
