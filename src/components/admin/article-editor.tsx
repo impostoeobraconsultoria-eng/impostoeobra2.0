@@ -18,6 +18,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
+import { articleLinkAttributes } from "@/lib/article-links";
 
 export type ArticleEditorValue = {
   id?: string;
@@ -55,7 +56,7 @@ export function ArticleEditor({
       StarterKit.configure({
         link: {
           openOnClick: false,
-          HTMLAttributes: { rel: "noopener noreferrer" },
+          HTMLAttributes: { target: null, rel: null },
         },
       }),
       Placeholder.configure({ placeholder: "Escreva o conteúdo do artigo…" }),
@@ -81,7 +82,18 @@ export function ArticleEditor({
     const href = window.prompt("URL do link", current ?? "https://");
     if (href === null) return;
     if (!href.trim()) editor.chain().focus().unsetLink().run();
-    else editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+    else {
+      const normalizedHref = href.trim();
+      editor
+        .chain()
+        .focus()
+        .extendMarkRange("link")
+        .setLink({
+          href: normalizedHref,
+          ...articleLinkAttributes(normalizedHref),
+        })
+        .run();
+    }
   }
 
   return (

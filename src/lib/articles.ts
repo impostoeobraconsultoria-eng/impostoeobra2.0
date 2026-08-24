@@ -4,6 +4,7 @@ import { cache } from "react";
 import sanitizeHtml from "sanitize-html";
 
 import { createPublicClient } from "@/lib/supabase/public";
+import { articleLinkAttributes } from "@/lib/article-links";
 
 export const ARTICLES_REVALIDATE_SECONDS = 3600;
 
@@ -92,15 +93,15 @@ export function sanitizeArticleHtml(html: string) {
     allowedSchemes: ["http", "https", "mailto", "tel"],
     transformTags: {
       h1: "h2",
-      a: (_tagName, attribs) => ({
-        tagName: "a",
-        attribs: {
-          ...attribs,
-          ...(attribs.target === "_blank"
-            ? { rel: "noopener noreferrer" }
-            : {}),
-        },
-      }),
+      a: (_tagName, attribs) => {
+        const attributes = { ...attribs };
+        const linkAttributes = articleLinkAttributes(attributes.href ?? "");
+        if (linkAttributes.target) attributes.target = linkAttributes.target;
+        else delete attributes.target;
+        if (linkAttributes.rel) attributes.rel = linkAttributes.rel;
+        else delete attributes.rel;
+        return { tagName: "a", attribs: attributes };
+      },
     },
   });
 }
