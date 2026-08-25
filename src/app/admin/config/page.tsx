@@ -7,6 +7,7 @@ import {
   ListRestart,
   MessageSquareText,
   Settings,
+  Send,
   Smartphone,
 } from "lucide-react";
 
@@ -24,6 +25,7 @@ const tabs = [
   ["empresa", "Dados da Empresa", Building2],
   ["comunicacao", "Comunicação", MessageSquareText],
   ["push", "Notificações Push", BellRing],
+  ["telegram", "Telegram", Send],
   ["templates", "Templates", FileText],
   ["funil", "Funil", GitBranch],
   ["motivos", "Motivos de inativação", ListRestart],
@@ -104,6 +106,13 @@ export default async function ConfigPage({
             <Smartphone className="size-4" aria-hidden="true" />
             Gerenciar meus dispositivos de notificação
           </Link>
+          <Link
+            href="/admin/configuracoes/telegram"
+            className="ml-5 mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+          >
+            <Send className="size-4" aria-hidden="true" />
+            Vincular meu Telegram
+          </Link>
         </header>
         {searchParams?.saved && (
           <Notice tone="success">Alterações salvas com sucesso.</Notice>
@@ -138,6 +147,7 @@ export default async function ConfigPage({
             {active === "empresa" && <CompanyForm values={values} />}
             {active === "comunicacao" && <CommunicationForm values={values} />}
             {active === "push" && <PushForm values={values} />}
+            {active === "telegram" && <TelegramForm values={values} />}
             {active === "templates" && <TemplatesForm values={values} />}
             {active === "funil" && (
               <>
@@ -398,6 +408,150 @@ function PushForm({ values }: { values: ConfigMap }) {
           value={values.push_badge_padrao || "/icons/badge-72.png"}
           required
         />
+      </div>
+      <SaveButton />
+    </form>
+  );
+}
+
+function TelegramForm({ values }: { values: ConfigMap }) {
+  const messages = [
+    ["telegram_msg_vincular_inicio", "Início do vínculo"],
+    ["telegram_msg_vincular_sucesso", "Vínculo concluído"],
+    ["telegram_msg_vincular_erro", "Código inválido ou expirado"],
+    ["telegram_msg_nao_autorizado", "Usuário não autorizado"],
+    ["telegram_msg_ajuda", "Ajuda"],
+    ["telegram_msg_fluxo_expirado", "Fluxo expirado"],
+    ["telegram_msg_inicio_generico", "Resposta inicial genérica"],
+    ["telegram_msg_codigo_apenas_privado", "Código enviado em grupo"],
+    ["telegram_msg_acao_indisponivel", "Ação indisponível"],
+  ] as const;
+  const buttons = [
+    ["telegram_btn_assumir", "Assumir"],
+    ["telegram_btn_contato_realizado", "Contato realizado"],
+    ["telegram_btn_whatsapp", "WhatsApp"],
+    ["telegram_btn_ver_no_crm", "Ver no CRM"],
+    ["telegram_btn_reativar", "Retomar contato"],
+    ["telegram_btn_adiar", "Adiar"],
+    ["telegram_btn_perder", "Perder"],
+  ] as const;
+  return (
+    <form
+      action={saveConfigSection.bind(null, "telegram")}
+      className="space-y-8"
+    >
+      <SectionTitle
+        title="Bot do Telegram"
+        description="Controle o canal operacional, textos e opções sem necessidade de novo deploy."
+      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <BooleanSelect
+          name="telegram_habilitado"
+          label="Bot habilitado"
+          value={values.telegram_habilitado}
+        />
+        <Input
+          name="telegram_chat_id_grupo_operacao"
+          label="Chat ID do grupo"
+          value={values.telegram_chat_id_grupo_operacao}
+          placeholder="-1001234567890"
+        />
+        <BooleanSelect
+          name="telegram_notificar_lead_novo"
+          label="Alertar lead novo"
+          value={values.telegram_notificar_lead_novo}
+        />
+        <BooleanSelect
+          name="telegram_notificar_lead_parado"
+          label="Alertar lead parado"
+          value={values.telegram_notificar_lead_parado}
+        />
+        <BooleanSelect
+          name="telegram_notificar_follow_up_inativo"
+          label="Alertar follow-up inativo"
+          value={values.telegram_notificar_follow_up_inativo}
+        />
+        <Input
+          name="telegram_conversation_timeout_min"
+          label="Timeout das conversas (min)"
+          type="number"
+          min="1"
+          max="120"
+          value={values.telegram_conversation_timeout_min || "10"}
+        />
+        <Input
+          name="telegram_link_base_crm"
+          label="URL base do CRM"
+          type="url"
+          value={values.telegram_link_base_crm}
+          span
+        />
+      </div>
+      <div>
+        <h3 className="font-bold">Mensagens</h3>
+        <div className="mt-4 grid gap-4">
+          {messages.map(([name, label]) => (
+            <TextArea
+              key={name}
+              name={name}
+              label={label}
+              value={values[name]}
+            />
+          ))}
+        </div>
+      </div>
+      <div>
+        <h3 className="font-bold">Templates de alertas</h3>
+        <div className="mt-4 grid gap-4">
+          <TextArea
+            name="telegram_template_lead_novo"
+            label="Lead novo"
+            value={values.telegram_template_lead_novo}
+            hint="Placeholders entre chaves, como {primeiro_nome} e {uf}."
+          />
+          <TextArea
+            name="telegram_template_follow_up_inativo"
+            label="Follow-up de lead inativo"
+            value={values.telegram_template_follow_up_inativo}
+          />
+        </div>
+      </div>
+      <div>
+        <h3 className="font-bold">Rótulos dos botões</h3>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {buttons.map(([name, label]) => (
+            <Input key={name} name={name} label={label} value={values[name]} />
+          ))}
+        </div>
+      </div>
+      <div>
+        <h3 className="font-bold">Opções estruturadas</h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Informe arrays JSON válidos.
+        </p>
+        <div className="mt-4 grid gap-4">
+          <TextArea
+            name="telegram_contato_resultados"
+            label="Resultados do contato (JSON)"
+            value={values.telegram_contato_resultados}
+          />
+          <TextArea
+            name="telegram_contato_datas_retomar"
+            label="Datas para retomar (JSON)"
+            value={values.telegram_contato_datas_retomar}
+          />
+          <TextArea
+            name="telegram_perder_motivos"
+            label="Motivos de perda (JSON)"
+            value={values.telegram_perder_motivos}
+          />
+          <Input
+            name="telegram_cron_follow_up_horario"
+            label="Horário informativo do cron"
+            type="time"
+            value={values.telegram_cron_follow_up_horario || "08:00"}
+          />
+        </div>
       </div>
       <SaveButton />
     </form>
