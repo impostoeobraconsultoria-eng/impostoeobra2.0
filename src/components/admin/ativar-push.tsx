@@ -24,6 +24,7 @@ export function AtivarPush({
 }) {
   const [state, setState] = useState<PushState>("verificando");
   const [iosNeedsInstall, setIosNeedsInstall] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     void detectCurrentState();
@@ -50,6 +51,7 @@ export function AtivarPush({
 
   async function activate() {
     if (iosNeedsInstall) return;
+    setErrorMessage(null);
     setState("ativando");
     try {
       const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -80,11 +82,17 @@ export function AtivarPush({
       });
       if (!response.ok) {
         await subscription.unsubscribe();
-        throw new Error("Falha ao salvar assinatura.");
+        const result = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(
+          result?.error ?? `Falha ao salvar assinatura (${response.status}).`,
+        );
       }
       setState("ativo");
     } catch (error) {
       console.error("Falha ao ativar Web Push", error);
+      setErrorMessage(pushErrorMessage(error));
       setState("erro");
     }
   }
@@ -97,7 +105,8 @@ export function AtivarPush({
       : state === "nao_suportado"
         ? "Este navegador não oferece suporte a Web Push."
         : state === "erro"
-          ? "Não foi possível ativar agora. Confira a conexão e tente novamente."
+          ? (errorMessage ??
+            "Não foi possível ativar agora. Confira a conexão e tente novamente.")
           : null;
 
   return (
@@ -148,6 +157,18 @@ export function AtivarPush({
       )}
     </section>
   );
+}
+
+function pushErrorMessage(error: unknown) {
+  if (!(error instanceof Error))
+    return "Não foi possível ativar agora. Confira a conexão e tente novamente.";
+  if (error.name === "InvalidAccessError" || error.name === "DataError")
+    return "A chave de notificações deste ambiente é inválida. Contate o administrador.";
+  if (error.name === "AbortError")
+    return "O navegador não conseguiu concluir a assinatura. Feche e abra o app e tente novamente.";
+  if (error.message === "Chave VAPID pública ausente.")
+    return "As notificações ainda não foram configuradas neste ambiente.";
+  return error.message;
 }
 
 function vapidKeyToArrayBuffer(value: string) {
