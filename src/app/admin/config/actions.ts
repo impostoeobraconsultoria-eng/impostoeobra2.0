@@ -11,6 +11,13 @@ import {
 } from "@/lib/docx-template-validation";
 
 const field = z.string().trim().max(20_000);
+const jsonArrayField = field.refine((value) => {
+  try {
+    return Array.isArray(JSON.parse(value));
+  } catch {
+    return false;
+  }
+});
 const sections = {
   empresa: z.object({
     empresa_razao_social: field.min(2),
@@ -50,6 +57,49 @@ const sections = {
     push_descricao_ativar: field.min(10),
     push_icone_padrao: z.string().trim().startsWith("/").max(200),
     push_badge_padrao: z.string().trim().startsWith("/").max(200),
+  }),
+  telegram: z.object({
+    telegram_habilitado: z.enum(["true", "false"]),
+    telegram_chat_id_grupo_operacao: z
+      .string()
+      .trim()
+      .regex(/^-?\d*$/)
+      .max(30),
+    telegram_notificar_lead_novo: z.enum(["true", "false"]),
+    telegram_notificar_lead_parado: z.enum(["true", "false"]),
+    telegram_notificar_follow_up_inativo: z.enum(["true", "false"]),
+    telegram_conversation_timeout_min: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(120)
+      .transform(String),
+    telegram_link_base_crm: z.string().trim().url().max(500),
+    telegram_msg_vincular_inicio: field.min(2),
+    telegram_msg_vincular_sucesso: field.min(2),
+    telegram_msg_vincular_erro: field.min(2),
+    telegram_msg_nao_autorizado: field.min(2),
+    telegram_msg_ajuda: field.min(2),
+    telegram_msg_fluxo_expirado: field.min(2),
+    telegram_msg_inicio_generico: field.min(2),
+    telegram_msg_codigo_apenas_privado: field.min(2),
+    telegram_msg_acao_indisponivel: field.min(2),
+    telegram_template_lead_novo: field.min(2),
+    telegram_template_follow_up_inativo: field.min(2),
+    telegram_btn_assumir: field.min(1).max(100),
+    telegram_btn_contato_realizado: field.min(1).max(100),
+    telegram_btn_whatsapp: field.min(1).max(100),
+    telegram_btn_ver_no_crm: field.min(1).max(100),
+    telegram_btn_reativar: field.min(1).max(100),
+    telegram_btn_adiar: field.min(1).max(100),
+    telegram_btn_perder: field.min(1).max(100),
+    telegram_contato_resultados: jsonArrayField,
+    telegram_contato_datas_retomar: jsonArrayField,
+    telegram_perder_motivos: jsonArrayField,
+    telegram_cron_follow_up_horario: z
+      .string()
+      .trim()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   }),
   sistema: z.object({
     meta_leads_mensal: z.coerce

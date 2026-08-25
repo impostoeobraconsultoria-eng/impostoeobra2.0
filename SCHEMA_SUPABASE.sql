@@ -24,11 +24,17 @@ create table public.users (
   criado_em     timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   ultimo_acesso timestamptz,
-  preferencias_push jsonb not null default '{}'::jsonb
+  preferencias_push jsonb not null default '{}'::jsonb,
+  telegram_user_id bigint,
+  telegram_username text,
+  telegram_chat_id bigint,
+  telegram_vinculado_em timestamptz
 );
 
 create index idx_users_email on public.users(email);
 create index idx_users_ativo on public.users(ativo) where ativo = true;
+create unique index uq_users_telegram_user_id on public.users(telegram_user_id)
+  where telegram_user_id is not null;
 
 -- =============================================================================
 -- 3. TABELA vau (tabela por UF/destinação)
@@ -431,6 +437,51 @@ create index idx_push_sub_user_ativas on public.push_subscriptions(user_id)
   where ativo = true;
 create index idx_push_sub_ultimo_envio on public.push_subscriptions(ultimo_envio_em desc nulls last);
 
+-- Estado transitório dos fluxos multi-step do bot Telegram
+create table public.telegram_conversations (
+  id uuid primary key default gen_random_uuid(),
+  telegram_chat_id bigint not null,
+  telegram_user_id bigint not null,
+  fluxo text not null,
+  estado text not null,
+  contexto jsonb not null default '{}'::jsonb,
+  expira_em timestamptz not null default (now() + interval '10 minutes'),
+  criado_em timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (telegram_chat_id, telegram_user_id, fluxo)
+);
+create index idx_tg_conv_expira on public.telegram_conversations(expira_em);
+
+-- Auditoria e idempotência dos updates recebidos do Telegram
+create table public.telegram_callbacks_log (
+  id uuid primary key default gen_random_uuid(),
+  telegram_update_id bigint not null unique,
+  telegram_user_id bigint,
+  user_id uuid references public.users(id) on delete set null,
+  tipo text not null,
+  acao text,
+  ref_tipo text,
+  ref_id uuid,
+  payload jsonb,
+  resultado text,
+  erro_detalhe text,
+  criado_em timestamptz not null default now()
+);
+create index idx_tg_log_recente on public.telegram_callbacks_log(criado_em desc);
+create index idx_tg_log_user on public.telegram_callbacks_log(user_id, criado_em desc)
+  where user_id is not null;
+
+-- Códigos temporários para vincular um usuário autenticado ao Telegram
+create table public.telegram_codigos_vinculo (
+  codigo text primary key,
+  user_id uuid not null references public.users(id) on delete cascade,
+  expira_em timestamptz not null default (now() + interval '10 minutes'),
+  usado_em timestamptz,
+  criado_em timestamptz not null default now()
+);
+create index idx_tg_cod_expira on public.telegram_codigos_vinculo(expira_em)
+  where usado_em is null;
+
 -- =============================================================================
 -- 8. TABELA atividades (timeline unificada)
 -- =============================================================================
@@ -563,6 +614,7 @@ create trigger trg_vau_updated         before update on public.vau          for 
 create trigger trg_config_updated      before update on public.config       for each row execute function public.set_updated_at();
 create trigger trg_motivos_inativacao_updated before update on public.motivos_inativacao for each row execute function public.set_updated_at();
 create trigger trg_push_subscriptions_updated before update on public.push_subscriptions for each row execute function public.set_updated_at();
+create trigger trg_tg_conv_updated before update on public.telegram_conversations for each row execute function public.set_updated_at();
 
 -- =============================================================================
 -- 13. FUNÇÃO helper: is_admin() e is_active_user()
@@ -728,6 +780,9 @@ alter table public.produtos     enable row level security;
 alter table public.notificacoes enable row level security;
 alter table public.notificacoes_leituras enable row level security;
 alter table public.push_subscriptions enable row level security;
+alter table public.telegram_conversations enable row level security;
+alter table public.telegram_callbacks_log enable row level security;
+alter table public.telegram_codigos_vinculo enable row level security;
 alter table public.atividades   enable row level security;
 alter table public.artigos      enable row level security;
 alter table public.cases        enable row level security;
@@ -905,6 +960,35 @@ create policy push_sub_admin_all on public.push_subscriptions
 revoke all on table public.push_subscriptions from anon;
 grant select, insert, update, delete on table public.push_subscriptions to authenticated;
 
+-- -------- TELEGRAM --------
+-- Conversas são operadas exclusivamente pelo webhook com service_role.
+create policy tg_conv_admin_all on public.telegram_conversations
+  for all to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+revoke all on table public.telegram_conversations from anon, authenticated;
+
+-- Logs são escritos pelo webhook; administradores podem consultar auditoria.
+create policy tg_log_admin_read on public.telegram_callbacks_log
+  for select to authenticated using (public.is_admin());
+revoke all on table public.telegram_callbacks_log from anon, authenticated;
+grant select on table public.telegram_callbacks_log to authenticated;
+
+-- Cada usuário ativo gerencia somente os próprios códigos temporários.
+create policy tg_cod_own on public.telegram_codigos_vinculo
+  for all to authenticated
+  using (
+    public.is_active_user()
+    and user_id = public.current_active_user_id()
+  )
+  with check (
+    public.is_active_user()
+    and user_id = public.current_active_user_id()
+  );
+revoke all on table public.telegram_codigos_vinculo from anon;
+grant select, insert, update, delete
+  on table public.telegram_codigos_vinculo to authenticated;
+
 -- -------- ATIVIDADES --------
 create policy atividades_select_active on public.atividades
   for select using (public.is_active_user());
@@ -1020,6 +1104,38 @@ insert into public.config (chave, valor, descricao) values
   ('push_descricao_ativar', 'Você recebe alertas de novos leads, prazos e lembretes direto no celular, mesmo com o app fechado. Não usamos para nada além disso.', 'Descrição do card de ativação no CRM'),
   ('push_icone_padrao', '/icons/icon-192.png', 'Ícone padrão das notificações push'),
   ('push_badge_padrao', '/icons/badge-72.png', 'Badge monocromático das notificações Android')
+on conflict (chave) do nothing;
+
+insert into public.config (chave, valor, descricao) values
+  ('telegram_habilitado', 'true', 'Habilita o bot interno do Telegram'),
+  ('telegram_chat_id_grupo_operacao', '', 'Chat ID do grupo interno de operação'),
+  ('telegram_notificar_lead_novo', 'true', 'Envia alertas de novos leads ao grupo'),
+  ('telegram_notificar_lead_parado', 'true', 'Envia alertas de leads parados ao grupo'),
+  ('telegram_notificar_follow_up_inativo', 'true', 'Envia follow-ups de leads inativos ao grupo'),
+  ('telegram_conversation_timeout_min', '10', 'Timeout dos fluxos multi-step em minutos'),
+  ('telegram_link_base_crm', 'https://impostoeobra.com.br', 'Domínio base dos links para o CRM'),
+  ('telegram_msg_vincular_inicio', 'Olá! Para vincular este Telegram ao seu usuário do CRM, envie o código de vínculo que aparece em /admin/configuracoes/telegram.', 'Início do fluxo de vínculo'),
+  ('telegram_msg_vincular_sucesso', '✅ Vinculado com sucesso. Agora você recebe alertas e pode agir nos leads pelo Telegram.', 'Confirmação do vínculo'),
+  ('telegram_msg_vincular_erro', '❌ Código inválido ou expirado. Gere um novo em /admin/configuracoes/telegram', 'Erro de vínculo'),
+  ('telegram_msg_nao_autorizado', '🚫 Você não está autorizado. Peça pro admin vincular seu Telegram.', 'Resposta para usuário não autorizado'),
+  ('telegram_msg_ajuda', 'Bot interno da Imposto & Obra. Comandos: /vincular, /chatid e /ajuda.', 'Ajuda do bot'),
+  ('telegram_msg_fluxo_expirado', '⏱️ Esta ação expirou. Clique novamente no botão do lead.', 'Aviso de fluxo expirado'),
+  ('telegram_msg_inicio_generico', 'Envie /vincular para começar.', 'Resposta genérica sem revelar funções internas'),
+  ('telegram_msg_codigo_apenas_privado', 'Por segurança, envie o código somente no chat privado com o bot.', 'Aviso de código publicado em grupo'),
+  ('telegram_msg_acao_indisponivel', 'Esta ação ainda não está disponível.', 'Resposta para callback desconhecido'),
+  ('telegram_template_lead_novo', '🆕 <b>Novo lead</b>\n<b>{primeiro_nome}</b> — {uf}\nDestinação: {destinacao_legivel}\nÁrea equivalente: {area_m2} m²\nINSS estimado: R$ {inss_estimado}\nEconomia potencial: R$ {economia_potencial}', 'Template de alerta de lead novo'),
+  ('telegram_template_follow_up_inativo', '⏰ <b>Retomar contato</b>\nLead: <b>{primeiro_nome}</b> — {uf}\nInativado em: {inativado_em} ({dias_desde} dias atrás)\nMotivo: {motivo}\nData marcada para retomar: hoje', 'Template de follow-up inativo'),
+  ('telegram_btn_assumir', '🙋 Assumir', 'Rótulo do botão Assumir'),
+  ('telegram_btn_contato_realizado', '✅ Contato realizado', 'Rótulo do botão Contato realizado'),
+  ('telegram_btn_whatsapp', '💬 WhatsApp', 'Rótulo do botão WhatsApp'),
+  ('telegram_btn_ver_no_crm', '🔗 Ver no CRM', 'Rótulo do botão CRM'),
+  ('telegram_btn_reativar', '📞 Retomar contato', 'Rótulo do botão Reativar'),
+  ('telegram_btn_adiar', '📅 Adiar 7 dias', 'Rótulo do botão Adiar'),
+  ('telegram_btn_perder', '❌ Perder de vez', 'Rótulo do botão Perder'),
+  ('telegram_contato_resultados', '[{"slug":"interessado","rotulo":"👍 Interessado","encerra":true},{"slug":"vai_pensar","rotulo":"🤔 Vai pensar","encerra":false},{"slug":"sem_interesse","rotulo":"❌ Sem interesse","encerra":true},{"slug":"sem_resposta","rotulo":"📵 Sem resposta","encerra":false}]', 'Resultados do contato'),
+  ('telegram_contato_datas_retomar', '[{"dias":1,"rotulo":"Amanhã"},{"dias":3,"rotulo":"3 dias"},{"dias":7,"rotulo":"1 semana"}]', 'Datas de retomada'),
+  ('telegram_perder_motivos', '[{"slug":"contratou_outro","rotulo":"Contratou outro fornecedor"},{"slug":"sem_orcamento","rotulo":"Sem orçamento"},{"slug":"fora_escopo","rotulo":"Fora do escopo"},{"slug":"decidiu_nao_realizar","rotulo":"Decidiu não realizar"}]', 'Motivos de perda'),
+  ('telegram_cron_follow_up_horario', '08:00', 'Horário informativo do cron Telegram')
 on conflict (chave) do nothing;
 
 insert into public.equipe_juridica (nome, oab, papel, descricao, ordem, publicado)
