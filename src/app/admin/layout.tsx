@@ -12,6 +12,7 @@ import {
   FileText,
   Gauge,
   Settings,
+  Smartphone,
   Scale,
   PackageOpen,
   Star,
@@ -27,6 +28,19 @@ import { InternalTrafficButton } from "@/components/admin/internal-traffic-butto
 export const metadata: Metadata = {
   title: "Admin | Imposto & Obra",
   robots: { index: false, follow: false },
+  manifest: "/admin-manifest.json",
+  icons: {
+    apple: {
+      url: "/icons/admin-icon-192.png",
+      sizes: "192x192",
+      type: "image/png",
+    },
+  },
+  appleWebApp: {
+    capable: true,
+    title: "IeO CRM",
+    statusBarStyle: "default",
+  },
 };
 
 const navigation = [
@@ -37,6 +51,11 @@ const navigation = [
   { href: "/admin/contratos", label: "Contratos", icon: BriefcaseBusiness },
   { href: "/admin/atividades", label: "Atividades", icon: FileText },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarDays },
+  {
+    href: "/admin/configuracoes/dispositivos",
+    label: "Dispositivos",
+    icon: Smartphone,
+  },
   { href: "/admin/artigos", label: "Artigos", icon: BookOpenText },
   { href: "/admin/cases", label: "Cases", icon: Star },
   { href: "/admin/faq", label: "FAQ", icon: CircleHelp },

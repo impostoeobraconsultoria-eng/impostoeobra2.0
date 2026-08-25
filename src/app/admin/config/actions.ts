@@ -39,6 +39,18 @@ const sections = {
     whatsapp_msg_padrao: field.min(5),
     whatsapp_msg_lead_captura: field.min(5),
   }),
+  push: z.object({
+    push_habilitado: z.enum(["true", "false"]),
+    push_notificar_lead_novo: z.enum(["true", "false"]),
+    push_notificar_lead_parado: z.enum(["true", "false"]),
+    push_notificar_vau_desatualizada: z.enum(["true", "false"]),
+    push_notificar_evento_agenda: z.enum(["true", "false"]),
+    push_notificar_sistema: z.enum(["true", "false"]),
+    push_titulo_ativar: field.min(5),
+    push_descricao_ativar: field.min(10),
+    push_icone_padrao: z.string().trim().startsWith("/").max(200),
+    push_badge_padrao: z.string().trim().startsWith("/").max(200),
+  }),
   sistema: z.object({
     meta_leads_mensal: z.coerce
       .number()

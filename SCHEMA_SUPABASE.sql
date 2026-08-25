@@ -23,7 +23,8 @@ create table public.users (
   ativo         boolean not null default true,
   criado_em     timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
-  ultimo_acesso timestamptz
+  ultimo_acesso timestamptz,
+  preferencias_push jsonb not null default '{}'::jsonb
 );
 
 create index idx_users_email on public.users(email);
@@ -410,6 +411,26 @@ create table public.notificacoes_leituras (
 );
 create index idx_notificacoes_leituras_usuario on public.notificacoes_leituras(usuario_id, lida_em desc);
 
+-- Assinaturas Web Push por dispositivo/navegador
+create table public.push_subscriptions (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null references public.users(id) on delete cascade,
+  endpoint          text not null unique,
+  p256dh            text not null,
+  auth              text not null,
+  device_label      text,
+  user_agent        text,
+  ativo             boolean not null default true,
+  ultimo_envio_em   timestamptz,
+  ultimo_erro       text,
+  ultimo_erro_em    timestamptz,
+  criado_em         timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+create index idx_push_sub_user_ativas on public.push_subscriptions(user_id)
+  where ativo = true;
+create index idx_push_sub_ultimo_envio on public.push_subscriptions(ultimo_envio_em desc nulls last);
+
 -- =============================================================================
 -- 8. TABELA atividades (timeline unificada)
 -- =============================================================================
@@ -541,6 +562,7 @@ create trigger trg_faq_updated         before update on public.faq          for 
 create trigger trg_vau_updated         before update on public.vau          for each row execute function public.set_updated_at();
 create trigger trg_config_updated      before update on public.config       for each row execute function public.set_updated_at();
 create trigger trg_motivos_inativacao_updated before update on public.motivos_inativacao for each row execute function public.set_updated_at();
+create trigger trg_push_subscriptions_updated before update on public.push_subscriptions for each row execute function public.set_updated_at();
 
 -- =============================================================================
 -- 13. FUNÇÃO helper: is_admin() e is_active_user()
@@ -705,6 +727,7 @@ alter table public.documentos_gerados enable row level security;
 alter table public.produtos     enable row level security;
 alter table public.notificacoes enable row level security;
 alter table public.notificacoes_leituras enable row level security;
+alter table public.push_subscriptions enable row level security;
 alter table public.atividades   enable row level security;
 alter table public.artigos      enable row level security;
 alter table public.cases        enable row level security;
@@ -849,6 +872,39 @@ create policy notif_leituras_update_own on public.notificacoes_leituras
   using (usuario_id = public.current_active_user_id())
   with check (usuario_id = public.current_active_user_id());
 
+-- -------- PUSH_SUBSCRIPTIONS --------
+create policy push_sub_select_own on public.push_subscriptions
+  for select to authenticated using (
+    public.is_active_user()
+    and user_id = public.current_active_user_id()
+  );
+create policy push_sub_insert_own on public.push_subscriptions
+  for insert to authenticated with check (
+    public.is_active_user()
+    and user_id = public.current_active_user_id()
+  );
+create policy push_sub_update_own on public.push_subscriptions
+  for update to authenticated
+  using (
+    public.is_active_user()
+    and user_id = public.current_active_user_id()
+  )
+  with check (
+    public.is_active_user()
+    and user_id = public.current_active_user_id()
+  );
+create policy push_sub_delete_own on public.push_subscriptions
+  for delete to authenticated using (
+    public.is_active_user()
+    and user_id = public.current_active_user_id()
+  );
+create policy push_sub_admin_all on public.push_subscriptions
+  for all to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+revoke all on table public.push_subscriptions from anon;
+grant select, insert, update, delete on table public.push_subscriptions to authenticated;
+
 -- -------- ATIVIDADES --------
 create policy atividades_select_active on public.atividades
   for select using (public.is_active_user());
@@ -953,7 +1009,17 @@ insert into public.config (chave, valor, descricao) values
   ('horario_atendimento_dias', 'Segunda a sexta', 'Dias de atendimento'),
   ('horario_atendimento_horas', 'Das 09h às 19h', 'Horas de atendimento'),
   ('horario_atendimento_fuso', 'horário de Brasília', 'Fuso do atendimento'),
-  ('home_qtd_cases', '2', 'Quantidade de cases exibidos na home')
+  ('home_qtd_cases', '2', 'Quantidade de cases exibidos na home'),
+  ('push_habilitado', 'true', 'Habilita o envio de Web Push; o sininho continua funcionando quando desabilitado'),
+  ('push_notificar_lead_novo', 'true', 'Envia push para novos leads'),
+  ('push_notificar_lead_parado', 'true', 'Envia push para leads parados'),
+  ('push_notificar_vau_desatualizada', 'true', 'Envia push quando a tabela VAU está desatualizada'),
+  ('push_notificar_evento_agenda', 'true', 'Envia push para lembretes da agenda'),
+  ('push_notificar_sistema', 'true', 'Envia push para alertas gerais do sistema'),
+  ('push_titulo_ativar', 'Ativar notificações neste dispositivo', 'Título do card de ativação no CRM'),
+  ('push_descricao_ativar', 'Você recebe alertas de novos leads, prazos e lembretes direto no celular, mesmo com o app fechado. Não usamos para nada além disso.', 'Descrição do card de ativação no CRM'),
+  ('push_icone_padrao', '/icons/icon-192.png', 'Ícone padrão das notificações push'),
+  ('push_badge_padrao', '/icons/badge-72.png', 'Badge monocromático das notificações Android')
 on conflict (chave) do nothing;
 
 insert into public.equipe_juridica (nome, oab, papel, descricao, ordem, publicado)

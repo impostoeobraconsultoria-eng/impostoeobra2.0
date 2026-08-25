@@ -26,6 +26,9 @@ export const siteConfigDefaults = {
   hero_exemplo_economia_pct: "67",
   hero_exemplo_descricao:
     "Obra residencial de alvenaria, 100 m², pessoa física. Simulação com VAU de maio/2026.",
+  push_titulo_ativar: "Ativar notificações neste dispositivo",
+  push_descricao_ativar:
+    "Você recebe alertas de novos leads, prazos e lembretes direto no celular, mesmo com o app fechado. Não usamos para nada além disso.",
 } as const;
 
 export type SiteConfig = Record<string, string> & typeof siteConfigDefaults;

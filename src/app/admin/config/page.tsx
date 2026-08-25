@@ -1,11 +1,13 @@
 import Link from "next/link";
 import {
+  BellRing,
   Building2,
   FileText,
   GitBranch,
   ListRestart,
   MessageSquareText,
   Settings,
+  Smartphone,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
@@ -21,6 +23,7 @@ import { InactivationReasonsEditor } from "./inactivation-reasons-editor";
 const tabs = [
   ["empresa", "Dados da Empresa", Building2],
   ["comunicacao", "Comunicação", MessageSquareText],
+  ["push", "Notificações Push", BellRing],
   ["templates", "Templates", FileText],
   ["funil", "Funil", GitBranch],
   ["motivos", "Motivos de inativação", ListRestart],
@@ -94,6 +97,13 @@ export default async function ConfigPage({
           <p className="mt-2 text-sm text-slate-500">
             Dados institucionais, comunicação, documentos e regras operacionais.
           </p>
+          <Link
+            href="/admin/configuracoes/dispositivos"
+            className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+          >
+            <Smartphone className="size-4" aria-hidden="true" />
+            Gerenciar meus dispositivos de notificação
+          </Link>
         </header>
         {searchParams?.saved && (
           <Notice tone="success">Alterações salvas com sucesso.</Notice>
@@ -127,6 +137,7 @@ export default async function ConfigPage({
           <section className="rounded-2xl border bg-white p-5 sm:p-7">
             {active === "empresa" && <CompanyForm values={values} />}
             {active === "comunicacao" && <CommunicationForm values={values} />}
+            {active === "push" && <PushForm values={values} />}
             {active === "templates" && <TemplatesForm values={values} />}
             {active === "funil" && (
               <>
@@ -321,6 +332,95 @@ function CommunicationForm({ values }: { values: ConfigMap }) {
       </div>
       <SaveButton />
     </form>
+  );
+}
+
+function PushForm({ values }: { values: ConfigMap }) {
+  return (
+    <form action={saveConfigSection.bind(null, "push")} className="space-y-6">
+      <SectionTitle
+        title="Notificações Push"
+        description="Controle o envio de alertas nativos sem afetar as notificações do sininho."
+      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <BooleanSelect
+          name="push_habilitado"
+          label="Envio de push"
+          value={values.push_habilitado}
+        />
+        <BooleanSelect
+          name="push_notificar_lead_novo"
+          label="Novos leads"
+          value={values.push_notificar_lead_novo}
+        />
+        <BooleanSelect
+          name="push_notificar_lead_parado"
+          label="Leads parados"
+          value={values.push_notificar_lead_parado}
+        />
+        <BooleanSelect
+          name="push_notificar_vau_desatualizada"
+          label="VAU desatualizada"
+          value={values.push_notificar_vau_desatualizada}
+        />
+        <BooleanSelect
+          name="push_notificar_evento_agenda"
+          label="Eventos da agenda"
+          value={values.push_notificar_evento_agenda}
+        />
+        <BooleanSelect
+          name="push_notificar_sistema"
+          label="Alertas do sistema"
+          value={values.push_notificar_sistema}
+        />
+        <Input
+          name="push_titulo_ativar"
+          label="Título do card de ativação"
+          value={values.push_titulo_ativar}
+          span
+          required
+        />
+        <TextArea
+          name="push_descricao_ativar"
+          label="Descrição do card de ativação"
+          value={values.push_descricao_ativar}
+          span
+        />
+        <Input
+          name="push_icone_padrao"
+          label="Caminho do ícone"
+          value={values.push_icone_padrao || "/icons/icon-192.png"}
+          required
+        />
+        <Input
+          name="push_badge_padrao"
+          label="Caminho do badge Android"
+          value={values.push_badge_padrao || "/icons/badge-72.png"}
+          required
+        />
+      </div>
+      <SaveButton />
+    </form>
+  );
+}
+
+function BooleanSelect({
+  name,
+  label,
+  value,
+}: {
+  name: string;
+  label: string;
+  value?: string;
+}) {
+  return (
+    <label className="field">
+      {label}
+      <select className="input" name={name} defaultValue={value || "true"}>
+        <option value="true">Ativado</option>
+        <option value="false">Desativado</option>
+      </select>
+    </label>
   );
 }
 function TemplatesForm({ values }: { values: ConfigMap }) {

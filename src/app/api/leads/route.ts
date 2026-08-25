@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { leadSchema } from "@/lib/validation/lead";
 import { parseBrazilianMobile } from "@/lib/ddds-brasileiros";
+import { criarNotificacao } from "@/lib/notificacoes/criar";
 
 export const runtime = "nodejs";
 
@@ -80,19 +81,26 @@ export async function POST(request: NextRequest) {
   }
 
   const location = lead.uf ? ` da UF ${lead.uf}` : "";
-  const { error: notificationError } = await admin.from("notificacoes").insert({
-    tipo: "lead_novo",
-    titulo: `Novo lead: ${lead.nome}`,
-    mensagem: `${lead.nome}${location} preencheu o simulador.`,
-    link: `/admin/leads/${data.id}`,
-    ref_tipo: "lead",
-    ref_id: data.id,
-  });
-  if (notificationError)
+  try {
+    await criarNotificacao({
+      tipo: "lead_novo",
+      titulo: `Novo lead: ${lead.nome}`,
+      mensagem: `${lead.nome}${location} preencheu o simulador.`,
+      link: `/admin/leads/${data.id}`,
+      ref_tipo: "lead",
+      ref_id: data.id,
+      push_titulo: `Novo lead: ${firstName(lead.nome)}`,
+      push_mensagem: `Novo contato pelo simulador${location}.`,
+    });
+  } catch (notificationError) {
     console.error("Falha ao criar notificação de lead", {
       leadId: data.id,
-      code: notificationError.code,
+      error:
+        notificationError instanceof Error
+          ? notificationError.message
+          : "erro desconhecido",
     });
+  }
 
   if (matches.leads.length || matches.clientes.length) {
     const { error: recurrenceError } = await admin.from("atividades").insert({
@@ -114,6 +122,10 @@ export async function POST(request: NextRequest) {
 
   console.info("Lead registrado", { id: data.id, origem: "simulador" });
   return NextResponse.json({ ok: true, id: data.id }, { status: 201 });
+}
+
+function firstName(name: string) {
+  return name.trim().split(/\s+/)[0] || "Novo contato";
 }
 
 async function findRecurrences(

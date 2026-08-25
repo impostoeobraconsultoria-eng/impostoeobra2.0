@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { getSiteConfig } from "@/lib/site-config";
+import { AtivarPush } from "@/components/admin/ativar-push";
 
 type AdminPageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -133,6 +135,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     contractsResult,
     stagesResult,
     goalResult,
+    config,
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -177,6 +180,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .select("valor")
       .eq("chave", "meta_leads_mensal")
       .maybeSingle(),
+    getSiteConfig(),
   ]);
   const errors = [
     currentResult.error,
@@ -279,6 +283,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <p className="mt-2 text-slate-500">
           Acompanhe o desempenho comercial do mês.
         </p>
+        <AtivarPush
+          title={config.push_titulo_ativar}
+          description={config.push_descricao_ativar}
+        />
         {forbidden && (
           <p
             role="alert"
@@ -325,23 +333,45 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold">Funil de conversão</h2>
-            <p className="text-sm text-slate-500">Distribuição atual dos leads por etapa</p>
+            <p className="text-sm text-slate-500">
+              Distribuição atual dos leads por etapa
+            </p>
             <div className="mt-6 space-y-4">
               {funnel.map((stage) => (
-                <Link key={stage.nome} href={`/admin/leads?status=${encodeURIComponent(stage.nome)}`} className="group block">
+                <Link
+                  key={stage.nome}
+                  href={`/admin/leads?status=${encodeURIComponent(stage.nome)}`}
+                  className="group block"
+                >
                   <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
-                    <span className="truncate font-semibold group-hover:text-primary">{stage.nome}</span>
+                    <span className="truncate font-semibold group-hover:text-primary">
+                      {stage.nome}
+                    </span>
                     <span className="flex shrink-0 items-center gap-2 font-bold">
-                      {stage.drop > 0 && stage.drop === biggestDrop && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-amber-800">gargalo</span>}
+                      {stage.drop > 0 && stage.drop === biggestDrop && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-amber-800">
+                          gargalo
+                        </span>
+                      )}
                       {stage.count}
                     </span>
                   </div>
                   <div className="h-6 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full min-w-1 rounded-full transition-all group-hover:brightness-95" style={{ width: `${Math.max(2, (stage.count / maxStage) * 100)}%`, backgroundColor: stage.cor || "#0071e3" }} />
+                    <div
+                      className="h-full min-w-1 rounded-full transition-all group-hover:brightness-95"
+                      style={{
+                        width: `${Math.max(2, (stage.count / maxStage) * 100)}%`,
+                        backgroundColor: stage.cor || "#0071e3",
+                      }}
+                    />
                   </div>
                 </Link>
               ))}
-              {!funnel.length && <p className="py-10 text-center text-sm text-slate-500">Configure as etapas do funil para visualizar os dados.</p>}
+              {!funnel.length && (
+                <p className="py-10 text-center text-sm text-slate-500">
+                  Configure as etapas do funil para visualizar os dados.
+                </p>
+              )}
             </div>
           </article>
         </section>

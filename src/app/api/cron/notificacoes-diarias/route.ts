@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { criarNotificacao } from "@/lib/notificacoes/criar";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -66,15 +67,26 @@ export async function GET(request: NextRequest) {
       leadDays,
       Math.floor((now.getTime() - Date.parse(lead.updated_at)) / 86_400_000),
     );
-    const { error } = await supabase.from("notificacoes").insert({
-      tipo: "lead_parado",
-      titulo: `Lead sem retorno há ${elapsed} dias`,
-      mensagem: `${lead.nome} — status atual: ${lead.status || "sem status"}. Última atualização em ${formatDate(lead.updated_at)}.`,
-      link: `/admin/leads/${lead.id}`,
-      ref_tipo: "lead",
-      ref_id: lead.id,
-    });
-    if (!error) leadsCreated += 1;
+    try {
+      await criarNotificacao({
+        tipo: "lead_parado",
+        titulo: `Lead sem retorno há ${elapsed} dias`,
+        mensagem: `${lead.nome} — status atual: ${lead.status || "sem status"}. Última atualização em ${formatDate(lead.updated_at)}.`,
+        link: `/admin/leads/${lead.id}`,
+        ref_tipo: "lead",
+        ref_id: lead.id,
+        push_mensagem: `${firstName(lead.nome)} está sem atualização há ${elapsed} dias.`,
+      });
+      leadsCreated += 1;
+    } catch (notificationError) {
+      console.error("Falha ao criar notificação de lead parado", {
+        leadId: lead.id,
+        error:
+          notificationError instanceof Error
+            ? notificationError.message
+            : "erro desconhecido",
+      });
+    }
   }
 
   let vauCreated = 0;
@@ -94,14 +106,23 @@ export async function GET(request: NextRequest) {
       .limit(1)
       .maybeSingle();
     if (!recent) {
-      const { error } = await supabase.from("notificacoes").insert({
-        tipo: "vau_desatualizada",
-        titulo: "Tabela VAU está desatualizada",
-        mensagem: `Última atualização há ${elapsedVau} dias. Considere sincronizar com o SERO em /admin/vau.`,
-        link: "/admin/vau",
-        ref_tipo: "sistema",
-      });
-      if (!error) vauCreated = 1;
+      try {
+        await criarNotificacao({
+          tipo: "vau_desatualizada",
+          titulo: "Tabela VAU está desatualizada",
+          mensagem: `Última atualização há ${elapsedVau} dias. Considere sincronizar com o SERO em /admin/vau.`,
+          link: "/admin/vau",
+          ref_tipo: "sistema",
+        });
+        vauCreated = 1;
+      } catch (notificationError) {
+        console.error("Falha ao criar notificação de VAU", {
+          error:
+            notificationError instanceof Error
+              ? notificationError.message
+              : "erro desconhecido",
+        });
+      }
     }
   }
 
@@ -123,4 +144,8 @@ function formatDate(value: string) {
     dateStyle: "short",
     timeZone: "America/Sao_Paulo",
   }).format(new Date(value));
+}
+
+function firstName(name: string) {
+  return name.trim().split(/\s+/)[0] || "Lead";
 }
