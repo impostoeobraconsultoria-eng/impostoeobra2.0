@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { criarNotificacao } from "@/lib/notificacoes/criar";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -107,21 +108,22 @@ export async function GET(request: NextRequest) {
         .eq("id", event.id)
         .is("lembrete_enviado_em", null);
       if (updateError) throw updateError;
-      const notifications = (users ?? []).map((user) => ({
-        destinatario_id: user.id,
-        tipo: "evento_agenda",
-        titulo: `Lembrete: ${event.titulo}`,
-        mensagem: `${start.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "2-digit", month: "2-digit" })} às ${start.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}`,
-        link: `/admin/agenda?evento=${event.id}`,
-        ref_tipo: "evento",
-        ref_id: event.id,
-      }));
-      if (notifications.length) {
-        const { error: notificationError } = await supabase
-          .from("notificacoes")
-          .insert(notifications);
-        if (notificationError) throw notificationError;
-      }
+      const notificationMessage = `${start.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "2-digit", month: "2-digit" })} às ${start.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}`;
+      await Promise.all(
+        (users ?? []).map((user) =>
+          criarNotificacao({
+            destinatario_id: user.id,
+            tipo: "evento_agenda",
+            titulo: `Lembrete: ${event.titulo}`,
+            mensagem: notificationMessage,
+            link: `/admin/agenda?evento=${event.id}`,
+            ref_tipo: "evento",
+            ref_id: event.id,
+            push_titulo: "Lembrete da agenda",
+            push_mensagem: notificationMessage,
+          }),
+        ),
+      );
       enviados += messages.length;
     } catch (sendError) {
       erros += 1;
