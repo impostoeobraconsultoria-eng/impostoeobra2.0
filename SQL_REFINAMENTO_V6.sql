@@ -192,6 +192,15 @@ insert into public.config (chave, valor, descricao) values
    'Esta ação ainda não está disponível.',
    'Resposta temporária para callbacks desconhecidos ou de uma versão futura.'),
 
+  ('telegram_msg_lead_assumido', '✅ Lead assumido por {nome}.', 'Confirmação ao assumir um lead.'),
+  ('telegram_msg_lead_ja_assumido', 'Lead já assumido por {nome}.', 'Aviso de lead que já possui responsável.'),
+  ('telegram_msg_contato_resultado', 'Qual foi o resultado do contato?', 'Pergunta do fluxo de contato realizado.'),
+  ('telegram_msg_contato_data', 'Quando devemos retomar o contato?', 'Pergunta de data do follow-up.'),
+  ('telegram_msg_contato_concluido', '✅ Contato registrado: {resultado}.', 'Confirmação de contato encerrado.'),
+  ('telegram_msg_followup_marcado', '✅ Follow-up marcado para {data}.', 'Confirmação de follow-up criado na agenda.'),
+  ('telegram_msg_lead_indisponivel', 'Este lead não está mais disponível para esta ação.', 'Aviso para lead removido, convertido ou inativo.'),
+  ('telegram_msg_erro_generico', 'Não foi possível concluir esta ação agora.', 'Mensagem segura para erros inesperados em callbacks.'),
+
   -- Templates de mensagens de alerta (usam placeholders {campo})
   ('telegram_template_lead_novo',
    '🆕 <b>Novo lead</b>\n<b>{primeiro_nome}</b> — {uf}\nDestinação: {destinacao_legivel}\nÁrea equivalente: {area_m2} m²\nINSS estimado: R$ {inss_estimado}\nEconomia potencial: R$ {economia_potencial}',

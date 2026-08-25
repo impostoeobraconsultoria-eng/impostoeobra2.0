@@ -425,6 +425,14 @@ function TelegramForm({ values }: { values: ConfigMap }) {
     ["telegram_msg_inicio_generico", "Resposta inicial genérica"],
     ["telegram_msg_codigo_apenas_privado", "Código enviado em grupo"],
     ["telegram_msg_acao_indisponivel", "Ação indisponível"],
+    ["telegram_msg_lead_assumido", "Lead assumido"],
+    ["telegram_msg_lead_ja_assumido", "Lead já assumido"],
+    ["telegram_msg_contato_resultado", "Pergunta do resultado"],
+    ["telegram_msg_contato_data", "Pergunta da data de retorno"],
+    ["telegram_msg_contato_concluido", "Contato concluído"],
+    ["telegram_msg_followup_marcado", "Follow-up marcado"],
+    ["telegram_msg_lead_indisponivel", "Lead indisponível"],
+    ["telegram_msg_erro_generico", "Erro genérico"],
   ] as const;
   const buttons = [
     ["telegram_btn_assumir", "Assumir"],

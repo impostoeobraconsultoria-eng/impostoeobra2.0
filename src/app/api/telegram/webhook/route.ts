@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { waitUntil } from "@vercel/functions";
 
 import { autorizarTelegramUser } from "@/lib/telegram/auth";
-import { answerCallbackQuery, sendMessage } from "@/lib/telegram/client";
+import { sendMessage } from "@/lib/telegram/client";
 import { requireTelegramConfig } from "@/lib/telegram/config";
 import {
   handleTextoLivre,
   handleVincularStart,
 } from "@/lib/telegram/handlers/vincular";
+import { handleCallback } from "@/lib/telegram/handlers/callback";
 import type { TelegramUpdate } from "@/lib/telegram/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
       ? "command"
       : "message";
   const action = actionName(update);
+  const callbackRef = callbackReference(update);
   const { data: log, error: logError } = await supabase
     .from("telegram_callbacks_log")
     .insert({
@@ -41,6 +43,8 @@ export async function POST(request: NextRequest) {
       telegram_user_id: actor?.id ?? null,
       tipo: kind,
       acao: action,
+      ref_tipo: callbackRef ? "lead" : null,
+      ref_id: callbackRef,
       payload: sanitizedPayload(update),
       resultado: "recebido",
     })
@@ -101,17 +105,13 @@ async function routeUpdate(update: TelegramUpdate) {
       : null;
     return { resultado: user ? "ok" : "ignorado", userId: user?.id ?? null };
   }
+  if (update.callback_query) return handleCallback(update);
 
   const user = telegramUserId
     ? await autorizarTelegramUser(telegramUserId)
     : null;
   if (!user) {
-    const unauthorized = await requireTelegramConfig(
-      "telegram_msg_nao_autorizado",
-    );
-    if (update.callback_query)
-      await answerCallbackQuery(update.callback_query.id, unauthorized);
-    else if (message)
+    if (message)
       await sendMessage(
         message.chat.id,
         await requireTelegramConfig("telegram_msg_inicio_generico"),
@@ -129,13 +129,6 @@ async function routeUpdate(update: TelegramUpdate) {
       await requireTelegramConfig("telegram_msg_ajuda"),
     );
     return { resultado: "ok", userId: user.id };
-  }
-  if (update.callback_query) {
-    await answerCallbackQuery(
-      update.callback_query.id,
-      await requireTelegramConfig("telegram_msg_acao_indisponivel"),
-    );
-    return { resultado: "ignorado", userId: user.id };
   }
   if (message)
     await sendMessage(
@@ -163,4 +156,9 @@ function sanitizedPayload(update: TelegramUpdate) {
     callback_data: update.callback_query?.data?.slice(0, 128),
     has_text: Boolean(update.message?.text),
   };
+}
+
+function callbackReference(update: TelegramUpdate) {
+  const id = update.callback_query?.data?.split(":")[1];
+  return /^[0-9a-f-]{36}$/i.test(id ?? "") ? id! : null;
 }
