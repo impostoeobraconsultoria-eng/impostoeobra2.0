@@ -6,6 +6,7 @@ import {
   ListRestart,
   MessageSquareText,
   Settings,
+  Smartphone,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
@@ -94,6 +95,13 @@ export default async function ConfigPage({
           <p className="mt-2 text-sm text-slate-500">
             Dados institucionais, comunicação, documentos e regras operacionais.
           </p>
+          <Link
+            href="/admin/configuracoes/dispositivos"
+            className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+          >
+            <Smartphone className="size-4" aria-hidden="true" />
+            Gerenciar meus dispositivos de notificação
+          </Link>
         </header>
         {searchParams?.saved && (
           <Notice tone="success">Alterações salvas com sucesso.</Notice>
