@@ -27,6 +27,19 @@ import { InternalTrafficButton } from "@/components/admin/internal-traffic-butto
 export const metadata: Metadata = {
   title: "Admin | Imposto & Obra",
   robots: { index: false, follow: false },
+  manifest: "/admin-manifest.json",
+  icons: {
+    apple: {
+      url: "/icons/admin-icon-192.png",
+      sizes: "192x192",
+      type: "image/png",
+    },
+  },
+  appleWebApp: {
+    capable: true,
+    title: "IeO CRM",
+    statusBarStyle: "default",
+  },
 };
 
 const navigation = [

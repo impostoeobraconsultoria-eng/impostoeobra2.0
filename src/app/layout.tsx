@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
 import Script from "next/script";
 import { getSiteConfig } from "@/lib/site-config";
@@ -13,6 +13,10 @@ const montserrat = Montserrat({
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://impostoeobra.com.br";
 const ga4Id = "G-8CYR5J0Z3L";
+
+export const viewport: Viewport = {
+  themeColor: "#0B76C6",
+};
 
 export function generateMetadata(): Metadata {
   return {
@@ -55,13 +59,25 @@ export function generateMetadata(): Metadata {
         { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
       ],
       shortcut: "/favicon.ico",
-      apple: {
-        url: "/apple-touch-icon.png",
-        sizes: "180x180",
-        type: "image/png",
-      },
+      apple: [
+        {
+          url: "/icons/icon-192.png",
+          sizes: "192x192",
+          type: "image/png",
+        },
+        {
+          url: "/apple-touch-icon.png",
+          sizes: "180x180",
+          type: "image/png",
+        },
+      ],
     },
-    manifest: "/site.webmanifest",
+    manifest: "/manifest.json",
+    appleWebApp: {
+      capable: true,
+      title: "Imposto & Obra",
+      statusBarStyle: "default",
+    },
   };
 }
 
