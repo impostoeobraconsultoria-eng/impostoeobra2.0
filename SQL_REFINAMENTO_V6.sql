@@ -23,6 +23,12 @@ alter table public.users
   add column if not exists telegram_chat_id     bigint,       -- chat privado 1-a-1 (para DMs do bot; opcional)
   add column if not exists telegram_vinculado_em timestamptz;
 
+alter table public.leads
+  add column if not exists telegram_follow_up_enviado_em timestamptz;
+
+comment on column public.leads.telegram_follow_up_enviado_em is
+  'Data do último alerta de retomada enviado ao Telegram; impede reenvio no mesmo dia.';
+
 -- telegram_user_id precisa ser único para evitar dois usuários do CRM apontando pro mesmo Telegram
 create unique index if not exists uq_users_telegram_user_id
   on public.users(telegram_user_id)
@@ -198,6 +204,10 @@ insert into public.config (chave, valor, descricao) values
   ('telegram_msg_contato_data', 'Quando devemos retomar o contato?', 'Pergunta de data do follow-up.'),
   ('telegram_msg_contato_concluido', '✅ Contato registrado: {resultado}.', 'Confirmação de contato encerrado.'),
   ('telegram_msg_followup_marcado', '✅ Follow-up marcado para {data}.', 'Confirmação de follow-up criado na agenda.'),
+  ('telegram_msg_followup_reativado', '✅ Reativado por {nome} na etapa {etapa}.', 'Confirmação de lead reativado pelo Telegram.'),
+  ('telegram_msg_followup_adiado', '✅ Retomada adiada para {data} por {nome}.', 'Confirmação de follow-up adiado pelo Telegram.'),
+  ('telegram_msg_perder_motivo', 'Por que este lead foi perdido definitivamente?', 'Pergunta do fluxo de perda definitiva.'),
+  ('telegram_msg_lead_perdido', '✅ Lead marcado como perdido: {motivo}.', 'Confirmação de perda definitiva.'),
   ('telegram_msg_lead_indisponivel', 'Este lead não está mais disponível para esta ação.', 'Aviso para lead removido, convertido ou inativo.'),
   ('telegram_msg_erro_generico', 'Não foi possível concluir esta ação agora.', 'Mensagem segura para erros inesperados em callbacks.'),
 
@@ -218,6 +228,7 @@ insert into public.config (chave, valor, descricao) values
   ('telegram_btn_reativar',                '📞 Retomar contato',      'Rótulo do botão de reativar lead inativo.'),
   ('telegram_btn_adiar',                   '📅 Adiar 7 dias',         'Rótulo do botão de adiar contato futuro.'),
   ('telegram_btn_perder',                  '❌ Perder de vez',        'Rótulo do botão de marcar lead como perdido definitivamente.'),
+  ('telegram_adiar_dias',                  '7',                       'Quantidade de dias aplicada pelo botão Adiar.'),
 
   -- Opções configuráveis do fluxo "Contato realizado"
   ('telegram_contato_resultados',

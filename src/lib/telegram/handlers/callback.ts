@@ -9,6 +9,12 @@ import {
   handleContatoResultado,
   handleContatoStart,
 } from "@/lib/telegram/handlers/contato";
+import {
+  handleAdiar,
+  handlePerderConfirmar,
+  handlePerderStart,
+  handleReativar,
+} from "@/lib/telegram/handlers/inativo";
 import type { TelegramUpdate } from "@/lib/telegram/types";
 
 export async function handleCallback(update: TelegramUpdate) {
@@ -44,6 +50,12 @@ export async function handleCallback(update: TelegramUpdate) {
       await handleContatoResultado(user.id, leadId, argument, update);
     else if ((action === "cd" || action === "contato_data") && argument)
       await handleContatoData(user.id, leadId, argument, update);
+    else if (action === "reativar") await handleReativar(user, leadId, update);
+    else if (action === "adiar" && argument)
+      await handleAdiar(user, leadId, argument, update);
+    else if (action === "perder") await handlePerderStart(leadId, update);
+    else if (action === "pd" && argument)
+      await handlePerderConfirmar(user, leadId, argument, update);
     else {
       await answerCallbackQuery(
         callback.id,

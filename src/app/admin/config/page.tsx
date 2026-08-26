@@ -431,6 +431,10 @@ function TelegramForm({ values }: { values: ConfigMap }) {
     ["telegram_msg_contato_data", "Pergunta da data de retorno"],
     ["telegram_msg_contato_concluido", "Contato concluído"],
     ["telegram_msg_followup_marcado", "Follow-up marcado"],
+    ["telegram_msg_followup_reativado", "Lead reativado"],
+    ["telegram_msg_followup_adiado", "Follow-up adiado"],
+    ["telegram_msg_perder_motivo", "Pergunta do motivo de perda"],
+    ["telegram_msg_lead_perdido", "Lead perdido"],
     ["telegram_msg_lead_indisponivel", "Lead indisponível"],
     ["telegram_msg_erro_generico", "Erro genérico"],
   ] as const;
@@ -552,6 +556,14 @@ function TelegramForm({ values }: { values: ConfigMap }) {
             name="telegram_perder_motivos"
             label="Motivos de perda (JSON)"
             value={values.telegram_perder_motivos}
+          />
+          <Input
+            name="telegram_adiar_dias"
+            label="Dias aplicados pelo botão Adiar"
+            type="number"
+            min="1"
+            max="365"
+            value={values.telegram_adiar_dias || "7"}
           />
           <Input
             name="telegram_cron_follow_up_horario"

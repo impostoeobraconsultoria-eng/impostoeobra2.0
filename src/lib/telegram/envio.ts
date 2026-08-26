@@ -21,6 +21,14 @@ export type TelegramLead = {
   whatsapp?: string | null;
 };
 
+export type TelegramInactiveLead = {
+  id: string;
+  nome: string;
+  uf?: string | null;
+  inativado_em?: string | null;
+  motivo?: { rotulo?: string | null } | { rotulo?: string | null }[] | null;
+};
+
 export async function enviarAlertaLeadNovo(lead: TelegramLead) {
   const [enabled, notify, chatIdRaw] = await Promise.all([
     getTelegramConfigBoolean("telegram_habilitado"),
@@ -74,6 +82,60 @@ export async function enviarAlertaLeadNovo(lead: TelegramLead) {
   return true;
 }
 
+export async function enviarAlertaFollowUpInativo(lead: TelegramInactiveLead) {
+  const [enabled, notify, chatIdRaw] = await Promise.all([
+    getTelegramConfigBoolean("telegram_habilitado"),
+    getTelegramConfigBoolean("telegram_notificar_follow_up_inativo"),
+    getTelegramConfig("telegram_chat_id_grupo_operacao"),
+  ]);
+  const chatId = Number(chatIdRaw);
+  if (!enabled || !notify || !Number.isSafeInteger(chatId)) return false;
+
+  const [template, reactivate, postpone, lose, crm, baseUrl, postponeRaw] =
+    await Promise.all([
+      requireTelegramConfig("telegram_template_follow_up_inativo"),
+      requireTelegramConfig("telegram_btn_reativar"),
+      requireTelegramConfig("telegram_btn_adiar"),
+      requireTelegramConfig("telegram_btn_perder"),
+      requireTelegramConfig("telegram_btn_ver_no_crm"),
+      requireTelegramConfig("telegram_link_base_crm"),
+      getTelegramConfig("telegram_adiar_dias"),
+    ]);
+  const postponeDays = positiveInteger(postponeRaw, 7);
+  const inactiveAt = lead.inativado_em ? new Date(lead.inativado_em) : null;
+  const reason = Array.isArray(lead.motivo) ? lead.motivo[0] : lead.motivo;
+  const text = renderTelegramTemplate(template, {
+    primeiro_nome: firstName(lead.nome),
+    uf: lead.uf || "—",
+    inativado_em: inactiveAt ? datePtBr(inactiveAt) : "—",
+    dias_desde: inactiveAt
+      ? Math.max(
+          0,
+          Math.floor((Date.now() - inactiveAt.getTime()) / 86_400_000),
+        )
+      : "—",
+    motivo: reason?.rotulo || "—",
+  });
+  const crmUrl = `${baseUrl.replace(/\/$/, "")}/admin/leads/${lead.id}`;
+
+  await sendMessage(chatId, text, {
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: reactivate, callback_data: `reativar:${lead.id}` },
+          { text: postpone, callback_data: `adiar:${lead.id}:${postponeDays}` },
+        ],
+        [
+          { text: lose, callback_data: `perder:${lead.id}` },
+          { text: crm, url: crmUrl },
+        ],
+      ],
+    },
+  });
+  return true;
+}
+
 function firstName(name: string) {
   return name.trim().split(/\s+/)[0] || "—";
 }
@@ -91,4 +153,18 @@ function moneyPtBr(value: number | string | null | undefined) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number.isFinite(number) ? number : 0);
+}
+
+function datePtBr(value: Date) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  }).format(value);
+}
+
+function positiveInteger(value: string, fallback: number) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 && parsed <= 365
+    ? parsed
+    : fallback;
 }
