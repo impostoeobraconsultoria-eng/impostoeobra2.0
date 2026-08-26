@@ -57,6 +57,13 @@ export function editMessageText(
     message_id: messageId,
     text,
     ...opts,
+  }).catch((error: unknown) => {
+    if (
+      error instanceof Error &&
+      error.message.includes("message is not modified")
+    )
+      return null;
+    throw error;
   });
 }
 

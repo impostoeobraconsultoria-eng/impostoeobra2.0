@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { leadSchema } from "@/lib/validation/lead";
 import { parseBrazilianMobile } from "@/lib/ddds-brasileiros";
 import { criarNotificacao } from "@/lib/notificacoes/criar";
+import { enviarAlertaLeadNovo } from "@/lib/telegram/envio";
 
 export const runtime = "nodejs";
 
@@ -101,6 +103,28 @@ export async function POST(request: NextRequest) {
           : "erro desconhecido",
     });
   }
+
+  waitUntil(
+    enviarAlertaLeadNovo({
+      id: data.id,
+      nome: lead.nome,
+      uf: lead.uf,
+      dest: lead.dest,
+      area_total_calculo: lead.area_total_calculo,
+      inss_direto: lead.inss_direto,
+      economia: lead.economia,
+      ddd: phone.data.ddd,
+      whatsapp: phone.data.whatsapp,
+    }).catch((telegramError) => {
+      console.error("Falha ao enviar lead ao Telegram", {
+        leadId: data.id,
+        error:
+          telegramError instanceof Error
+            ? telegramError.message
+            : "erro desconhecido",
+      });
+    }),
+  );
 
   if (matches.leads.length || matches.clientes.length) {
     const { error: recurrenceError } = await admin.from("atividades").insert({
