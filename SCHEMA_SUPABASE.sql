@@ -126,6 +126,7 @@ create table public.leads (
   data_contato_futuro      date,
   ultima_etapa_kanban      text,
   ultimo_contato_em        timestamptz,
+  telegram_follow_up_enviado_em timestamptz,
 
   -- Telefone normalizado e atribuição de campanha
   telefone_normalizado     text,
@@ -1129,6 +1130,10 @@ insert into public.config (chave, valor, descricao) values
   ('telegram_msg_contato_data', 'Quando devemos retomar o contato?', 'Pergunta de data do follow-up'),
   ('telegram_msg_contato_concluido', '✅ Contato registrado: {resultado}.', 'Confirmação de contato encerrado'),
   ('telegram_msg_followup_marcado', '✅ Follow-up marcado para {data}.', 'Confirmação de follow-up criado'),
+  ('telegram_msg_followup_reativado', '✅ Reativado por {nome} na etapa {etapa}.', 'Confirmação de lead reativado pelo Telegram'),
+  ('telegram_msg_followup_adiado', '✅ Retomada adiada para {data} por {nome}.', 'Confirmação de follow-up adiado pelo Telegram'),
+  ('telegram_msg_perder_motivo', 'Por que este lead foi perdido definitivamente?', 'Pergunta do fluxo de perda definitiva'),
+  ('telegram_msg_lead_perdido', '✅ Lead marcado como perdido: {motivo}.', 'Confirmação de perda definitiva'),
   ('telegram_msg_lead_indisponivel', 'Este lead não está mais disponível para esta ação.', 'Aviso para lead indisponível'),
   ('telegram_msg_erro_generico', 'Não foi possível concluir esta ação agora.', 'Mensagem segura de erro em callbacks'),
   ('telegram_template_lead_novo', '🆕 <b>Novo lead</b>\n<b>{primeiro_nome}</b> — {uf}\nDestinação: {destinacao_legivel}\nÁrea equivalente: {area_m2} m²\nINSS estimado: R$ {inss_estimado}\nEconomia potencial: R$ {economia_potencial}', 'Template de alerta de lead novo'),
@@ -1140,6 +1145,7 @@ insert into public.config (chave, valor, descricao) values
   ('telegram_btn_reativar', '📞 Retomar contato', 'Rótulo do botão Reativar'),
   ('telegram_btn_adiar', '📅 Adiar 7 dias', 'Rótulo do botão Adiar'),
   ('telegram_btn_perder', '❌ Perder de vez', 'Rótulo do botão Perder'),
+  ('telegram_adiar_dias', '7', 'Quantidade de dias do botão Adiar no follow-up inativo'),
   ('telegram_contato_resultados', '[{"slug":"interessado","rotulo":"👍 Interessado","encerra":true},{"slug":"vai_pensar","rotulo":"🤔 Vai pensar","encerra":false},{"slug":"sem_interesse","rotulo":"❌ Sem interesse","encerra":true},{"slug":"sem_resposta","rotulo":"📵 Sem resposta","encerra":false}]', 'Resultados do contato'),
   ('telegram_contato_datas_retomar', '[{"dias":1,"rotulo":"Amanhã"},{"dias":3,"rotulo":"3 dias"},{"dias":7,"rotulo":"1 semana"}]', 'Datas de retomada'),
   ('telegram_perder_motivos', '[{"slug":"contratou_outro","rotulo":"Contratou outro fornecedor"},{"slug":"sem_orcamento","rotulo":"Sem orçamento"},{"slug":"fora_escopo","rotulo":"Fora do escopo"},{"slug":"decidiu_nao_realizar","rotulo":"Decidiu não realizar"}]', 'Motivos de perda'),
