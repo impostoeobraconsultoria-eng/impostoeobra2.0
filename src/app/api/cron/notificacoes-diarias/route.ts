@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { criarNotificacao } from "@/lib/notificacoes/criar";
+import { enviarAlertaLeadParado } from "@/lib/telegram/envio";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
   ] = await Promise.all([
     supabase
       .from("leads")
-      .select("id,nome,status,updated_at")
+      .select("id,nome,uf,status,updated_at,ddd,whatsapp")
       .is("deleted_at", null)
       .is("convertido_em", null)
       .eq("status_ativacao", "ativo")
@@ -77,6 +79,20 @@ export async function GET(request: NextRequest) {
         ref_id: lead.id,
         push_mensagem: `${firstName(lead.nome)} está sem atualização há ${elapsed} dias.`,
       });
+      waitUntil(
+        enviarAlertaLeadParado({ ...lead, dias_parado: elapsed }).catch(
+          (telegramError) => {
+            console.error("Falha no alerta Telegram de lead parado", {
+              leadId: lead.id,
+              error:
+                telegramError instanceof Error
+                  ? telegramError.message
+                  : "erro desconhecido",
+            });
+            return false;
+          },
+        ),
+      );
       leadsCreated += 1;
     } catch (notificationError) {
       console.error("Falha ao criar notificação de lead parado", {

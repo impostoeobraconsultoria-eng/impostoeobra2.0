@@ -29,6 +29,17 @@ export type TelegramInactiveLead = {
   motivo?: { rotulo?: string | null } | { rotulo?: string | null }[] | null;
 };
 
+export type TelegramStalledLead = {
+  id: string;
+  nome: string;
+  uf?: string | null;
+  status?: string | null;
+  updated_at: string;
+  dias_parado: number;
+  ddd?: string | null;
+  whatsapp?: string | null;
+};
+
 export async function enviarAlertaLeadNovo(lead: TelegramLead) {
   const [enabled, notify, chatIdRaw] = await Promise.all([
     getTelegramConfigBoolean("telegram_habilitado"),
@@ -128,6 +139,54 @@ export async function enviarAlertaFollowUpInativo(lead: TelegramInactiveLead) {
         ],
         [
           { text: lose, callback_data: `perder:${lead.id}` },
+          { text: crm, url: crmUrl },
+        ],
+      ],
+    },
+  });
+  return true;
+}
+
+export async function enviarAlertaLeadParado(lead: TelegramStalledLead) {
+  const [enabled, notify, chatIdRaw] = await Promise.all([
+    getTelegramConfigBoolean("telegram_habilitado"),
+    getTelegramConfigBoolean("telegram_notificar_lead_parado"),
+    getTelegramConfig("telegram_chat_id_grupo_operacao"),
+  ]);
+  const chatId = Number(chatIdRaw);
+  if (!enabled || !notify || !Number.isSafeInteger(chatId)) return false;
+
+  const [template, contact, whatsapp, crm, baseUrl, siteConfig] =
+    await Promise.all([
+      requireTelegramConfig("telegram_template_lead_parado"),
+      requireTelegramConfig("telegram_btn_contato_realizado"),
+      requireTelegramConfig("telegram_btn_whatsapp"),
+      requireTelegramConfig("telegram_btn_ver_no_crm"),
+      requireTelegramConfig("telegram_link_base_crm"),
+      getSiteConfig(),
+    ]);
+  const text = renderTelegramTemplate(template, {
+    primeiro_nome: firstName(lead.nome),
+    uf: lead.uf || "—",
+    status: lead.status || "—",
+    dias_parado: lead.dias_parado,
+    ultima_atualizacao: datePtBr(new Date(lead.updated_at)),
+  });
+  const phone = `${lead.ddd ?? ""}${lead.whatsapp ?? ""}`.replace(/\D/g, "");
+  const message = (siteConfig.whatsapp_msg_lead_captura || "").replace(
+    /{nome}/g,
+    firstName(lead.nome),
+  );
+  const whatsappUrl = `https://wa.me/55${phone}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
+  const crmUrl = `${baseUrl.replace(/\/$/, "")}/admin/leads/${lead.id}`;
+
+  await sendMessage(chatId, text, {
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: contact, callback_data: `contato:${lead.id}` }],
+        [
+          { text: whatsapp, url: whatsappUrl },
           { text: crm, url: crmUrl },
         ],
       ],

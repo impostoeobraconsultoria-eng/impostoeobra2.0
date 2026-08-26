@@ -478,6 +478,15 @@ function TelegramForm({ values }: { values: ConfigMap }) {
           label="Alertar lead parado"
           value={values.telegram_notificar_lead_parado}
         />
+        <Input
+          name="notif_lead_parado_dias"
+          label="Prazo para considerar lead parado (dias)"
+          type="number"
+          min="1"
+          max="365"
+          value={values.notif_lead_parado_dias || "7"}
+          hint="O mesmo prazo vale para o sininho, Web Push e Telegram. Pode ser alterado sem deploy."
+        />
         <BooleanSelect
           name="telegram_notificar_follow_up_inativo"
           label="Alertar follow-up inativo"
@@ -520,6 +529,12 @@ function TelegramForm({ values }: { values: ConfigMap }) {
             label="Lead novo"
             value={values.telegram_template_lead_novo}
             hint="Placeholders entre chaves, como {primeiro_nome} e {uf}."
+          />
+          <TextArea
+            name="telegram_template_lead_parado"
+            label="Lead parado"
+            value={values.telegram_template_lead_parado}
+            hint="Placeholders: {primeiro_nome}, {uf}, {status}, {dias_parado} e {ultima_atualizacao}."
           />
           <TextArea
             name="telegram_template_follow_up_inativo"
