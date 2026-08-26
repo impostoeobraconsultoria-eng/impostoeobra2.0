@@ -216,6 +216,10 @@ insert into public.config (chave, valor, descricao) values
    '🆕 <b>Novo lead</b>\n<b>{primeiro_nome}</b> — {uf}\nDestinação: {destinacao_legivel}\nÁrea equivalente: {area_m2} m²\nINSS estimado: R$ {inss_estimado}\nEconomia potencial: R$ {economia_potencial}',
    'Template HTML da mensagem de alerta de lead novo no grupo. Placeholders suportados: {primeiro_nome}, {uf}, {destinacao_legivel}, {area_m2}, {inss_estimado}, {economia_potencial}. Não incluir telefone/CPF/email.'),
 
+  ('telegram_template_lead_parado',
+   '⚠️ <b>Lead parado há {dias_parado} dias</b>\n<b>{primeiro_nome}</b> — {uf}\nEtapa: {status}\nÚltima atualização: {ultima_atualizacao}',
+   'Template HTML do alerta de lead parado. Placeholders: {primeiro_nome}, {uf}, {status}, {dias_parado}, {ultima_atualizacao}. Não incluir telefone/CPF/email.'),
+
   ('telegram_template_follow_up_inativo',
    '⏰ <b>Retomar contato</b>\nLead: <b>{primeiro_nome}</b> — {uf}\nInativado em: {inativado_em} ({dias_desde} dias atrás)\nMotivo: {motivo}\nData marcada para retomar: hoje',
    'Template HTML da mensagem de follow-up de lead inativo. Placeholders: {primeiro_nome}, {uf}, {inativado_em}, {dias_desde}, {motivo}.'),

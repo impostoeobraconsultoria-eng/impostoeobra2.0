@@ -67,6 +67,12 @@ const sections = {
       .max(30),
     telegram_notificar_lead_novo: z.enum(["true", "false"]),
     telegram_notificar_lead_parado: z.enum(["true", "false"]),
+    notif_lead_parado_dias: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(365)
+      .transform(String),
     telegram_notificar_follow_up_inativo: z.enum(["true", "false"]),
     telegram_conversation_timeout_min: z.coerce
       .number()
@@ -97,6 +103,7 @@ const sections = {
     telegram_msg_lead_indisponivel: field.min(2),
     telegram_msg_erro_generico: field.min(2),
     telegram_template_lead_novo: field.min(2),
+    telegram_template_lead_parado: field.min(2),
     telegram_template_follow_up_inativo: field.min(2),
     telegram_btn_assumir: field.min(1).max(100),
     telegram_btn_contato_realizado: field.min(1).max(100),
