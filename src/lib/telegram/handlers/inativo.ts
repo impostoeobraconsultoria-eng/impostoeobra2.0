@@ -266,12 +266,16 @@ function validLossReason(value: LossReason) {
 
 function addDaysSaoPaulo(days: number) {
   const now = new Date();
-  const local = new Intl.DateTimeFormat("en-CA", {
+  const parts = new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Sao_Paulo",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(now);
+  }).formatToParts(now);
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+  const local = `${values.year}-${values.month}-${values.day}`;
   const date = new Date(`${local}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
