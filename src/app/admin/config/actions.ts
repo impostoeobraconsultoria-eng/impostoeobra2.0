@@ -90,6 +90,10 @@ const sections = {
     telegram_msg_contato_data: field.min(2),
     telegram_msg_contato_concluido: field.min(2),
     telegram_msg_followup_marcado: field.min(2),
+    telegram_msg_followup_reativado: field.min(2),
+    telegram_msg_followup_adiado: field.min(2),
+    telegram_msg_perder_motivo: field.min(2),
+    telegram_msg_lead_perdido: field.min(2),
     telegram_msg_lead_indisponivel: field.min(2),
     telegram_msg_erro_generico: field.min(2),
     telegram_template_lead_novo: field.min(2),
@@ -101,6 +105,12 @@ const sections = {
     telegram_btn_reativar: field.min(1).max(100),
     telegram_btn_adiar: field.min(1).max(100),
     telegram_btn_perder: field.min(1).max(100),
+    telegram_adiar_dias: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(365)
+      .transform(String),
     telegram_contato_resultados: jsonArrayField,
     telegram_contato_datas_retomar: jsonArrayField,
     telegram_perder_motivos: jsonArrayField,
