@@ -24,7 +24,7 @@ import {
 
 import { createClient } from "@/lib/supabase/server";
 import { listNotifications } from "@/lib/notifications";
-import { NotificationBell } from "@/components/admin/notification-bell";
+import { InternalHeader } from "@/components/admin/internal-header";
 import { InternalTrafficButton } from "@/components/admin/internal-traffic-button";
 
 export const metadata: Metadata = {
@@ -144,49 +144,14 @@ export default async function AdminLayout({
         </Link>
       </aside>
       <div className="admin-shell lg:pl-64">
-        <header className="admin-header sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-          <div className="flex min-h-20 items-center justify-between gap-4 px-5 sm:px-8">
-            <details className="relative lg:hidden">
-              <summary className="cursor-pointer list-none rounded-lg border px-3 py-2 text-sm font-semibold">
-                Menu
-              </summary>
-              <nav className="absolute left-0 top-12 w-64 space-y-1 rounded-xl border bg-white p-3 shadow-xl">
-                {links.map(({ href, label }) => (
-                  <Link
-                    className="block rounded-lg px-3 py-2 text-sm hover:bg-slate-50"
-                    href={href}
-                    key={href}
-                  >
-                    {label}
-                  </Link>
-                ))}
-              </nav>
-            </details>
-            <div className="ml-auto">
-              <NotificationBell
-                initialNotifications={notificationData.notifications}
-                initialUnread={notificationData.unread}
-                initialNow={Date.now()}
-              />
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-semibold">
-                {profile?.nome || "Usuário"}
-              </p>
-              <p className="text-xs capitalize text-slate-500">
-                {profile?.perfil || "equipe"}
-              </p>
-            </div>
-            <form action="/api/auth/signout" method="post">
-              <button
-                type="submit"
-                className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50"
-              >
-                Sair
-              </button>
-            </form>
-          </div>
-        </header>
+        <InternalHeader
+          area="Administração"
+          homeHref="/admin"
+          profile={profile}
+          notifications={notificationData.notifications}
+          unread={notificationData.unread}
+          mobileNavigation={links}
+        />
         {children}
       </div>
     </div>

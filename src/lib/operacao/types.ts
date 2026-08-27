@@ -7,6 +7,7 @@ export type OperacaoParte = {
   titulo: string;
   descricao: string | null;
   ordem: number;
+  ativo: boolean;
   paginas?: OperacaoPaginaResumo[];
 };
 
