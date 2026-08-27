@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { JSONContent } from "@tiptap/react";
 import { OperacaoEditor } from "./tiptap-editor";
+import { OperacaoFaqEditor } from "./faq-editor";
+import type { OperacaoFaq } from "@/lib/operacao/types";
 
-export function EditOperacaoPage({ pagina, backHref, canDelete }: { pagina: { id: string; titulo: string; resumo: string | null; conteudo: JSONContent }; backHref: string; canDelete: boolean }) {
+export function EditOperacaoPage({ pagina, backHref, initialFaqs, canDelete }: { pagina: { id: string; titulo: string; resumo: string | null; conteudo: JSONContent }; backHref: string; initialFaqs: OperacaoFaq[]; canDelete: boolean }) {
   const router = useRouter();
   const [titulo, setTitulo] = useState(pagina.titulo);
   const [resumo, setResumo] = useState(pagina.resumo ?? "");
@@ -33,5 +35,6 @@ export function EditOperacaoPage({ pagina, backHref, canDelete }: { pagina: { id
     <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-bold text-primary">Modo de edição</p><h1 className="text-2xl font-bold">Editar página</h1></div><div className="flex gap-2"><Link href={backHref} className="rounded-full border bg-white px-4 py-2 text-sm font-bold">Concluir edição</Link>{canDelete && <button type="button" onClick={removePage} className="rounded-full border border-red-200 px-4 py-2 text-sm font-bold text-red-700">Excluir página</button>}</div></header>
     <section className="grid gap-4 rounded-2xl border bg-white p-5"><label className="field">Título<input className="input" value={titulo} maxLength={180} onChange={(e) => setTitulo(e.target.value)} /></label><label className="field">Resumo<textarea className="input min-h-20" value={resumo} maxLength={500} onChange={(e) => setResumo(e.target.value)} /></label><div className="flex items-center gap-3"><button type="button" onClick={saveMetadata} className="rounded-full bg-primary px-5 py-2 text-sm font-bold text-white">Salvar dados</button><span className="text-sm text-slate-500" aria-live="polite">{message}</span></div></section>
     <OperacaoEditor initialContent={pagina.conteudo} onSave={(conteudo) => patch({ conteudo })} />
+    <OperacaoFaqEditor paginaId={pagina.id} initialFaqs={initialFaqs} />
   </div>;
 }

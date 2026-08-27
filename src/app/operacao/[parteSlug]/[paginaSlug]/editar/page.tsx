@@ -10,5 +10,5 @@ export default async function EditarOperacaoPage({ params }: { params: { parteSl
   const supabase = createClient();
   const { data: claims } = await supabase.auth.getClaims();
   const { data: profile } = await supabase.from("users").select("perfil").eq("email", claims?.claims.email).eq("ativo", true).maybeSingle();
-  return <EditOperacaoPage pagina={{ id: pagina.id, titulo: pagina.titulo, resumo: pagina.resumo, conteudo: pagina.conteudo?.type ? pagina.conteudo : EMPTY_TIPTAP_DOCUMENT }} backHref={`/operacao/${params.parteSlug}/${params.paginaSlug}`} canDelete={profile?.perfil === "admin"} />;
+  return <EditOperacaoPage pagina={{ id: pagina.id, titulo: pagina.titulo, resumo: pagina.resumo, conteudo: pagina.conteudo?.type ? pagina.conteudo : EMPTY_TIPTAP_DOCUMENT }} backHref={`/operacao/${params.parteSlug}/${params.paginaSlug}`} initialFaqs={pagina.faqs ?? []} canDelete={profile?.perfil === "admin"} />;
 }
