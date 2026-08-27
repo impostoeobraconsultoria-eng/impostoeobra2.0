@@ -1255,6 +1255,95 @@ create policy templates_admin_update on storage.objects
   with check (bucket_id = 'templates' and public.is_admin());
 
 -- =============================================================================
+-- 17. ÁREA DE OPERAÇÃO (V7)
+-- =============================================================================
+
+create table public.operacao_partes (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  numero text not null,
+  titulo text not null,
+  descricao text,
+  ordem integer not null default 100,
+  ativo boolean not null default true,
+  criado_em timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.operacao_paginas (
+  id uuid primary key default gen_random_uuid(),
+  parte_id uuid not null references public.operacao_partes(id) on delete restrict,
+  slug text not null,
+  titulo text not null,
+  resumo text,
+  conteudo jsonb not null default '{}'::jsonb,
+  ordem integer not null default 100,
+  ativo boolean not null default true,
+  criado_por uuid references public.users(id) on delete set null,
+  atualizado_por uuid references public.users(id) on delete set null,
+  criado_em timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (parte_id, slug)
+);
+
+create table public.operacao_faqs (
+  id uuid primary key default gen_random_uuid(),
+  pagina_id uuid not null references public.operacao_paginas(id) on delete cascade,
+  pergunta text not null,
+  resposta text not null,
+  ordem integer not null default 100,
+  criado_em timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index idx_operacao_partes_ativas on public.operacao_partes(ordem) where ativo = true;
+create index idx_operacao_paginas_parte on public.operacao_paginas(parte_id, ordem) where ativo = true;
+create index idx_operacao_paginas_recentes on public.operacao_paginas(updated_at desc) where ativo = true;
+create index idx_operacao_faqs_pagina on public.operacao_faqs(pagina_id, ordem);
+
+create trigger trg_operacao_partes_updated before update on public.operacao_partes
+  for each row execute function public.set_updated_at();
+create trigger trg_operacao_paginas_updated before update on public.operacao_paginas
+  for each row execute function public.set_updated_at();
+create trigger trg_operacao_faqs_updated before update on public.operacao_faqs
+  for each row execute function public.set_updated_at();
+
+alter table public.operacao_partes enable row level security;
+alter table public.operacao_paginas enable row level security;
+alter table public.operacao_faqs enable row level security;
+
+create policy operacao_partes_select_active on public.operacao_partes for select to authenticated using (public.is_active_user());
+create policy operacao_partes_write_active on public.operacao_partes for insert to authenticated with check (public.is_active_user());
+create policy operacao_partes_update_active on public.operacao_partes for update to authenticated using (public.is_active_user()) with check (public.is_active_user());
+create policy operacao_partes_delete_admin on public.operacao_partes for delete to authenticated using (public.is_admin());
+create policy operacao_paginas_select_active on public.operacao_paginas for select to authenticated using (public.is_active_user());
+create policy operacao_paginas_insert_active on public.operacao_paginas for insert to authenticated with check (public.is_active_user());
+create policy operacao_paginas_update_active on public.operacao_paginas for update to authenticated using (public.is_active_user()) with check (public.is_active_user());
+create policy operacao_paginas_delete_admin on public.operacao_paginas for delete to authenticated using (public.is_admin());
+create policy operacao_faqs_select_active on public.operacao_faqs for select to authenticated using (public.is_active_user());
+create policy operacao_faqs_write_active on public.operacao_faqs for all to authenticated using (public.is_active_user()) with check (public.is_active_user());
+
+revoke all on table public.operacao_partes, public.operacao_paginas, public.operacao_faqs from anon;
+grant select, insert, update, delete on table public.operacao_partes, public.operacao_paginas, public.operacao_faqs to authenticated;
+
+insert into public.operacao_partes (slug, numero, titulo, ordem) values
+  ('parte-i','I','Visão Geral e Classificação do Caso',10), ('parte-ii','II','Diagnóstico Inicial',20),
+  ('parte-iii','III','Cadastro Nacional de Obras — CNO',30), ('parte-iv','IV','Obra em Andamento',40),
+  ('parte-v','V','Obra Concluída',50), ('parte-vi','VI','Aferição no SERO',60),
+  ('parte-vii','VII','DCTFWeb Aferição e Regularização do Débito',70),
+  ('parte-viii','VIII','Certidão e Encerramento',80), ('parte-ix','IX','Matrizes e Checklists',90),
+  ('parte-x','X','Casos Especiais e Solução de Problemas',100), ('parte-xi','XI','Referências Operacionais',110)
+on conflict (slug) do nothing;
+
+insert into public.config (chave, valor, descricao) values
+  ('operacao_titulo','Manual Operacional','Título da wiki interna.'),
+  ('operacao_subtitulo','Procedimentos internos de regularização previdenciária de obras.','Subtítulo da wiki interna.'),
+  ('operacao_msg_rodape','Documento interno. Não compartilhar externamente.','Aviso no rodapé da wiki.'),
+  ('operacao_habilitar_faq','true','Habilita FAQ por página.'),
+  ('operacao_habilitar_criacao_paginas','true','Habilita criação de páginas por usuários ativos.')
+on conflict (chave) do nothing;
+
+-- =============================================================================
 -- FIM DO SCHEMA
 -- =============================================================================
 

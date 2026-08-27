@@ -14,7 +14,8 @@
     "test:telefone": "node --no-warnings --experimental-strip-types scripts/test-telefone.ts",
     "test:templates": "node --no-warnings --experimental-strip-types scripts/test-docx-template.ts",
     "migrate:artigos": "node --no-warnings --experimental-strip-types scripts/migrate-artigos-do-repo-antigo.ts",
-    "migrate:crm": "node --no-warnings --experimental-strip-types scripts/migrate-crm-do-sheets.ts"
+    "migrate:crm": "node --no-warnings --experimental-strip-types scripts/migrate-crm-do-sheets.ts",
+    "import:operacao": "node scripts/importar-manual-operacao.mjs"
   },
   "dependencies": {
     "@mdx-js/loader": "3.1.1",
