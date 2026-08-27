@@ -74,6 +74,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/admin/:path*",
+    "/operacao/:path*",
     "/artigos/:slug*.html",
     "/politica/aviso-de-privacidade.html",
   ],

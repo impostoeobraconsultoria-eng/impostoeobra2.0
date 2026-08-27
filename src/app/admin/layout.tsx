@@ -5,6 +5,7 @@ import {
   BarChart3,
   Archive,
   BookOpenText,
+  BookOpen,
   BriefcaseBusiness,
   CalendarDays,
   Building2,
@@ -46,6 +47,7 @@ export const metadata: Metadata = {
 
 const navigation = [
   { href: "/admin", label: "Dashboard", icon: Gauge },
+  { href: "/operacao", label: "Operação →", icon: BookOpen },
   { href: "/admin/leads", label: "Leads", icon: BarChart3 },
   { href: "/admin/leads/inativos", label: "Leads inativos", icon: Archive },
   { href: "/admin/clientes", label: "Clientes", icon: Users },
