@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { RemovePushDevice } from "@/components/admin/remove-push-device";
+import { TestPushButton } from "@/components/admin/test-push-button";
 import { createClient } from "@/lib/supabase/server";
 
 const dateTime = new Intl.DateTimeFormat("pt-BR", {
@@ -42,8 +43,13 @@ export default async function PushDevicesPage() {
           Dispositivos conectados
         </h1>
         <p className="mt-2 text-slate-500">
-          Gerencie os navegadores autorizados a receber seus alertas do CRM.
+          Gerencie os navegadores autorizados a receber seus alertas do CRM. Os
+          lembretes da agenda são enviados por volta das 8h, no dia configurado
+          antes do evento.
         </p>
+        <TestPushButton
+          disabled={!(devices ?? []).some((device) => device.ativo)}
+        />
 
         {error ? (
           <p
