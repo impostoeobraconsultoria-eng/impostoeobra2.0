@@ -97,7 +97,7 @@ export async function gerarDiagnosticoPreliminar(
       inss_reduzido: inssReduzido,
       storage_path: storagePath,
       storage_bucket: config.bucket,
-      versao_template: "v1.0",
+      versao_template: "v3.0",
       gerado_em: generatedAt.toISOString(),
       regenerado_em: current ? generatedAt.toISOString() : null,
       regeracoes_count: nextRegenerationCount,
@@ -128,11 +128,29 @@ export async function gerarDiagnosticoPreliminar(
         });
       });
     }
+    const timelineMessage = `Diagnóstico Nº ${numeroPublico} gerado (${variantLabel(variante)}).`;
+    const { error: activityError } = await admin.from("atividades").insert({
+      ref_tipo: "lead",
+      ref_id: leadId,
+      tipo: current ? "diagnostico_regerado" : "diagnostico_gerado",
+      descricao: timelineMessage,
+      metadata_json: {
+        numero_publico: numeroPublico,
+        variante,
+        regeracoes_count: nextRegenerationCount,
+      },
+    });
+    if (activityError)
+      console.error("[diagnostico] PDF gerado, mas timeline falhou", {
+        leadId,
+        code: activityError.code,
+      });
+
     await criarNotificacao({
       destinatario_id: lead.responsavel_id ?? null,
       tipo: "sistema",
       titulo: config.titulo,
-      mensagem: `Diagnóstico Nº ${numeroPublico} gerado (${variantLabel(variante)}).`,
+      mensagem: timelineMessage,
       link: `/admin/leads/${leadId}`,
       ref_tipo: "lead",
       ref_id: leadId,
