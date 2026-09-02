@@ -1344,6 +1344,97 @@ insert into public.config (chave, valor, descricao) values
 on conflict (chave) do nothing;
 
 -- =============================================================================
+-- V8 — CADÊNCIA COMERCIAL + SLA DE COBERTURA
+-- =============================================================================
+
+alter table public.leads
+  add column if not exists contato_inicial_em timestamptz,
+  add column if not exists contato_inicial_por uuid references public.users(id) on delete set null,
+  add column if not exists tentativa_atual integer not null default 0,
+  add column if not exists proxima_tentativa_em date,
+  add column if not exists ultima_tentativa_em timestamptz,
+  add column if not exists cadencia_finalizada_em timestamptz,
+  add column if not exists ultimo_alerta_cobertura_h integer;
+
+create index if not exists idx_leads_sem_cobertura on public.leads(data_hora)
+  where deleted_at is null and convertido_em is null and status_ativacao = 'ativo'
+    and responsavel_id is null and contato_inicial_em is null;
+create index if not exists idx_leads_followup_hoje on public.leads(proxima_tentativa_em)
+  where deleted_at is null and convertido_em is null and status_ativacao = 'ativo'
+    and cadencia_finalizada_em is null;
+create index if not exists idx_leads_por_responsavel on public.leads(responsavel_id)
+  where deleted_at is null and convertido_em is null and status_ativacao = 'ativo';
+
+create table if not exists public.lead_tentativas_contato (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid not null references public.leads(id) on delete cascade,
+  numero integer not null,
+  tipo text not null check (tipo in ('contato_inicial', 'follow_up')),
+  resultado text not null check (resultado in ('sem_resposta', 'ocupado', 'nao_atende', 'interessado', 'sem_interesse', 'retornar_depois', 'outro')),
+  observacoes text,
+  criado_por uuid not null references public.users(id) on delete restrict,
+  criado_em timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists uq_lead_tent_numero on public.lead_tentativas_contato(lead_id, numero);
+create index if not exists idx_lead_tent_por_autor on public.lead_tentativas_contato(criado_por, criado_em desc);
+drop trigger if exists trg_lead_tent_updated on public.lead_tentativas_contato;
+create trigger trg_lead_tent_updated before update on public.lead_tentativas_contato
+  for each row execute function public.set_updated_at();
+
+alter table public.lead_tentativas_contato enable row level security;
+drop policy if exists lead_tent_select_active on public.lead_tentativas_contato;
+create policy lead_tent_select_active on public.lead_tentativas_contato for select to authenticated using (public.is_active_user());
+drop policy if exists lead_tent_insert_active on public.lead_tentativas_contato;
+create policy lead_tent_insert_active on public.lead_tentativas_contato for insert to authenticated
+  with check (public.is_active_user() and criado_por = public.current_active_user_id());
+drop policy if exists lead_tent_update_own on public.lead_tentativas_contato;
+create policy lead_tent_update_own on public.lead_tentativas_contato for update to authenticated
+  using (public.is_active_user() and (public.is_admin() or (criado_por = public.current_active_user_id() and criado_em >= now() - interval '15 minutes')))
+  with check (public.is_active_user() and (public.is_admin() or (criado_por = public.current_active_user_id() and criado_em >= now() - interval '15 minutes')));
+drop policy if exists lead_tent_delete_admin on public.lead_tentativas_contato;
+create policy lead_tent_delete_admin on public.lead_tentativas_contato for delete to authenticated using (public.is_admin());
+revoke all on table public.lead_tentativas_contato from anon;
+grant select, insert, update, delete on table public.lead_tentativas_contato to authenticated;
+
+create or replace function public.add_business_days(start_date date, num_days integer)
+returns date language plpgsql immutable set search_path = public, pg_temp as $$
+declare
+  result_date date := start_date;
+  days_added integer := 0;
+  step integer := case when num_days >= 0 then 1 else -1 end;
+begin
+  while days_added < abs(num_days) loop
+    result_date := result_date + step;
+    if extract(dow from result_date) not in (0, 6) then days_added := days_added + 1; end if;
+  end loop;
+  return result_date;
+end;
+$$;
+revoke execute on function public.add_business_days(date, integer) from public;
+grant execute on function public.add_business_days(date, integer) to authenticated, service_role;
+
+insert into public.config (chave, valor, descricao) values
+  ('cadencia_sla_cobertura_horas_inicial','1','Horas até o primeiro alerta sem cobertura.'),
+  ('cadencia_sla_cobertura_recorrencia_horas','1','Recorrência em horas do alerta sem cobertura.'),
+  ('cadencia_followup_dias_uteis','2','Dias úteis entre tentativas.'),
+  ('cadencia_followup_max_tentativas','3','Máximo de tentativas antes da decisão.'),
+  ('cadencia_habilitada','true','Kill switch da cadência comercial.'),
+  ('notif_lead_sem_cobertura','true','Notifica lead sem cobertura.'),
+  ('notif_followup_hoje','true','Notifica follow-ups do dia.'),
+  ('notif_followup_atrasado','true','Notifica follow-up atrasado.'),
+  ('notif_decidir_lead','true','Notifica lead aguardando decisão.'),
+  ('template_alerta_sem_cobertura','⏳ Lead <b>{primeiro_nome}</b> ({uf}) há {horas}h sem consultor. Alguém assume?','Template do alerta sem cobertura.'),
+  ('template_followup_hoje','📞 Você tem <b>{quantidade}</b> follow-up(s) hoje. Abra o CRM para ver quem contatar.','Template do resumo matinal.'),
+  ('template_followup_atrasado','🔴 Follow-up de <b>{primeiro_nome}</b> ({uf}) estava previsto para {data}. Já se passaram {dias} dia(s).','Template de follow-up atrasado.'),
+  ('template_decidir_lead','⚖️ Lead <b>{primeiro_nome}</b> já teve {tentativas} tentativas. Hoje precisa de decisão: converter ou inativar.','Template de decisão.'),
+  ('cron_cadencia_horario_matinal','11:00','Horário UTC do resumo matinal.'),
+  ('dashboard_cards_ordem','["sem_consultor","followup_hoje","followup_atrasado","decidir_hoje","meus_leads"]','Ordem dos cards operacionais.')
+on conflict (chave) do nothing;
+
+-- O agendamento horário e os segredos ficam no bloco V8.5 de SQL_REFINAMENTO_V8.sql.
+
+-- =============================================================================
 -- FIM DO SCHEMA
 -- =============================================================================
 
