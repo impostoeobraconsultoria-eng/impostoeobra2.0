@@ -516,6 +516,14 @@ export async function inactivateLead(
     });
     return { ok: false, error: friendlyLifecycleError(error.message) };
   }
+  await supabase
+    .from("leads")
+    .update({
+      cadencia_finalizada_em: new Date().toISOString(),
+      proxima_tentativa_em: null,
+    })
+    .eq("id", id)
+    .eq("status_ativacao", "inativo");
   revalidateLeadLifecycle(id);
   return { ok: true };
 }

@@ -230,6 +230,14 @@ export async function convertLead(id: string) {
         : "convert";
     redirect(`/admin/leads/${id}?error=${reason}`);
   }
+  await supabase
+    .from("leads")
+    .update({
+      cadencia_finalizada_em: new Date().toISOString(),
+      proxima_tentativa_em: null,
+    })
+    .eq("id", id)
+    .eq("cliente_id", data);
   revalidatePath("/admin");
   revalidatePath("/admin/leads");
   revalidatePath("/admin/leads/convertidos");

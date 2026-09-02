@@ -27,6 +27,8 @@ import { formatBrazilianMobile } from "@/lib/ddds-brasileiros";
 import { findRecurrencesForRecord } from "@/lib/recurrence";
 import { RecurrenceAlert } from "@/components/admin/recurrence-alert";
 import { LeadQualificationButton } from "@/components/admin/lead-qualification-button";
+import { LeadCadenceActions } from "@/components/admin/lead-cadence-actions";
+import { getCadenciaConfig } from "@/lib/cadencia/config";
 
 type Props = {
   params: { id: string };
@@ -53,7 +55,9 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
     { data: relatedEvents },
     { data: products },
     { data: inactivationReasons },
+    { data: attempts },
     config,
+    cadenceConfig,
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -91,7 +95,15 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
       .select("id,rotulo,reativavel_padrao")
       .eq("ativo", true)
       .order("ordem"),
+    supabase
+      .from("lead_tentativas_contato")
+      .select(
+        "id,numero,tipo,resultado,observacoes,criado_em,criado_por,autor:users(nome)",
+      )
+      .eq("lead_id", params.id)
+      .order("numero", { ascending: false }),
     getConfigMap(),
+    getCadenciaConfig(),
   ]);
   if (error || !lead) notFound();
   const recurrenceMatches = await findRecurrencesForRecord({
@@ -143,6 +155,11 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
     ["fbclid", "Meta click ID"],
     ["referrer", "Referência inicial"],
   ].filter(([key]) => Boolean(lead[key]));
+  const cadenceStatus = !lead.contato_inicial_em
+    ? "Aguardando contato inicial"
+    : lead.cadencia_finalizada_em
+      ? "Aguardando decisão"
+      : "Em cadência";
 
   return (
     <main className="px-5 py-8 sm:px-8">
@@ -238,6 +255,74 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
                     ? "Informe um WhatsApp brasileiro válido, com DDD e celular iniciado por 9."
                     : "Não foi possível salvar. Revise os dados e tente novamente."}
           </p>
+        )}
+        {lead.status_ativacao === "ativo" && !lead.convertido_em && (
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-primary">
+                  Cadência comercial
+                </p>
+                <h2 className="mt-1 text-xl font-bold">{cadenceStatus}</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {lead.contato_inicial_em
+                    ? `Tentativa ${lead.tentativa_atual}/${cadenceConfig.maxTentativas}`
+                    : "O SLA termina quando o contato inicial é registrado."}
+                </p>
+              </div>
+              <LeadCadenceActions
+                lead={lead}
+                maxAttempts={cadenceConfig.maxTentativas}
+                slaHours={cadenceConfig.slaInicialHoras}
+                nowIso={new Date().toISOString()}
+                renderInactivate={
+                  <LeadLifecycleActions
+                    leadId={lead.id}
+                    leadName={lead.nome}
+                    reasons={inactivationReasons ?? []}
+                  />
+                }
+              />
+            </div>
+            <div className="mt-6 border-t pt-5">
+              <h3 className="text-sm font-bold">Histórico de tentativas</h3>
+              <ol className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {(attempts ?? []).map((attempt) => {
+                  const author = Array.isArray(attempt.autor)
+                    ? attempt.autor[0]
+                    : attempt.autor;
+                  return (
+                    <li
+                      key={attempt.id}
+                      className="rounded-xl border border-slate-200 p-4"
+                    >
+                      <p className="text-xs font-extrabold uppercase tracking-wide text-primary">
+                        Tentativa {attempt.numero} ·{" "}
+                        {attempt.tipo.replaceAll("_", " ")}
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-slate-800">
+                        {attempt.resultado.replaceAll("_", " ")}
+                      </p>
+                      {attempt.observacoes && (
+                        <p className="mt-1 text-sm text-slate-600">
+                          {attempt.observacoes}
+                        </p>
+                      )}
+                      <p className="mt-2 text-xs text-slate-400">
+                        {dateTime.format(new Date(attempt.criado_em))}
+                        {author?.nome ? ` · ${author.nome}` : ""}
+                      </p>
+                    </li>
+                  );
+                })}
+                {!attempts?.length && (
+                  <li className="text-sm text-slate-500">
+                    Nenhuma tentativa registrada.
+                  </li>
+                )}
+              </ol>
+            </div>
+          </section>
         )}
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <form action={updateAction} className="space-y-6">
