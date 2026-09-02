@@ -9,6 +9,7 @@ import {
   Settings,
   Send,
   Smartphone,
+  TimerReset,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
@@ -29,6 +30,7 @@ const tabs = [
   ["templates", "Templates", FileText],
   ["funil", "Funil", GitBranch],
   ["motivos", "Motivos de inativação", ListRestart],
+  ["cadencia", "Cadência comercial", TimerReset],
   ["sistema", "Sistema", Settings],
 ] as const;
 type Tab = (typeof tabs)[number][0];
@@ -178,6 +180,7 @@ export default async function ConfigPage({
                 />
               </>
             )}
+            {active === "cadencia" && <CadenceForm values={values} />}
             {active === "sistema" && <SystemForm values={values} />}
           </section>
         </div>
@@ -719,6 +722,108 @@ function SystemForm({ values }: { values: ConfigMap }) {
             <option value="10080">1 semana antes</option>
           </select>
         </label>
+      </div>
+      <SaveButton />
+    </form>
+  );
+}
+
+function CadenceForm({ values }: { values: ConfigMap }) {
+  return (
+    <form
+      action={saveConfigSection.bind(null, "cadencia")}
+      className="space-y-6"
+    >
+      <SectionTitle
+        title="Cadência comercial"
+        description="SLA de cobertura, intervalo entre tentativas e textos dos alertas operacionais."
+      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <BooleanSelect
+          name="cadencia_habilitada"
+          label="Cadência habilitada"
+          value={values.cadencia_habilitada}
+        />
+        <Input
+          name="cadencia_sla_cobertura_horas_inicial"
+          label="Primeiro alerta sem cobertura (horas)"
+          type="number"
+          min="1"
+          max="168"
+          value={values.cadencia_sla_cobertura_horas_inicial || "1"}
+        />
+        <Input
+          name="cadencia_sla_cobertura_recorrencia_horas"
+          label="Recorrência do alerta (horas)"
+          type="number"
+          min="1"
+          max="168"
+          value={values.cadencia_sla_cobertura_recorrencia_horas || "1"}
+        />
+        <Input
+          name="cadencia_followup_dias_uteis"
+          label="Intervalo entre tentativas (dias úteis)"
+          type="number"
+          min="1"
+          max="30"
+          value={values.cadencia_followup_dias_uteis || "2"}
+        />
+        <Input
+          name="cadencia_followup_max_tentativas"
+          label="Máximo de tentativas"
+          type="number"
+          min="1"
+          max="20"
+          value={values.cadencia_followup_max_tentativas || "3"}
+        />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <BooleanSelect
+          name="notif_lead_sem_cobertura"
+          label="Alertar lead sem cobertura"
+          value={values.notif_lead_sem_cobertura}
+        />
+        <BooleanSelect
+          name="notif_followup_hoje"
+          label="Resumo de follow-ups do dia"
+          value={values.notif_followup_hoje}
+        />
+        <BooleanSelect
+          name="notif_followup_atrasado"
+          label="Alertar follow-up atrasado"
+          value={values.notif_followup_atrasado}
+        />
+        <BooleanSelect
+          name="notif_decidir_lead"
+          label="Alertar decisão pendente"
+          value={values.notif_decidir_lead}
+        />
+      </div>
+      <div className="space-y-4">
+        <TextArea
+          name="template_alerta_sem_cobertura"
+          label="Template — sem cobertura"
+          value={values.template_alerta_sem_cobertura}
+          hint="Placeholders: {primeiro_nome}, {uf}, {horas}"
+        />
+        <TextArea
+          name="template_followup_hoje"
+          label="Template — follow-ups de hoje"
+          value={values.template_followup_hoje}
+          hint="Placeholder: {quantidade}"
+        />
+        <TextArea
+          name="template_followup_atrasado"
+          label="Template — follow-up atrasado"
+          value={values.template_followup_atrasado}
+          hint="Placeholders: {primeiro_nome}, {uf}, {data}, {dias}"
+        />
+        <TextArea
+          name="template_decidir_lead"
+          label="Template — decidir lead"
+          value={values.template_decidir_lead}
+          hint="Placeholders: {primeiro_nome}, {tentativas}"
+        />
       </div>
       <SaveButton />
     </form>

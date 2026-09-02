@@ -8,6 +8,7 @@ import {
   requireTelegramConfig,
 } from "@/lib/telegram/config";
 import { getSiteConfig } from "@/lib/site-config";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export type TelegramLead = {
   id: string;
@@ -193,6 +194,73 @@ export async function enviarAlertaLeadParado(lead: TelegramStalledLead) {
     },
   });
   return true;
+}
+
+export async function enviarAlertaCadenciaGrupo(html: string, leadId: string) {
+  const [enabled, chatIdRaw, crm, baseUrl] = await Promise.all([
+    getTelegramConfigBoolean("telegram_habilitado"),
+    getTelegramConfig("telegram_chat_id_grupo_operacao"),
+    requireTelegramConfig("telegram_btn_ver_no_crm"),
+    requireTelegramConfig("telegram_link_base_crm"),
+  ]);
+  const chatId = Number(chatIdRaw);
+  if (!enabled || !Number.isSafeInteger(chatId)) return false;
+  await sendMessage(chatId, html, {
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: crm,
+            url: `${baseUrl.replace(/\/$/, "")}/admin/leads/${leadId}`,
+          },
+        ],
+      ],
+    },
+  });
+  return true;
+}
+
+export async function enviarAlertaCadenciaUsuarios(
+  userIds: string[],
+  html: string,
+  link = "/admin/leads",
+) {
+  if (!userIds.length) return 0;
+  const [enabled, crm, baseUrl] = await Promise.all([
+    getTelegramConfigBoolean("telegram_habilitado"),
+    requireTelegramConfig("telegram_btn_ver_no_crm"),
+    requireTelegramConfig("telegram_link_base_crm"),
+  ]);
+  if (!enabled) return 0;
+  const admin = createAdminClient();
+  const { data: recipients } = await admin
+    .from("users")
+    .select("telegram_chat_id")
+    .in("id", userIds)
+    .eq("ativo", true)
+    .not("telegram_chat_id", "is", null);
+  let sent = 0;
+  await Promise.all(
+    (recipients ?? []).map(async (recipient) => {
+      if (!Number.isSafeInteger(recipient.telegram_chat_id)) return;
+      await sendMessage(recipient.telegram_chat_id, html, {
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: crm,
+                url: `${baseUrl.replace(/\/$/, "")}${link}`,
+              },
+            ],
+          ],
+        },
+      });
+      sent += 1;
+    }),
+  );
+  return sent;
 }
 
 function firstName(name: string) {

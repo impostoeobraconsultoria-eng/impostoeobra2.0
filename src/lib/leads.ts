@@ -25,6 +25,13 @@ export type LeadRecord = {
   responsavel_id: string | null;
   valor_potencial: number | null;
   observacoes: string | null;
+  contato_inicial_em: string | null;
+  contato_inicial_por: string | null;
+  tentativa_atual: number;
+  proxima_tentativa_em: string | null;
+  ultima_tentativa_em: string | null;
+  cadencia_finalizada_em: string | null;
+  ultimo_alerta_cobertura_h: number | null;
   [key: string]: unknown;
 };
 

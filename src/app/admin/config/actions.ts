@@ -126,6 +126,41 @@ const sections = {
       .trim()
       .regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   }),
+  cadencia: z.object({
+    cadencia_habilitada: z.enum(["true", "false"]),
+    cadencia_sla_cobertura_horas_inicial: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(168)
+      .transform(String),
+    cadencia_sla_cobertura_recorrencia_horas: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(168)
+      .transform(String),
+    cadencia_followup_dias_uteis: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(30)
+      .transform(String),
+    cadencia_followup_max_tentativas: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(20)
+      .transform(String),
+    notif_lead_sem_cobertura: z.enum(["true", "false"]),
+    notif_followup_hoje: z.enum(["true", "false"]),
+    notif_followup_atrasado: z.enum(["true", "false"]),
+    notif_decidir_lead: z.enum(["true", "false"]),
+    template_alerta_sem_cobertura: field.min(5),
+    template_followup_hoje: field.min(5),
+    template_followup_atrasado: field.min(5),
+    template_decidir_lead: field.min(5),
+  }),
   sistema: z.object({
     meta_leads_mensal: z.coerce
       .number()

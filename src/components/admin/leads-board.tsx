@@ -10,6 +10,7 @@ import {
   type InactivationReason,
 } from "@/components/admin/lead-lifecycle-actions";
 import type { LeadRecord } from "@/lib/leads";
+import { LeadCadenceActions } from "@/components/admin/lead-cadence-actions";
 
 type User = { id: string; nome: string | null };
 const money = new Intl.NumberFormat("pt-BR", {
@@ -24,6 +25,9 @@ export function LeadsBoard({
   isAdmin,
   reasons,
   initialStatus = "",
+  maxAttempts,
+  slaHours,
+  nowIso,
 }: {
   initialLeads: LeadRecord[];
   users: User[];
@@ -31,6 +35,9 @@ export function LeadsBoard({
   isAdmin: boolean;
   reasons: InactivationReason[];
   initialStatus?: string;
+  maxAttempts: number;
+  slaHours: number;
+  nowIso: string;
 }) {
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [leads, setLeads] = useState(initialLeads);
@@ -84,6 +91,12 @@ export function LeadsBoard({
         setLeads((items) => items.filter((lead) => lead.id !== id));
       else setMessage(result.error ?? "Não foi possível excluir o lead.");
     });
+  }
+
+  function updateCadence(id: string, values: Partial<LeadRecord>) {
+    setLeads((items) =>
+      items.map((lead) => (lead.id === id ? { ...lead, ...values } : lead)),
+    );
   }
 
   return (
@@ -227,7 +240,11 @@ export function LeadsBoard({
                               leadName={lead.nome}
                               reasons={reasons}
                               compact
-                              onSuccess={() => setLeads((items) => items.filter((item) => item.id !== lead.id))}
+                              onSuccess={() =>
+                                setLeads((items) =>
+                                  items.filter((item) => item.id !== lead.id),
+                                )
+                              }
                             />
                             {isAdmin && (
                               <button
@@ -252,6 +269,27 @@ export function LeadsBoard({
                           {money.format(Number(lead.valor_potencial))}
                         </p>
                       )}
+                      <LeadCadenceActions
+                        compact
+                        lead={lead}
+                        maxAttempts={maxAttempts}
+                        slaHours={slaHours}
+                        nowIso={nowIso}
+                        onUpdated={(values) => updateCadence(lead.id, values)}
+                        renderInactivate={
+                          <LeadLifecycleActions
+                            leadId={lead.id}
+                            leadName={lead.nome}
+                            reasons={reasons}
+                            compact
+                            onSuccess={() =>
+                              setLeads((items) =>
+                                items.filter((item) => item.id !== lead.id),
+                              )
+                            }
+                          />
+                        }
+                      />
                     </article>
                   ))}
                   {column.length === 0 && (
