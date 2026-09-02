@@ -6,6 +6,11 @@ import { LeadsBoard } from "@/components/admin/leads-board";
 import { LEAD_STATUSES, type LeadRecord } from "@/lib/leads";
 import { createClient } from "@/lib/supabase/server";
 import { getCadenciaConfig } from "@/lib/cadencia/config";
+import {
+  leadListFilterLabel,
+  normalizeLeadListFilters,
+  singleSearchParam,
+} from "@/lib/lead-list-filters";
 
 type Props = { searchParams?: Record<string, string | string[] | undefined> };
 
@@ -23,8 +28,12 @@ export default async function LeadsPage({ searchParams }: Props) {
           .maybeSingle()
       : { data: null };
   const isAdmin = profile?.perfil === "admin";
-  const requestedFilter = singleParam(searchParams?.filtro);
-  const requestedResponsible = singleParam(searchParams?.responsavel);
+  const requested = normalizeLeadListFilters({
+    filter: singleSearchParam(searchParams?.filtro),
+    responsible: singleSearchParam(searchParams?.responsavel),
+    isAdmin,
+    currentUserId: profile?.id,
+  });
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
     year: "numeric",
@@ -39,23 +48,19 @@ export default async function LeadsPage({ searchParams }: Props) {
     .is("deleted_at", null)
     .is("convertido_em", null)
     .eq("status_ativacao", "ativo");
-  if (!isAdmin && profile?.id)
-    leadQuery = leadQuery.eq("responsavel_id", profile.id);
-  else if (requestedFilter === "sem_consultor")
+  if (requested.filter === "sem_consultor")
     leadQuery = leadQuery.is("responsavel_id", null);
-  else if (requestedFilter === "meus" && profile?.id)
-    leadQuery = leadQuery.eq("responsavel_id", profile.id);
-  else if (requestedResponsible)
-    leadQuery = leadQuery.eq("responsavel_id", requestedResponsible);
-  if (requestedFilter === "followup_hoje")
+  else if (requested.responsible)
+    leadQuery = leadQuery.eq("responsavel_id", requested.responsible);
+  if (requested.filter === "followup_hoje")
     leadQuery = leadQuery
       .eq("proxima_tentativa_em", today)
       .is("cadencia_finalizada_em", null);
-  else if (requestedFilter === "followup_atrasado")
+  else if (requested.filter === "followup_atrasado")
     leadQuery = leadQuery
       .lt("proxima_tentativa_em", today)
       .is("cadencia_finalizada_em", null);
-  else if (requestedFilter === "decidir_hoje")
+  else if (requested.filter === "decidir_hoje")
     leadQuery = leadQuery.not("cadencia_finalizada_em", "is", null);
   leadQuery = leadQuery
     .order("proxima_tentativa_em", { ascending: true, nullsFirst: false })
@@ -94,9 +99,9 @@ export default async function LeadsPage({ searchParams }: Props) {
     ? requestedStatus
     : "";
   const showNew = searchParams?.new === "1";
-  const activeFilter = filterLabel(
-    requestedFilter,
-    requestedResponsible,
+  const activeFilter = leadListFilterLabel(
+    requested.filter,
+    requested.responsible,
     users ?? [],
   );
 
@@ -183,26 +188,4 @@ export default async function LeadsPage({ searchParams }: Props) {
       </div>
     </main>
   );
-}
-
-function singleParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function filterLabel(
-  filter: string | undefined,
-  responsible: string | undefined,
-  users: { id: string; nome: string | null }[],
-) {
-  const labels: Record<string, string> = {
-    sem_consultor: "Filtro: leads sem consultor",
-    followup_hoje: "Filtro: follow-up hoje",
-    followup_atrasado: "Filtro: follow-up atrasado",
-    decidir_hoje: "Filtro: decidir hoje",
-    meus: "Filtro: meus leads",
-  };
-  if (filter && labels[filter]) return labels[filter];
-  if (responsible)
-    return `Responsável: ${users.find((user) => user.id === responsible)?.nome ?? "consultor"}`;
-  return "";
 }
