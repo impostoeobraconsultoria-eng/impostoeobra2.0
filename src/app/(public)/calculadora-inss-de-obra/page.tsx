@@ -8,6 +8,7 @@ import {
   type PublicFaq,
 } from "@/lib/public-content";
 import { getSiteConfig } from "@/lib/site-config";
+import { getDiagnosticoHabilitado } from "@/lib/diagnostico/config";
 
 const title =
   "Calculadora INSS de Obra — Simulador Oficial IN RFB 2021 | Imposto & Obra";
@@ -111,14 +112,16 @@ const factors = [
 
 export default async function CalculadoraPage() {
   const config = await getSiteConfig();
-  const [whatsappNumber, whatsappUrl, faq] = await Promise.all([
-    getWhatsappNumber(),
-    getWhatsappUrl(config.whatsapp_msg_padrao),
-    getPublishedFaqByCategory("calculadora").catch((error) => {
-      console.error("Falha ao carregar FAQ da calculadora", error);
-      return [] as PublicFaq[];
-    }),
-  ]);
+  const [whatsappNumber, whatsappUrl, faq, diagnosticoEnabled] =
+    await Promise.all([
+      getWhatsappNumber(),
+      getWhatsappUrl(config.whatsapp_msg_padrao),
+      getPublishedFaqByCategory("calculadora").catch((error) => {
+        console.error("Falha ao carregar FAQ da calculadora", error);
+        return [] as PublicFaq[];
+      }),
+      getDiagnosticoHabilitado(),
+    ]);
   const faqSchema = faq.length
     ? {
         "@context": "https://schema.org",
@@ -167,6 +170,7 @@ export default async function CalculadoraPage() {
         <div className="site-container max-w-5xl">
           <CalculadoraInss
             whatsappNumber={whatsappNumber}
+            diagnosticoEnabled={diagnosticoEnabled}
             pageLocation="/calculadora-inss-de-obra"
             eventNames={{
               started:

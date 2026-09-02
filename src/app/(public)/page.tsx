@@ -5,6 +5,7 @@ import { CalculadoraInss } from "@/components/calculadora/calculadora-inss";
 import { CasesSection } from "@/components/public/cases-section";
 import { getWhatsappNumber, getWhatsappUrl } from "@/lib/config";
 import { getSiteConfig } from "@/lib/site-config";
+import { getDiagnosticoHabilitado } from "@/lib/diagnostico/config";
 
 export const metadata: Metadata = {
   title: "Regularize sua obra e economize INSS",
@@ -37,9 +38,10 @@ const professionalServiceSchema = {
 
 export default async function Home() {
   const config = await getSiteConfig();
-  const [whatsappUrl, whatsappNumber] = await Promise.all([
+  const [whatsappUrl, whatsappNumber, diagnosticoEnabled] = await Promise.all([
     getWhatsappUrl(config.whatsapp_msg_padrao),
     getWhatsappNumber(),
+    getDiagnosticoHabilitado(),
   ]);
 
   return (
@@ -123,6 +125,7 @@ export default async function Home() {
             <div className="calculator-editorial lg:col-span-8">
               <CalculadoraInss
                 whatsappNumber={whatsappNumber}
+                diagnosticoEnabled={diagnosticoEnabled}
                 eventNames={{
                   started:
                     config.ga4_event_simulacao_iniciada || "simulacao_iniciada",

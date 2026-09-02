@@ -1,5 +1,6 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { DiagnosticoConfig } from "@/lib/diagnostico/types";
 
@@ -23,6 +24,29 @@ const DIAGNOSTICO_KEYS = [
   "resend_from_email",
   "resend_from_name",
 ] as const;
+
+const getCachedDiagnosticFlag = unstable_cache(
+  async () => {
+    const { data, error } = await createAdminClient()
+      .from("config")
+      .select("valor")
+      .eq("chave", "diagnostico_habilitado")
+      .maybeSingle();
+    if (error) throw error;
+    return bool(data?.valor, true);
+  },
+  ["diagnostico-habilitado"],
+  { revalidate: 300, tags: ["config"] },
+);
+
+export async function getDiagnosticoHabilitado() {
+  try {
+    return await getCachedDiagnosticFlag();
+  } catch (error) {
+    console.error("Falha ao ler status do diagnóstico", error);
+    return false;
+  }
+}
 
 export async function getDiagnosticoConfig(): Promise<DiagnosticoConfig> {
   const { data, error } = await createAdminClient()
