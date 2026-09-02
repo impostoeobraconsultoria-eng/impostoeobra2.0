@@ -1435,6 +1435,54 @@ on conflict (chave) do nothing;
 -- O agendamento horário e os segredos ficam no bloco V8.5 de SQL_REFINAMENTO_V8.sql.
 
 -- =============================================================================
+-- V9 — DIAGNÓSTICO PRELIMINAR
+-- =============================================================================
+
+create sequence if not exists public.diagnostico_seq;
+create or replace function public.proximo_numero_diagnostico()
+returns bigint language sql security definer volatile
+set search_path = public, pg_temp as $$
+  select nextval('public.diagnostico_seq');
+$$;
+revoke execute on function public.proximo_numero_diagnostico() from public, anon, authenticated;
+grant execute on function public.proximo_numero_diagnostico() to service_role;
+
+create table if not exists public.diagnosticos_preliminares (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid not null references public.leads(id) on delete cascade,
+  numero_publico text not null,
+  variante text not null check (variante in ('com_reducao', 'sem_reducao')),
+  economia_pct numeric(5,2),
+  economia_valor numeric(14,2),
+  inss_apurado numeric(14,2),
+  inss_reduzido numeric(14,2),
+  storage_path text not null,
+  storage_bucket text not null default 'diagnosticos-preliminares',
+  versao_template text,
+  gerado_em timestamptz not null default now(),
+  regenerado_em timestamptz,
+  regeracoes_count integer not null default 0,
+  criado_em timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (lead_id)
+);
+create index if not exists idx_diagnosticos_por_lead on public.diagnosticos_preliminares(lead_id);
+create index if not exists idx_diagnosticos_recentes on public.diagnosticos_preliminares(gerado_em desc);
+drop trigger if exists trg_diagnosticos_updated on public.diagnosticos_preliminares;
+create trigger trg_diagnosticos_updated before update on public.diagnosticos_preliminares
+  for each row execute function public.set_updated_at();
+alter table public.diagnosticos_preliminares enable row level security;
+drop policy if exists diag_select_active on public.diagnosticos_preliminares;
+create policy diag_select_active on public.diagnosticos_preliminares for select to authenticated using (public.is_active_user());
+drop policy if exists diag_admin_manage on public.diagnosticos_preliminares;
+create policy diag_admin_manage on public.diagnosticos_preliminares for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+revoke all on table public.diagnosticos_preliminares from anon;
+grant select on table public.diagnosticos_preliminares to authenticated;
+
+-- Config e bucket privado: ver SQL_REFINAMENTO_V9.sql.
+
+-- =============================================================================
 -- FIM DO SCHEMA
 -- =============================================================================
 
