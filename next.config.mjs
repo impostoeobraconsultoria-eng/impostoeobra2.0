@@ -3,6 +3,19 @@ import createMDX from "@next/mdx";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
+  experimental: {
+    // O PDFKit carrega as métricas das fontes padrão dinamicamente. A análise
+    // estática do Next não detecta esses arquivos, então eles precisam entrar
+    // explicitamente nas funções que geram diagnósticos na Vercel.
+    outputFileTracingIncludes: {
+      "/api/leads": [
+        "./node_modules/.pnpm/pdfkit@*/node_modules/pdfkit/js/standard-fonts/**/*",
+      ],
+      "/api/diagnosticos/*": [
+        "./node_modules/.pnpm/pdfkit@*/node_modules/pdfkit/js/standard-fonts/**/*",
+      ],
+    },
+  },
   async redirects() {
     const articleSlugs = [
       "artigo-regularizar-inss-obra",

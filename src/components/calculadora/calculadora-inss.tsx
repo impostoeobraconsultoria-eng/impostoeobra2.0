@@ -18,6 +18,7 @@ import {
   type ResultadoCalculo,
 } from "@/lib/calculadora";
 import { readAttribution, sendGaEvent } from "@/lib/analytics";
+import { DiagnosticoDownload } from "@/components/calculadora/diagnostico-download";
 
 type FormInput = {
   [K in keyof EntradasCalculo]: EntradasCalculo[K] extends number
@@ -78,10 +79,12 @@ export function CalculadoraInss({
   whatsappNumber,
   eventNames,
   pageLocation,
+  diagnosticoEnabled = true,
 }: {
   whatsappNumber: string;
   eventNames: { started: string; generateLead: string };
   pageLocation?: string;
+  diagnosticoEnabled?: boolean;
 }) {
   const [step, setStep] = useState(1);
   const [input, setInput] = useState(initial);
@@ -93,6 +96,7 @@ export function CalculadoraInss({
   const [tabela, setTabela] = useState<Record<string, number[]>>(VAU_HARDCODED);
   const [periodo, setPeriodo] = useState(VAU_PERIODO);
   const [sending, setSending] = useState(false);
+  const [leadId, setLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -209,6 +213,7 @@ export function CalculadoraInss({
           : null;
       if (!response.ok || typeof leadId !== "string")
         throw new Error("Resposta inválida ao registrar lead");
+      setLeadId(leadId);
       sendGaEvent(eventNames.generateLead, {
         lead_id: leadId,
         value: r.economia || 0,
@@ -496,12 +501,15 @@ export function CalculadoraInss({
         <Resultado
           resultado={resultado}
           waUrl={waUrl}
+          leadId={leadId}
+          diagnosticoEnabled={diagnosticoEnabled}
           restart={() => {
             setInput(initial);
             setNome("");
             setTelefone("");
             setEmail("");
             setResultado(null);
+            setLeadId(null);
             go(1);
           }}
         />
@@ -556,10 +564,14 @@ function Actions({
 function Resultado({
   resultado,
   waUrl,
+  leadId,
+  diagnosticoEnabled,
   restart,
 }: {
   resultado: ResultadoCalculo;
   waUrl: string;
+  leadId: string | null;
+  diagnosticoEnabled: boolean;
   restart: () => void;
 }) {
   const detail = [
@@ -638,6 +650,7 @@ function Resultado({
           </div>
         ))}
       </dl>
+      {diagnosticoEnabled && <DiagnosticoDownload leadId={leadId} />}
       <div className="mt-7 flex flex-wrap justify-end gap-3">
         <button
           onClick={restart}

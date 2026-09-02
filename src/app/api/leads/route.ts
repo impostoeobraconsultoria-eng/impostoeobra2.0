@@ -5,6 +5,7 @@ import { leadSchema } from "@/lib/validation/lead";
 import { parseBrazilianMobile } from "@/lib/ddds-brasileiros";
 import { criarNotificacao } from "@/lib/notificacoes/criar";
 import { enviarAlertaLeadNovo } from "@/lib/telegram/envio";
+import { gerarDiagnosticoPreliminar } from "@/lib/diagnostico/gerar";
 
 export const runtime = "nodejs";
 
@@ -123,6 +124,15 @@ export async function POST(request: NextRequest) {
             ? telegramError.message
             : "erro desconhecido",
       });
+    }),
+  );
+  waitUntil(
+    gerarDiagnosticoPreliminar(data.id).then((result) => {
+      if (!result.ok && result.error !== "desabilitado")
+        console.error("[diagnostico] geração assíncrona não concluída", {
+          leadId: data.id,
+          error: result.error,
+        });
     }),
   );
 

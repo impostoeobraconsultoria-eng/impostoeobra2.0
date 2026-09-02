@@ -14,6 +14,7 @@
     "test:telefone": "node --no-warnings --experimental-strip-types scripts/test-telefone.ts",
     "test:lembretes": "node --no-warnings --experimental-strip-types scripts/test-lembretes-agenda.ts",
     "test:cadencia": "node --no-warnings --experimental-strip-types scripts/test-cadencia-filtros.ts",
+    "test:diagnostico": "tsx scripts/testar-diagnostico.tsx",
     "test:templates": "node --no-warnings --experimental-strip-types scripts/test-docx-template.ts",
     "migrate:artigos": "node --no-warnings --experimental-strip-types scripts/migrate-artigos-do-repo-antigo.ts",
     "migrate:crm": "node --no-warnings --experimental-strip-types scripts/migrate-crm-do-sheets.ts",
@@ -23,6 +24,7 @@
     "@mdx-js/loader": "3.1.1",
     "@mdx-js/react": "3.1.1",
     "@next/mdx": "14.2.35",
+    "@react-pdf/renderer": "4.9.0",
     "@supabase/ssr": "0.12.4",
     "@supabase/supabase-js": "2.112.3",
     "@tiptap/extension-image": "3.30.1",
@@ -70,6 +72,7 @@
     "prettier": "3.6.2",
     "prettier-plugin-tailwindcss": "0.6.14",
     "tailwindcss": "3.4.19",
+    "tsx": "4.23.13",
     "typescript": "5.9.3"
   },
   "engines": {

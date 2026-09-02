@@ -21,7 +21,6 @@ import {
   joinAddress,
 } from "@/lib/documentos";
 import { calcularComplementar } from "@/lib/leads";
-import { createClient } from "@/lib/supabase/server";
 import { BrazilianPhoneInput } from "@/components/ui/brazilian-phone-input";
 import { formatBrazilianMobile } from "@/lib/ddds-brasileiros";
 import { findRecurrencesForRecord } from "@/lib/recurrence";
@@ -29,6 +28,8 @@ import { RecurrenceAlert } from "@/components/admin/recurrence-alert";
 import { LeadQualificationButton } from "@/components/admin/lead-qualification-button";
 import { LeadCadenceActions } from "@/components/admin/lead-cadence-actions";
 import { getCadenciaConfig } from "@/lib/cadencia/config";
+import { getActiveUser } from "@/lib/cadencia/auth";
+import { LeadDiagnosticoCard } from "@/components/admin/lead-diagnostico-card";
 
 type Props = {
   params: { id: string };
@@ -45,7 +46,9 @@ const dateTime = new Intl.DateTimeFormat("pt-BR", {
 });
 
 export default async function LeadDetailPage({ params, searchParams }: Props) {
-  const supabase = createClient();
+  const auth = await getActiveUser();
+  if (!auth) notFound();
+  const supabase = auth.supabase;
   const [
     { data: lead, error },
     { data: activities },
@@ -56,6 +59,7 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
     { data: products },
     { data: inactivationReasons },
     { data: attempts },
+    { data: diagnostico },
     config,
     cadenceConfig,
   ] = await Promise.all([
@@ -102,6 +106,13 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
       )
       .eq("lead_id", params.id)
       .order("numero", { ascending: false }),
+    supabase
+      .from("diagnosticos_preliminares")
+      .select(
+        "numero_publico,variante,gerado_em,regenerado_em,regeracoes_count",
+      )
+      .eq("lead_id", params.id)
+      .maybeSingle(),
     getConfigMap(),
     getCadenciaConfig(),
   ]);
@@ -324,6 +335,13 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
             </div>
           </section>
         )}
+        <LeadDiagnosticoCard
+          leadId={lead.id}
+          diagnostico={diagnostico}
+          canRegenerate={
+            auth.user.perfil === "admin" || lead.responsavel_id === auth.user.id
+          }
+        />
         <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <form action={updateAction} className="space-y-6">
             <Card title="1. Dados do lead">
