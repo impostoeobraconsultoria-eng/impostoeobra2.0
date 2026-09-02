@@ -11,11 +11,27 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getSiteConfig } from "@/lib/site-config";
 import { AtivarPush } from "@/components/admin/ativar-push";
+import {
+  DashboardCadence,
+  type CadenceMetrics,
+} from "@/components/admin/dashboard-cadence";
+import type { ContactPerformancePoint } from "@/components/admin/grafico-performance-contato";
+import type { ConsultantLeadSlice } from "@/components/admin/grafico-leads-por-consultor";
+import { getCadenciaConfig, saoPauloDateKey } from "@/lib/cadencia/config";
 
 type AdminPageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
 };
 type Stage = { nome: string; cor: string | null; e_fechada: boolean };
+type CadenceLead = {
+  id: string;
+  data_hora: string;
+  contato_inicial_em: string | null;
+  responsavel_id: string | null;
+  proxima_tentativa_em: string | null;
+  cadencia_finalizada_em: string | null;
+  tentativa_atual: number;
+};
 
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -125,6 +141,17 @@ function LeadsLineChart({
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const forbidden = searchParams?.error === "forbidden";
   const supabase = createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  const email = claims?.claims.email;
+  const { data: profile } =
+    typeof email === "string"
+      ? await supabase
+          .from("users")
+          .select("id,perfil")
+          .eq("email", email.toLowerCase())
+          .eq("ativo", true)
+          .maybeSingle()
+      : { data: null };
   const { previousMonthStart, monthStart, nextMonth, thirtyDaysAgo } =
     periods();
   const [
@@ -136,6 +163,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     stagesResult,
     goalResult,
     config,
+    cadenceLeadsResult,
+    activeUsersResult,
+    cadenceConfig,
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -181,6 +211,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .eq("chave", "meta_leads_mensal")
       .maybeSingle(),
     getSiteConfig(),
+    supabase
+      .from("leads")
+      .select(
+        "id,data_hora,contato_inicial_em,responsavel_id,proxima_tentativa_em,cadencia_finalizada_em,tentativa_atual",
+      )
+      .is("deleted_at", null)
+      .is("convertido_em", null)
+      .eq("status_ativacao", "ativo")
+      .limit(2000),
+    supabase.from("users").select("id,nome").eq("ativo", true).order("nome"),
+    getCadenciaConfig(),
   ]);
   const errors = [
     currentResult.error,
@@ -189,6 +230,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     chartResult.error,
     contractsResult.error,
     stagesResult.error,
+    cadenceLeadsResult.error,
+    activeUsersResult.error,
   ].filter(Boolean);
   if (errors.length)
     console.error(
@@ -247,6 +290,25 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     daily.set(key, (daily.get(key) ?? 0) + 1);
   }
   const chart = Array.from(daily, ([day, count]) => ({ day, count }));
+  const cadenceLeads = (cadenceLeadsResult.data ?? []) as CadenceLead[];
+  const mine = profile
+    ? cadenceLeads.filter((lead) => lead.responsavel_id === profile.id)
+    : [];
+  const today = saoPauloDateKey();
+  const now = new Date();
+  const allMetrics = cadenceMetrics(
+    cadenceLeads,
+    profile?.id ?? null,
+    today,
+    now,
+  );
+  const mineMetrics = cadenceMetrics(mine, profile?.id ?? null, today, now);
+  const allPerformance = contactPerformance(cadenceLeads, thirtyDaysAgo);
+  const minePerformance = contactPerformance(mine, thirtyDaysAgo);
+  const consultantSlices = leadSlices(
+    cadenceLeads,
+    activeUsersResult.data ?? [],
+  );
 
   const kpis = [
     {
@@ -323,6 +385,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </article>
           ))}
         </section>
+        <DashboardCadence
+          isAdmin={profile?.perfil === "admin"}
+          allMetrics={allMetrics}
+          mineMetrics={mineMetrics}
+          allPerformance={allPerformance}
+          minePerformance={minePerformance}
+          cardOrder={cadenceConfig.dashboardCardsOrdem}
+          consultantSlices={consultantSlices}
+        />
         <section className="mt-6 grid grid-cols-1 gap-8">
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold">Leads nos últimos 30 dias</h2>
@@ -405,4 +476,114 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </div>
     </main>
   );
+}
+
+function cadenceMetrics(
+  leads: CadenceLead[],
+  currentUserId: string | null,
+  today: string,
+  now: Date,
+): CadenceMetrics {
+  const uncovered = leads.filter((lead) => !lead.responsavel_id);
+  const averageHours = uncovered.length
+    ? Math.floor(
+        uncovered.reduce(
+          (sum, lead) =>
+            sum + Math.max(0, now.getTime() - Date.parse(lead.data_hora)),
+          0,
+        ) /
+          uncovered.length /
+          3_600_000,
+      )
+    : 0;
+  const followupToday = leads.filter(
+    (lead) =>
+      lead.proxima_tentativa_em === today && !lead.cadencia_finalizada_em,
+  );
+  const overdue = leads.filter(
+    (lead) =>
+      lead.proxima_tentativa_em != null &&
+      lead.proxima_tentativa_em < today &&
+      !lead.cadencia_finalizada_em,
+  );
+  const decisions = leads.filter((lead) => lead.cadencia_finalizada_em);
+  const personal = currentUserId
+    ? leads.filter((lead) => lead.responsavel_id === currentUserId)
+    : [];
+  return {
+    sem_consultor: {
+      count: uncovered.length,
+      detail: uncovered.length
+        ? `Em média há ${averageHours}h`
+        : "Todos os leads estão cobertos",
+    },
+    followup_hoje: {
+      count: followupToday.length,
+      detail: "Contatos previstos para hoje",
+    },
+    followup_atrasado: {
+      count: overdue.length,
+      detail: overdue.length ? "Exigem ação imediata" : "Nenhum atraso",
+    },
+    decidir_hoje: {
+      count: decisions.length,
+      detail: "Converter ou inativar",
+    },
+    meus_leads: {
+      count: personal.length,
+      detail: "Leads ativos sob sua responsabilidade",
+    },
+  };
+}
+
+function contactPerformance(
+  leads: CadenceLead[],
+  thirtyDaysAgo: string,
+): ContactPerformancePoint[] {
+  const points = new Map<string, ContactPerformancePoint>();
+  for (let index = 0; index < 30; index += 1) {
+    const day = new Date(thirtyDaysAgo);
+    day.setUTCDate(day.getUTCDate() + index);
+    const key = dateKey(day);
+    points.set(key, {
+      day: shortDate.format(new Date(`${key}T12:00:00-03:00`)),
+      verde: 0,
+      amarelo: 0,
+      vermelho: 0,
+    });
+  }
+  for (const lead of leads) {
+    if (lead.data_hora < thirtyDaysAgo) continue;
+    const point = points.get(dateKey(lead.data_hora));
+    if (!point) continue;
+    if (!lead.contato_inicial_em) point.vermelho += 1;
+    else {
+      const hours =
+        (Date.parse(lead.contato_inicial_em) - Date.parse(lead.data_hora)) /
+        3_600_000;
+      if (hours < 1) point.verde += 1;
+      else if (hours <= 3) point.amarelo += 1;
+      else point.vermelho += 1;
+    }
+  }
+  return Array.from(points.values());
+}
+
+function leadSlices(
+  leads: CadenceLead[],
+  users: { id: string; nome: string | null }[],
+): ConsultantLeadSlice[] {
+  const counts = new Map<string | null, number>();
+  for (const lead of leads)
+    counts.set(lead.responsavel_id, (counts.get(lead.responsavel_id) ?? 0) + 1);
+  const names = new Map(users.map((user) => [user.id, user.nome]));
+  return Array.from(counts, ([id, quantidade]) => ({
+    id,
+    nome: id ? names.get(id) || "Usuário inativo" : "Sem consultor",
+    quantidade,
+  })).sort((a, b) => {
+    if (a.id === null) return -1;
+    if (b.id === null) return 1;
+    return b.quantidade - a.quantidade;
+  });
 }
