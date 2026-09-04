@@ -62,8 +62,22 @@ export function getSchemaArticle(article: SchemaArticle, config: SeoConfig) {
     image: absoluteUrl(article.image || config.ogImagePadrao),
     datePublished: article.datePublished,
     dateModified: article.dateModified,
-    author: { "@id": `${SITE_URL}/#organization` },
-    publisher: { "@id": `${SITE_URL}/#organization` },
+    author: {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: config.orgNome,
+      url: SITE_URL,
+    },
+    publisher: {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: config.orgNome,
+      url: SITE_URL,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/og-logo.png`,
+      },
+    },
     mainEntityOfPage: url,
     inLanguage: "pt-BR",
   };
