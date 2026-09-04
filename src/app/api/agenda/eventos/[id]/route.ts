@@ -22,7 +22,7 @@ export async function PATCH(request: NextRequest, { params }: Context) {
 
   const { data: current } = await context.supabase
     .from("eventos_agenda")
-    .select("id,serie_id,inicio,fim,lead_id,cliente_id")
+    .select("id,serie_id,inicio,fim,lead_id,cliente_id,criado_por")
     .eq("id", id.data)
     .maybeSingle();
   if (!current)
@@ -67,7 +67,7 @@ export async function PATCH(request: NextRequest, { params }: Context) {
 
   if (participantes_user_ids) {
     const participants = Array.from(
-      new Set([...participantes_user_ids, context.user.id]),
+      new Set([...participantes_user_ids, current.criado_por]),
     );
     const ids = (updated ?? []).map((event) => event.id);
     if (ids.length) {

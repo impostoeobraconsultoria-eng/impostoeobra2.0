@@ -1,812 +1,210 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  CalendarPlus,
-  CheckCircle2,
+  CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Clock,
+  Filter,
   LoaderCircle,
-  Pencil,
+  Plus,
   Trash2,
   X,
 } from "lucide-react";
 
-import {
-  createAgendaEvent,
-  deleteAgendaEvent,
-  setAgendaEventStatus,
-  updateAgendaEvent,
-} from "./actions";
+import type { EventoAgenda, TipoEvento } from "@/lib/agenda/types";
 
-type Event = {
-  id: string;
-  titulo: string;
-  descricao: string | null;
-  tipo: "reuniao" | "follow_up" | "prazo" | "tarefa_interna";
-  data_hora_inicio: string;
-  data_hora_fim: string | null;
-  dia_inteiro: boolean;
-  lembrete_minutos: number | null;
-  ref_tipo: "lead" | "cliente" | "contrato" | null;
-  ref_id: string | null;
-  responsavel_id: string | null;
-  status: "agendado" | "concluido" | "cancelado";
-  responsavel?: { nome: string | null } | { nome: string | null }[] | null;
-};
 type Named = { id: string; nome: string };
-type Contract = {
-  id: string;
-  numero: string | null;
-  cliente?: { nome: string } | { nome: string }[] | null;
+type ViewMode = "mensal" | "semanal" | "lista";
+type ModalState = { event: EventoAgenda | null; start?: Date } | null;
+
+const typeInfo: Record<TipoEvento, { label: string; className: string }> = {
+  reuniao: { label: "Reunião", className: "border-blue-500 bg-blue-50 text-blue-800" },
+  follow_up: { label: "Follow-up", className: "border-emerald-500 bg-emerald-50 text-emerald-800" },
+  prazo: { label: "Prazo", className: "border-amber-500 bg-amber-50 text-amber-900" },
+  tarefa: { label: "Tarefa", className: "border-slate-400 bg-slate-100 text-slate-700" },
 };
-const typeInfo = {
-  reuniao: { label: "Reunião", color: "#0B76C6" },
-  follow_up: { label: "Follow-up", color: "#7C3AED" },
-  prazo: { label: "Prazo", color: "#D97706" },
-  tarefa_interna: { label: "Tarefa", color: "#3AB97A" },
-} as const;
-const dateKey = (value: string | Date) =>
+const allTypes = Object.keys(typeInfo) as TipoEvento[];
+const dateKey = (date: Date) =>
   new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date(value));
-const dateTime = new Intl.DateTimeFormat("pt-BR", {
-  dateStyle: "short",
-  timeStyle: "short",
-  timeZone: "America/Sao_Paulo",
-});
+  }).format(date);
 const time = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
   hour: "2-digit",
   minute: "2-digit",
-  timeZone: "America/Sao_Paulo",
 });
 
-function inputDate(value?: string | null) {
-  if (!value) return "";
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-    timeZone: "America/Sao_Paulo",
-  }).formatToParts(new Date(value));
-  const get = (type: string) => parts.find((part) => part.type === type)?.value;
-  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
-}
-
 export function AgendaCalendar({
-  month,
-  events,
   users,
   leads,
-  customers,
-  contracts,
+  clients,
   currentUserId,
-  isAdmin,
+  defaultView,
   defaultReminder,
+  dayStart,
+  dayEnd,
   initialEventId,
-  initialView,
 }: {
-  month: string;
-  events: Event[];
-  users: Array<{ id: string; nome: string | null; email: string }>;
+  users: Named[];
   leads: Named[];
-  customers: Named[];
-  contracts: Contract[];
+  clients: Named[];
   currentUserId: string;
-  isAdmin: boolean;
+  defaultView: string;
   defaultReminder: number;
+  dayStart: string;
+  dayEnd: string;
   initialEventId?: string;
-  initialView?: string;
 }) {
-  const [view, setView] = useState<"month" | "week" | "list">(
-    initialView === "week" || initialView === "list" ? initialView : "month",
+  const [view, setViewState] = useState<ViewMode>(
+    defaultView === "mensal" || defaultView === "lista" ? defaultView : "semanal",
   );
-  const [modal, setModal] = useState<"new" | "details" | "edit" | null>(
-    initialEventId ? "details" : null,
-  );
-  const [selected, setSelected] = useState<Event | null>(
-    events.find((event) => event.id === initialEventId) ?? null,
-  );
-  const [typeFilters, setTypeFilters] = useState(
-    () => new Set(Object.keys(typeInfo)),
-  );
-  const [responsible, setResponsible] = useState("");
-  const [error, setError] = useState("");
-  const [pending, startTransition] = useTransition();
+  const [anchor, setAnchor] = useState(new Date());
+  const [events, setEvents] = useState<EventoAgenda[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<ModalState>(null);
+  const [types, setTypes] = useState<Set<TipoEvento>>(new Set(allTypes));
+  const [participant, setParticipant] = useState("");
+  const [association, setAssociation] = useState("");
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("agenda:view");
+    if (saved === "mensal" || saved === "semanal" || saved === "lista")
+      setViewState(saved);
+  }, []);
+  const setView = (next: ViewMode) => {
+    setViewState(next);
+    window.localStorage.setItem("agenda:view", next);
+  };
+
+  const range = useMemo(() => {
+    const from = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() - 1, 1));
+    const to = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + 2, 1));
+    return { from: from.toISOString(), to: to.toISOString() };
+  }, [anchor]);
+  const loadEvents = useCallback(async () => {
+    setLoading(true);
+    const response = await fetch(
+      `/api/agenda/eventos?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`,
+      { cache: "no-store" },
+    );
+    if (response.ok) {
+      const payload = await response.json();
+      setEvents(payload.eventos ?? []);
+    }
+    setLoading(false);
+  }, [range]);
+  useEffect(() => void loadEvents(), [loadEvents]);
+  useEffect(() => {
+    if (!initialEventId || !events.length) return;
+    const selected = events.find((event) => event.id === initialEventId);
+    if (selected) setModal({ event: selected });
+  }, [events, initialEventId]);
+
   const filtered = useMemo(
     () =>
-      events.filter(
-        (event) =>
-          typeFilters.has(event.tipo) &&
-          (!responsible || event.responsavel_id === responsible),
-      ),
-    [events, typeFilters, responsible],
+      events.filter((event) => {
+        if (!types.has(event.tipo)) return false;
+        if (participant && !event.participantes?.some((item) => item.user_id === participant))
+          return false;
+        if (association === "lead" && !event.lead_id) return false;
+        if (association === "cliente" && !event.cliente_id) return false;
+        if (association === "nenhum" && (event.lead_id || event.cliente_id)) return false;
+        return true;
+      }),
+    [association, events, participant, types],
   );
-  const [year, monthNumber] = month.split("-").map(Number);
-  const title = new Intl.DateTimeFormat("pt-BR", {
-    month: "long",
-    year: "numeric",
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date(Date.UTC(year, monthNumber - 1, 15, 12)));
-  const shiftMonth = (delta: number) => {
-    const date = new Date(Date.UTC(year, monthNumber - 1 + delta, 1));
-    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+  const move = (direction: number) => {
+    const next = new Date(anchor);
+    if (view === "mensal") next.setMonth(next.getMonth() + direction);
+    else next.setDate(next.getDate() + direction * (view === "semanal" ? 7 : 14));
+    setAnchor(next);
   };
-  const todayMonth = dateKey(new Date()).slice(0, 7);
-
-  function openDetails(event: Event) {
-    setSelected(event);
-    setModal("details");
-    setError("");
-  }
-  function changeStatus(status: Event["status"]) {
-    if (!selected) return;
-    startTransition(async () => {
-      const result = await setAgendaEventStatus(selected.id, status);
-      if (!result.ok) setError(result.error ?? "Falha ao atualizar.");
-      else window.location.reload();
-    });
-  }
-  function remove() {
-    if (!selected || !window.confirm("Excluir este evento definitivamente?"))
-      return;
-    startTransition(async () => {
-      const result = await deleteAgendaEvent(selected.id);
-      if (!result.ok) setError(result.error ?? "Falha ao excluir.");
-      else window.location.reload();
-    });
-  }
 
   return (
-    <main className="px-5 py-8 sm:px-8">
-      <div className="mx-auto max-w-[1600px]">
+    <main className="px-4 py-7 sm:px-8">
+      <div className="mx-auto max-w-[1500px]">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-primary">Equipe</p>
-            <h1 className="mt-1 text-3xl font-bold capitalize">
-              Agenda · {title}
-            </h1>
-            <p className="mt-2 text-sm text-slate-500">
-              Calendário compartilhado de reuniões, contatos, prazos e tarefas.
-            </p>
+            <p className="text-sm font-semibold text-primary">CRM compartilhado</p>
+            <h1 className="text-3xl font-bold">Agenda</h1>
+            <p className="mt-2 text-sm text-slate-500">Reuniões, follow-ups, prazos e tarefas da equipe.</p>
           </div>
           <button
-            type="button"
-            onClick={() => {
-              setSelected(null);
-              setModal("new");
-            }}
-            className="flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-white"
+            className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-bold text-white"
+            onClick={() => setModal({ event: null, start: anchor })}
           >
-            <CalendarPlus className="size-4" />
-            Novo evento
+            <Plus className="size-4" /> Novo evento
           </button>
         </header>
-        <section className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border bg-white p-4 shadow-sm">
-          <div className="flex items-center rounded-xl border p-1">
-            <Link
-              aria-label="Mês anterior"
-              href={`/admin/agenda?mes=${shiftMonth(-1)}&view=${view}`}
-              className="rounded-lg p-2 hover:bg-slate-50"
-            >
-              <ChevronLeft className="size-4" />
-            </Link>
-            <Link
-              href={`/admin/agenda?mes=${todayMonth}&view=${view}`}
-              className="px-3 py-2 text-sm font-bold"
-            >
-              Hoje
-            </Link>
-            <Link
-              aria-label="Próximo mês"
-              href={`/admin/agenda?mes=${shiftMonth(1)}&view=${view}`}
-              className="rounded-lg p-2 hover:bg-slate-50"
-            >
-              <ChevronRight className="size-4" />
-            </Link>
+
+        <section className="mt-6 rounded-2xl border bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <button className="rounded-full border p-2" onClick={() => move(-1)} aria-label="Anterior"><ChevronLeft className="size-4" /></button>
+              <button className="rounded-full border px-4 py-2 text-sm font-semibold" onClick={() => setAnchor(new Date())}>Hoje</button>
+              <button className="rounded-full border p-2" onClick={() => move(1)} aria-label="Próximo"><ChevronRight className="size-4" /></button>
+              <strong className="ml-2 capitalize">{anchor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</strong>
+            </div>
+            <div className="flex rounded-full bg-slate-100 p-1">
+              {(["mensal", "semanal", "lista"] as ViewMode[]).map((item) => (
+                <button key={item} onClick={() => setView(item)} className={`rounded-full px-4 py-2 text-xs font-bold capitalize ${view === item ? "bg-white text-primary shadow-sm" : "text-slate-500"}`}>{item === "lista" ? "Próximos" : item}</button>
+              ))}
+            </div>
           </div>
-          <div className="flex rounded-xl border p-1">
-            {(["month", "week", "list"] as const).map((item) => (
-              <button
-                type="button"
-                key={item}
-                onClick={() => setView(item)}
-                className={`rounded-lg px-3 py-2 text-sm font-semibold ${view === item ? "bg-primary text-white" : "text-slate-600"}`}
-              >
-                {item === "month"
-                  ? "Mês"
-                  : item === "week"
-                    ? "Semana"
-                    : "Lista"}
-              </button>
-            ))}
-          </div>
-          <select
-            aria-label="Filtrar por responsável"
-            className="input max-w-xs"
-            value={responsible}
-            onChange={(event) => setResponsible(event.target.value)}
-          >
-            <option value="">Todos os responsáveis</option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.nome || user.email}
-              </option>
-            ))}
-          </select>
-          <div className="flex flex-wrap gap-3">
-            {Object.entries(typeInfo).map(([key, info]) => (
-              <label
-                key={key}
-                className="flex items-center gap-1.5 text-xs font-semibold"
-              >
-                <input
-                  type="checkbox"
-                  checked={typeFilters.has(key)}
-                  onChange={() =>
-                    setTypeFilters((current) => {
-                      const copy = new Set(current);
-                      if (copy.has(key)) copy.delete(key);
-                      else copy.add(key);
-                      return copy;
-                    })
-                  }
-                />
-                <span
-                  className="size-2.5 rounded-full"
-                  style={{ background: info.color }}
-                />
-                {info.label}
-              </label>
-            ))}
-          </div>
+          <details className="mt-4 border-t pt-4">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-bold"><Filter className="size-4" /> Filtros <ChevronDown className="size-4" /></summary>
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <fieldset><legend className="text-xs font-bold uppercase text-slate-500">Tipos</legend><div className="mt-2 flex flex-wrap gap-2">{allTypes.map((type) => <label key={type} className="flex items-center gap-1 text-sm"><input type="checkbox" checked={types.has(type)} onChange={() => setTypes((current) => { const next = new Set(current); if (next.has(type)) next.delete(type); else next.add(type); return next; })} />{typeInfo[type].label}</label>)}</div></fieldset>
+              <label className="field">Participante<select className="input" value={participant} onChange={(event) => setParticipant(event.target.value)}><option value="">Todos</option>{users.map((user) => <option key={user.id} value={user.id}>{user.nome}</option>)}</select></label>
+              <label className="field">Associação<select className="input" value={association} onChange={(event) => setAssociation(event.target.value)}><option value="">Todas</option><option value="lead">Lead</option><option value="cliente">Cliente</option><option value="nenhum">Sem associação</option></select></label>
+            </div>
+          </details>
         </section>
-        {view === "month" ? (
-          <MonthView
-            year={year}
-            month={monthNumber}
-            events={filtered}
-            open={openDetails}
-          />
-        ) : view === "week" ? (
-          <WeekView month={month} events={filtered} open={openDetails} />
-        ) : (
-          <ListView events={filtered} open={openDetails} />
-        )}
-        {modal && (
-          <EventModal
-            mode={modal}
-            event={selected}
-            users={users}
-            leads={leads}
-            customers={customers}
-            contracts={contracts}
-            currentUserId={currentUserId}
-            isAdmin={isAdmin}
-            defaultReminder={defaultReminder}
-            pending={pending}
-            error={error}
-            close={() => setModal(null)}
-            edit={() => setModal("edit")}
-            status={changeStatus}
-            remove={remove}
-          />
-        )}
+
+        {loading ? <div className="grid min-h-80 place-items-center"><LoaderCircle className="size-7 animate-spin text-primary" /></div> : !filtered.length ? <EmptyState create={() => setModal({ event: null, start: anchor })} /> : view === "mensal" ? <MonthView anchor={anchor} events={filtered} open={(event) => setModal({ event })} create={(start) => setModal({ event: null, start })} /> : view === "semanal" ? <WeekView anchor={anchor} events={filtered} dayStart={dayStart} dayEnd={dayEnd} open={(event) => setModal({ event })} create={(start) => setModal({ event: null, start })} /> : <ListView anchor={anchor} events={filtered} open={(event) => setModal({ event })} />}
       </div>
+      {modal && <EventModal key={`${modal.event?.id ?? "new"}-${modal.start?.toISOString() ?? ""}`} state={modal} users={users} leads={leads} clients={clients} currentUserId={currentUserId} defaultReminder={defaultReminder} close={() => setModal(null)} saved={async () => { setModal(null); await loadEvents(); }} />}
     </main>
   );
 }
 
-function MonthView({
-  year,
-  month,
-  events,
-  open,
-}: {
-  year: number;
-  month: number;
-  events: Event[];
-  open: (event: Event) => void;
-}) {
-  const first = new Date(Date.UTC(year, month - 1, 1, 12));
-  const start = new Date(first);
-  start.setUTCDate(1 - first.getUTCDay());
-  const days = Array.from({ length: 42 }, (_, index) => {
-    const day = new Date(start);
-    day.setUTCDate(start.getUTCDate() + index);
-    return day;
-  });
-  return (
-    <section className="mt-5 overflow-hidden rounded-2xl border bg-white shadow-sm">
-      <div className="grid grid-cols-7 border-b bg-slate-50 text-center text-xs font-bold uppercase tracking-wide text-slate-500">
-        {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
-          <div className="p-3" key={day}>
-            {day}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7">
-        {days.map((day) => {
-          const key = dateKey(day);
-          const list = events.filter(
-            (event) => dateKey(event.data_hora_inicio) === key,
-          );
-          const inMonth = day.getUTCMonth() === month - 1;
-          return (
-            <div
-              key={key}
-              className={`min-h-32 border-b border-r p-2 ${inMonth ? "bg-white" : "bg-slate-50/70 text-slate-400"}`}
-            >
-              <p
-                className={`text-xs font-bold ${key === dateKey(new Date()) ? "text-primary" : ""}`}
-              >
-                {day.getUTCDate()}
-              </p>
-              <div className="mt-2 space-y-1">
-                {list.slice(0, 3).map((event) => (
-                  <EventPill key={event.id} event={event} open={open} />
-                ))}
-                {list.length > 3 && (
-                  <p className="px-1 text-xs font-semibold text-slate-500">
-                    +{list.length - 3}
-                  </p>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-function WeekView({
-  month,
-  events,
-  open,
-}: {
-  month: string;
-  events: Event[];
-  open: (event: Event) => void;
-}) {
-  const base = new Date(`${month}-01T12:00:00Z`);
-  const today = new Date();
-  if (dateKey(today).startsWith(month)) base.setUTCDate(today.getUTCDate());
-  const start = new Date(base);
-  start.setUTCDate(base.getUTCDate() - base.getUTCDay());
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const day = new Date(start);
-    day.setUTCDate(start.getUTCDate() + i);
-    return day;
-  });
-  return (
-    <section className="mt-5 overflow-x-auto rounded-2xl border bg-white shadow-sm">
-      <div className="grid min-w-[1100px] grid-cols-[64px_repeat(7,minmax(140px,1fr))]">
-        <div className="sticky top-20 z-10 border-b bg-slate-50" />
-        {days.map((day) => (
-          <div
-            key={day.toISOString()}
-            className="sticky top-20 z-10 border-b border-l bg-slate-50 p-3 text-center text-sm font-bold capitalize"
-          >
-            {new Intl.DateTimeFormat("pt-BR", {
-              weekday: "short",
-              day: "2-digit",
-              timeZone: "UTC",
-            }).format(day)}
-          </div>
-        ))}
-        {Array.from({ length: 24 }, (_, hour) => (
-          <div key={hour} className="contents">
-            <div className="border-b bg-slate-50 px-2 py-3 text-right text-xs font-semibold text-slate-400">
-              {String(hour).padStart(2, "0")}:00
-            </div>
-            {days.map((day) => {
-              const list = events.filter(
-                (event) =>
-                  dateKey(event.data_hora_inicio) === dateKey(day) &&
-                  Number(inputDate(event.data_hora_inicio).slice(11, 13)) ===
-                    hour,
-              );
-              return (
-                <div
-                  key={`${day.toISOString()}-${hour}`}
-                  className="min-h-16 space-y-1 border-b border-l p-1"
-                >
-                  {list.map((event) => (
-                    <EventPill
-                      key={event.id}
-                      event={event}
-                      open={open}
-                      expanded
-                    />
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-function ListView({
-  events,
-  open,
-}: {
-  events: Event[];
-  open: (event: Event) => void;
-}) {
-  const futureEvents = events.filter(
-    (event) => new Date(event.data_hora_inicio).getTime() >= Date.now(),
-  );
-  return (
-    <section className="mt-5 overflow-hidden rounded-2xl border bg-white shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[850px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-            <tr>
-              <th className="px-5 py-3">Evento</th>
-              <th className="px-4 py-3">Tipo</th>
-              <th className="px-4 py-3">Data</th>
-              <th className="px-4 py-3">Responsável</th>
-              <th className="px-4 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {futureEvents.map((event) => {
-              const responsible = Array.isArray(event.responsavel)
-                ? event.responsavel[0]
-                : event.responsavel;
-              return (
-                <tr
-                  key={event.id}
-                  onClick={() => open(event)}
-                  className="cursor-pointer hover:bg-slate-50"
-                >
-                  <td className="px-5 py-4 font-semibold">{event.titulo}</td>
-                  <td className="px-4 py-4">{typeInfo[event.tipo].label}</td>
-                  <td className="px-4 py-4">
-                    {dateTime.format(new Date(event.data_hora_inicio))}
-                  </td>
-                  <td className="px-4 py-4">{responsible?.nome || "—"}</td>
-                  <td className="px-4 py-4 capitalize">{event.status}</td>
-                </tr>
-              );
-            })}
-            {!futureEvents.length && (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-5 py-12 text-center text-slate-500"
-                >
-                  Nenhum evento encontrado.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-function EventPill({
-  event,
-  open,
-  expanded = false,
-}: {
-  event: Event;
-  open: (event: Event) => void;
-  expanded?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => open(event)}
-      className={`block w-full border-l-4 bg-slate-50 px-2 py-1.5 text-left text-[11px] ${event.status !== "agendado" ? "opacity-45" : ""}`}
-      style={{ borderColor: typeInfo[event.tipo].color }}
-    >
-      <span className="block truncate font-bold">{event.titulo}</span>
-      {(expanded || !event.dia_inteiro) && (
-        <span className="text-slate-500">
-          {event.dia_inteiro
-            ? "Dia inteiro"
-            : time.format(new Date(event.data_hora_inicio))}
-        </span>
-      )}
-    </button>
-  );
+function EventPill({ event, open }: { event: EventoAgenda; open: (event: EventoAgenda) => void }) {
+  return <button onClick={(click) => { click.stopPropagation(); open(event); }} className={`block w-full truncate border-l-4 px-2 py-1 text-left text-[11px] font-semibold ${typeInfo[event.tipo].className}`}>{event.dia_inteiro ? "" : `${time.format(new Date(event.inicio))} `}{event.titulo}</button>;
 }
 
-function EventModal({
-  mode,
-  event,
-  users,
-  leads,
-  customers,
-  contracts,
-  currentUserId,
-  isAdmin,
-  defaultReminder,
-  pending,
-  error,
-  close,
-  edit,
-  status,
-  remove,
-}: {
-  mode: "new" | "details" | "edit";
-  event: Event | null;
-  users: Array<{ id: string; nome: string | null; email: string }>;
-  leads: Named[];
-  customers: Named[];
-  contracts: Contract[];
-  currentUserId: string;
-  isAdmin: boolean;
-  defaultReminder: number;
-  pending: boolean;
-  error: string;
-  close: () => void;
-  edit: () => void;
-  status: (value: Event["status"]) => void;
-  remove: () => void;
-}) {
-  if (mode === "details" && event) {
-    const responsible = Array.isArray(event.responsavel)
-      ? event.responsavel[0]
-      : event.responsavel;
-    return (
-      <Modal title={event.titulo} close={close}>
-        <div className="space-y-3 text-sm">
-          <p className="flex items-center gap-2 text-slate-600">
-            <Clock className="size-4" />
-            {dateTime.format(new Date(event.data_hora_inicio))}
-            {event.data_hora_fim
-              ? ` — ${dateTime.format(new Date(event.data_hora_fim))}`
-              : ""}
-          </p>
-          <p>
-            <strong>Tipo:</strong> {typeInfo[event.tipo].label}
-          </p>
-          <p>
-            <strong>Responsável:</strong> {responsible?.nome || "Não definido"}
-          </p>
-          <p>
-            <strong>Status:</strong> {event.status}
-          </p>
-          {event.descricao && (
-            <p className="whitespace-pre-wrap text-slate-600">
-              {event.descricao}
-            </p>
-          )}
-        </div>
-        {error && <p className="mt-4 text-sm text-red-700">{error}</p>}
-        <div className="mt-6 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={edit}
-            className="flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold"
-          >
-            <Pencil className="size-4" />
-            Editar
-          </button>
-          {event.status !== "concluido" && (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => status("concluido")}
-              className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-bold text-white"
-            >
-              <CheckCircle2 className="size-4" />
-              Concluir
-            </button>
-          )}
-          {event.status !== "cancelado" && (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => status("cancelado")}
-              className="rounded-full border px-4 py-2 text-sm font-bold"
-            >
-              Cancelar evento
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={remove}
-              className="ml-auto flex items-center gap-2 rounded-full border border-red-200 px-4 py-2 text-sm font-bold text-red-700"
-            >
-              <Trash2 className="size-4" />
-              Excluir
-            </button>
-          )}
-        </div>
-      </Modal>
-    );
-  }
-  const action = event
-    ? updateAgendaEvent.bind(null, event.id)
-    : createAgendaEvent;
-  const reference =
-    event?.ref_tipo && event.ref_id ? `${event.ref_tipo}:${event.ref_id}` : "";
-  return (
-    <Modal title={event ? "Editar evento" : "Novo evento"} close={close}>
-      <form action={action} className="mt-5 grid gap-4 sm:grid-cols-2">
-        <label className="field sm:col-span-2">
-          Título *
-          <input
-            className="input"
-            name="titulo"
-            required
-            minLength={2}
-            defaultValue={event?.titulo ?? ""}
-          />
-        </label>
-        <label className="field">
-          Tipo
-          <select
-            className="input"
-            name="tipo"
-            defaultValue={event?.tipo ?? "reuniao"}
-          >
-            {Object.entries(typeInfo).map(([key, info]) => (
-              <option key={key} value={key}>
-                {info.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Responsável
-          <select
-            className="input"
-            name="responsavel_id"
-            required
-            defaultValue={event?.responsavel_id ?? currentUserId}
-          >
-            {users.map((user) => (
-              <option value={user.id} key={user.id}>
-                {user.nome || user.email}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Início *
-          <input
-            className="input"
-            type="datetime-local"
-            name="data_hora_inicio"
-            required
-            defaultValue={inputDate(event?.data_hora_inicio)}
-          />
-        </label>
-        <label className="field">
-          Fim
-          <input
-            className="input"
-            type="datetime-local"
-            name="data_hora_fim"
-            defaultValue={inputDate(event?.data_hora_fim)}
-          />
-        </label>
-        <label className="flex items-center gap-2 text-sm font-semibold">
-          <input
-            type="checkbox"
-            name="dia_inteiro"
-            defaultChecked={event?.dia_inteiro}
-          />
-          Dia inteiro
-        </label>
-        <label className="field">
-          Lembrete
-          <select
-            className="input"
-            name="lembrete"
-            defaultValue={String(
-              [1440, 4320, 10080].includes(
-                Number(event?.lembrete_minutos ?? defaultReminder),
-              )
-                ? (event?.lembrete_minutos ?? defaultReminder)
-                : defaultReminder,
-            )}
-          >
-            <option value="">Sem lembrete</option>
-            <option value="1440">1 dia antes (email às 8h da manhã)</option>
-            <option value="4320">3 dias antes (email às 8h da manhã)</option>
-            <option value="10080">
-              1 semana antes (email às 8h da manhã)
-            </option>
-          </select>
-        </label>
-        <p className="self-end text-xs leading-relaxed text-slate-500">
-          Os lembretes são enviados por email às 8h da manhã, no dia do prazo
-          escolhido.
-        </p>
-        <label className="field sm:col-span-2">
-          Vincular a
-          <select className="input" name="referencia" defaultValue={reference}>
-            <option value="">Nenhum</option>
-            <optgroup label="Leads">
-              {leads.map((item) => (
-                <option key={item.id} value={`lead:${item.id}`}>
-                  {item.nome}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Clientes">
-              {customers.map((item) => (
-                <option key={item.id} value={`cliente:${item.id}`}>
-                  {item.nome}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Contratos">
-              {contracts.map((item) => {
-                const client = Array.isArray(item.cliente)
-                  ? item.cliente[0]
-                  : item.cliente;
-                return (
-                  <option key={item.id} value={`contrato:${item.id}`}>
-                    {item.numero || "Sem número"} · {client?.nome || "Cliente"}
-                  </option>
-                );
-              })}
-            </optgroup>
-          </select>
-        </label>
-        <label className="field sm:col-span-2">
-          Descrição
-          <textarea
-            className="input"
-            rows={4}
-            name="descricao"
-            defaultValue={event?.descricao ?? ""}
-          />
-        </label>
-        <div className="sm:col-span-2">
-          <button className="ml-auto flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-bold text-white">
-            {pending && <LoaderCircle className="size-4 animate-spin" />}
-            {event ? "Salvar alterações" : "Criar evento"}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
+function MonthView({ anchor, events, open, create }: { anchor: Date; events: EventoAgenda[]; open: (event: EventoAgenda) => void; create: (date: Date) => void }) {
+  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const start = new Date(first);
+  start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
+  const days = Array.from({ length: 42 }, (_, index) => { const day = new Date(start); day.setDate(start.getDate() + index); return day; });
+  return <section className="mt-5 overflow-hidden rounded-2xl border bg-white shadow-sm"><div className="grid grid-cols-7 bg-slate-50 text-center text-xs font-bold uppercase text-slate-500">{["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((day) => <div key={day} className="p-3">{day}</div>)}</div><div className="grid grid-cols-7">{days.map((day) => { const list = events.filter((event) => dateKey(new Date(event.inicio)) === dateKey(day)); return <button key={day.toISOString()} onClick={() => create(day)} className={`min-h-28 border-l border-t p-2 text-left align-top ${day.getMonth() === anchor.getMonth() ? "" : "bg-slate-50 text-slate-400"}`}><span className="text-xs font-bold">{day.getDate()}</span><div className="mt-2 space-y-1">{list.slice(0, 3).map((event) => <EventPill key={event.id} event={event} open={open} />)}{list.length > 3 && <span className="block text-[11px] font-bold text-primary">+{list.length - 3} mais</span>}</div></button>; })}</div></section>;
 }
-function Modal({
-  title,
-  close,
-  children,
-}: {
-  title: string;
-  close: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4">
-      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-xl font-bold">{title}</h2>
-          <button
-            type="button"
-            onClick={close}
-            aria-label="Fechar"
-            className="rounded-full border p-2"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
+
+function weekStart(anchor: Date) { const start = new Date(anchor); start.setDate(anchor.getDate() - ((anchor.getDay() + 6) % 7)); start.setHours(0, 0, 0, 0); return start; }
+function WeekView({ anchor, events, dayStart, dayEnd, open, create }: { anchor: Date; events: EventoAgenda[]; dayStart: string; dayEnd: string; open: (event: EventoAgenda) => void; create: (date: Date) => void }) {
+  const start = weekStart(anchor); const days = Array.from({ length: 7 }, (_, index) => { const date = new Date(start); date.setDate(start.getDate() + index); return date; }); const firstHour = Number(dayStart.slice(0, 2)) || 8; const lastHour = Number(dayEnd.slice(0, 2)) || 20; const hours = Array.from({ length: Math.max(1, lastHour - firstHour + 1) }, (_, index) => firstHour + index);
+  return <section className="mt-5 overflow-x-auto rounded-2xl border bg-white shadow-sm"><div className="min-w-[900px]"><div className="grid grid-cols-[70px_repeat(7,1fr)] bg-slate-50"><div /><>{days.map((day) => <div key={day.toISOString()} className="border-l p-3 text-center text-xs font-bold">{day.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" })}</div>)}</></div><div className="grid grid-cols-[70px_repeat(7,1fr)] border-t"><span className="p-2 text-xs text-slate-500">Dia todo</span>{days.map((day) => <div key={day.toISOString()} className="min-h-14 space-y-1 border-l p-1">{events.filter((event) => event.dia_inteiro && dateKey(new Date(event.inicio)) === dateKey(day)).map((event) => <EventPill key={event.id} event={event} open={open} />)}</div>)}</div>{hours.map((hour) => <div key={hour} className="grid grid-cols-[70px_repeat(7,1fr)] border-t"><span className="p-2 text-xs text-slate-500">{String(hour).padStart(2, "0")}:00</span>{days.map((day) => { const list = events.filter((event) => !event.dia_inteiro && dateKey(new Date(event.inicio)) === dateKey(day) && Number(new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", hourCycle: "h23", timeZone: "America/Sao_Paulo" }).format(new Date(event.inicio))) === hour); const cell = new Date(day); cell.setHours(hour, 0, 0, 0); return <button key={day.toISOString()} className="min-h-16 space-y-1 border-l p-1 text-left" onClick={() => create(cell)}>{list.map((event) => <EventPill key={event.id} event={event} open={open} />)}</button>; })}</div>)}</div></section>;
+}
+
+function ListView({ anchor, events, open }: { anchor: Date; events: EventoAgenda[]; open: (event: EventoAgenda) => void }) {
+  const end = new Date(anchor); end.setDate(end.getDate() + 14); const list = events.filter((event) => new Date(event.inicio) >= new Date(anchor.toDateString()) && new Date(event.inicio) < end).sort((a, b) => Date.parse(a.inicio) - Date.parse(b.inicio)); const groups = list.reduce((result, event) => { const key = dateKey(new Date(event.inicio)); const current = result.get(key) ?? []; current.push(event); result.set(key, current); return result; }, new Map<string, EventoAgenda[]>());
+  return <section className="mt-5 space-y-4">{Array.from(groups.entries()).map(([key, items]) => <article key={key} className="overflow-hidden rounded-2xl border bg-white shadow-sm"><h2 className="bg-slate-50 px-5 py-3 text-sm font-bold capitalize">{relativeDay(new Date(items[0].inicio))}</h2><div className="divide-y">{items.map((event) => <button key={event.id} onClick={() => open(event)} className="flex w-full flex-wrap items-center gap-3 p-4 text-left hover:bg-slate-50"><time className="w-14 text-sm font-bold">{event.dia_inteiro ? "Dia" : time.format(new Date(event.inicio))}</time><span className={`rounded-full px-2 py-1 text-xs font-bold ${typeInfo[event.tipo].className}`}>{typeInfo[event.tipo].label}</span><strong className="min-w-48 flex-1">{event.titulo}</strong><span className="text-xs text-slate-500">{event.participantes?.map((item) => item.nome).join(", ")}</span>{event.lead && <Link href={`/admin/leads/${event.lead.id}`} className="text-xs font-bold text-primary" onClick={(click) => click.stopPropagation()}>{event.lead.nome}</Link>}{event.cliente && <Link href={`/admin/clientes/${event.cliente.id}`} className="text-xs font-bold text-primary" onClick={(click) => click.stopPropagation()}>{event.cliente.nome}</Link>}</button>)}</div></article>)}</section>;
+}
+
+function relativeDay(date: Date) { const today = dateKey(new Date()); const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); if (dateKey(date) === today) return "Hoje"; if (dateKey(date) === dateKey(tomorrow)) return "Amanhã"; return date.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" }); }
+function EmptyState({ create }: { create: () => void }) { return <section className="mt-6 grid min-h-80 place-items-center rounded-2xl border border-dashed bg-white p-8 text-center"><div><CalendarDays className="mx-auto size-12 text-primary" /><h2 className="mt-4 text-xl font-bold">Sua agenda está livre</h2><p className="mt-2 text-sm text-slate-500">Crie o primeiro compromisso compartilhado da equipe.</p><button onClick={create} className="mt-5 rounded-full bg-primary px-5 py-3 text-sm font-bold text-white">Criar primeiro evento</button></div></section>; }
+
+function inputValue(value: Date) { const offset = value.getTimezoneOffset(); return new Date(value.getTime() - offset * 60_000).toISOString().slice(0, 16); }
+function EventModal({ state, users, leads, clients, currentUserId, defaultReminder, close, saved }: { state: NonNullable<ModalState>; users: Named[]; leads: Named[]; clients: Named[]; currentUserId: string; defaultReminder: number; close: () => void; saved: () => Promise<void> }) {
+  const event = state.event; const baseStart = event ? new Date(event.inicio) : state.start ?? new Date(); if (!event && !state.start) baseStart.setMinutes(Math.ceil(baseStart.getMinutes() / 30) * 30, 0, 0); const baseEnd = event ? new Date(event.fim) : new Date(baseStart.getTime() + 60 * 60 * 1000); const [allDay, setAllDay] = useState(event?.dia_inteiro ?? false); const [repeat, setRepeat] = useState(false); const [associationType, setAssociationType] = useState(event?.lead_id ? "lead" : event?.cliente_id ? "cliente" : "nenhum"); const [pending, setPending] = useState(false); const [error, setError] = useState("");
+  async function submit(form: HTMLFormElement, applyToSeries = false) { setPending(true); setError(""); const data = new FormData(form); const startRaw = String(data.get("inicio")); const endRaw = String(data.get("fim")); const payload = { titulo: String(data.get("titulo")), descricao: String(data.get("descricao") || ""), tipo: String(data.get("tipo")), dia_inteiro: allDay, inicio: new Date(allDay ? `${startRaw}T00:00:00` : startRaw).toISOString(), fim: new Date(allDay ? `${endRaw}T23:59:59` : endRaw).toISOString(), lead_id: associationType === "lead" ? String(data.get("associacao_id")) : null, cliente_id: associationType === "cliente" ? String(data.get("associacao_id")) : null, lembrete_minutos_antes: data.get("lembrete") === "" ? null : Number(data.get("lembrete")), participantes_user_ids: data.getAll("participantes").map(String), ...(!event && repeat ? { recorrencia: { tipo: String(data.get("recorrencia_tipo")), ate: String(data.get("recorrencia_ate")) } } : {}), ...(event ? { apply_to_series: applyToSeries } : {}) }; const response = await fetch(event ? `/api/agenda/eventos/${event.id}` : "/api/agenda/eventos", { method: event ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); const result = await response.json().catch(() => ({})); if (!response.ok) { setError(result.error || "Não foi possível salvar."); setPending(false); return; } await saved(); }
+  async function remove(series: boolean) { if (!event || !window.confirm(series ? "Excluir toda a série?" : "Excluir este evento?")) return; setPending(true); const response = await fetch(`/api/agenda/eventos/${event.id}?deleteSeries=${series}`, { method: "DELETE" }); if (!response.ok) { const result = await response.json(); setError(result.error || "Não foi possível excluir."); setPending(false); return; } await saved(); }
+  const creatorId = event?.criado_por ?? currentUserId; const selectedParticipants = new Set(event?.participantes?.map((item) => item.user_id) ?? [currentUserId]);
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-3"><div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-7"><header className="flex items-start justify-between"><div><p className="text-xs font-bold uppercase text-primary">Agenda</p><h2 className="text-2xl font-bold">{event ? "Editar evento" : "Novo evento"}</h2></div><button onClick={close} className="rounded-full border p-2"><X className="size-4" /></button></header><form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={(submitEvent) => { submitEvent.preventDefault(); void submit(submitEvent.currentTarget); }}><label className="field sm:col-span-2">Título *<input className="input" name="titulo" maxLength={200} required defaultValue={event?.titulo ?? ""} /></label><label className="field">Tipo<select className="input" name="tipo" defaultValue={event?.tipo ?? "reuniao"}>{allTypes.map((type) => <option key={type} value={type}>{typeInfo[type].label}</option>)}</select></label><label className="flex items-center gap-2 self-end pb-3 text-sm font-bold"><input type="checkbox" checked={allDay} onChange={(change) => setAllDay(change.target.checked)} /> Dia todo</label><label className="field">Início<input className="input" name="inicio" type={allDay ? "date" : "datetime-local"} required defaultValue={allDay ? inputValue(baseStart).slice(0, 10) : inputValue(baseStart)} /></label><label className="field">Fim<input className="input" name="fim" type={allDay ? "date" : "datetime-local"} required defaultValue={allDay ? inputValue(baseEnd).slice(0, 10) : inputValue(baseEnd)} /></label><fieldset className="sm:col-span-2"><legend className="field">Participantes *</legend><div className="mt-2 grid max-h-32 gap-2 overflow-y-auto rounded-xl border p-3 sm:grid-cols-2">{users.map((user) => <label key={user.id} className="flex items-center gap-2 text-sm"><input name="participantes" value={user.id} type="checkbox" defaultChecked={selectedParticipants.has(user.id) || user.id === creatorId} disabled={user.id === creatorId} />{user.nome}{user.id === creatorId && <span className="text-xs text-slate-400">(criador)</span>}</label>)}<input type="hidden" name="participantes" value={creatorId} /></div></fieldset><label className="field">Associação<select className="input" value={associationType} onChange={(change) => setAssociationType(change.target.value)}><option value="nenhum">Nenhum</option><option value="lead">Lead</option><option value="cliente">Cliente</option></select></label><label className="field">{associationType === "nenhum" ? "Sem associação" : associationType === "lead" ? "Lead" : "Cliente"}<select className="input" name="associacao_id" disabled={associationType === "nenhum"} defaultValue={event?.lead_id ?? event?.cliente_id ?? ""}><option value="">Selecione</option>{(associationType === "lead" ? leads : clients).map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></label><label className="field">Lembrete<select className="input" name="lembrete" defaultValue={String(event?.lembrete_minutos_antes ?? defaultReminder)}><option value="">Sem lembrete</option><option value="0">No horário</option><option value="5">5 minutos antes</option><option value="15">15 minutos antes</option><option value="30">30 minutos antes</option><option value="60">1 hora antes</option><option value="1440">1 dia antes</option></select></label>{!event && <div className="rounded-xl border p-3"><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={repeat} onChange={(change) => setRepeat(change.target.checked)} /> Repetir este evento</label>{repeat && <div className="mt-3 grid grid-cols-2 gap-2"><select className="input" name="recorrencia_tipo" defaultValue="semanal"><option value="diaria">Diária</option><option value="semanal">Semanal</option><option value="mensal">Mensal</option></select><input className="input" name="recorrencia_ate" type="date" required /></div>}</div>}<label className="field sm:col-span-2">Descrição<textarea className="input" name="descricao" rows={4} maxLength={5000} defaultValue={event?.descricao ?? ""} /></label>{error && <p className="sm:col-span-2 text-sm font-semibold text-red-700">{error}</p>}<footer className="flex flex-wrap gap-2 sm:col-span-2">{event && <><button type="button" disabled={pending} onClick={() => void remove(false)} className="inline-flex items-center gap-2 rounded-full border border-red-200 px-4 py-2 text-sm font-bold text-red-700"><Trash2 className="size-4" /> Excluir este</button>{event.serie_id && <button type="button" disabled={pending} onClick={() => void remove(true)} className="rounded-full border border-red-200 px-4 py-2 text-sm font-bold text-red-700">Excluir série</button>}</>}<button type="button" onClick={close} className="ml-auto rounded-full border px-5 py-2 text-sm font-bold">Cancelar</button>{event?.serie_id && <button type="button" disabled={pending} onClick={(click) => void submit(click.currentTarget.form!, true)} className="rounded-full border border-primary px-5 py-2 text-sm font-bold text-primary">Salvar série</button>}<button disabled={pending} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-bold text-white">{pending && <LoaderCircle className="size-4 animate-spin" />} Salvar</button></footer></form></div></div>;
 }

@@ -45,7 +45,21 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
   if (error)
     return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ eventos: data ?? [] });
+  const events = (data ?? []).map(({ eventos_participantes, ...event }) => ({
+    ...event,
+    participantes: (eventos_participantes ?? []).map(
+      (participant: {
+        user_id: string;
+        user: { nome: string | null } | Array<{ nome: string | null }> | null;
+      }) => {
+      const related = Array.isArray(participant.user)
+        ? participant.user[0]
+        : participant.user;
+      return { user_id: participant.user_id, nome: related?.nome || "Usuário" };
+      },
+    ),
+  }));
+  return NextResponse.json({ eventos: events });
 }
 
 export async function POST(request: NextRequest) {

@@ -34,7 +34,8 @@ export function expandirRecorrencia(
 ): EventoExpandido[] {
   const type = input.recorrencia?.tipo ?? "unico";
   if (type === "unico") {
-    const { recorrencia: _, ...single } = input;
+    const single = { ...input };
+    delete single.recorrencia;
     return [single];
   }
 
