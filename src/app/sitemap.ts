@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { pagesMeta } from "@/content/pages-meta";
 import { createPublicClient } from "@/lib/supabase/public";
+import { getSeoConfig } from "@/lib/seo/config";
 
 export const revalidate = 3600;
 
@@ -29,7 +30,27 @@ function newest(values: Array<string | null | undefined>, fallback: Date) {
   return new Date(Math.max(...timestamps));
 }
 
-function fixedRoutes(dynamic: DynamicDates): MetadataRoute.Sitemap {
+type ChangeFrequency = NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]>;
+
+function frequency(value: string, fallback: ChangeFrequency): ChangeFrequency {
+  const accepted: ChangeFrequency[] = [
+    "always",
+    "hourly",
+    "daily",
+    "weekly",
+    "monthly",
+    "yearly",
+    "never",
+  ];
+  return accepted.includes(value as ChangeFrequency)
+    ? (value as ChangeFrequency)
+    : fallback;
+}
+
+function fixedRoutes(
+  dynamic: DynamicDates,
+  homeFrequency: ChangeFrequency = "weekly",
+): MetadataRoute.Sitemap {
   const homeDate = date(pagesMeta.home.lastmod);
   return [
     {
@@ -37,7 +58,7 @@ function fixedRoutes(dynamic: DynamicDates): MetadataRoute.Sitemap {
       lastModified: dynamic.cases
         ? newest([dynamic.cases.toISOString()], homeDate)
         : homeDate,
-      changeFrequency: "weekly",
+      changeFrequency: homeFrequency,
       priority: 1,
     },
     {
@@ -78,6 +99,13 @@ function fixedRoutes(dynamic: DynamicDates): MetadataRoute.Sitemap {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const seo = await getSeoConfig();
+  if (!seo.sitemapHabilitado) return [];
+  const homeFrequency = frequency(seo.sitemapChangefreqHome, "weekly");
+  const articleFrequency = frequency(
+    seo.sitemapChangefreqArtigos,
+    "monthly",
+  );
   try {
     const supabase = createPublicClient();
     const [articleResult, caseResult, faqResult] = await Promise.all([
@@ -112,7 +140,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             article.data_publicacao ??
             pagesMeta.artigos.lastmod,
         ),
-        changeFrequency: "monthly",
+        changeFrequency: articleFrequency,
         priority: Math.min(
           1,
           Math.max(0, Number(article.prioridade_seo ?? 0.8)),
@@ -135,11 +163,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         date(pagesMeta.guia.lastmod),
       ),
     };
-    return [...fixedRoutes(dynamic), ...articles];
+    return [...fixedRoutes(dynamic, homeFrequency), ...articles];
   } catch (error) {
     console.error("Falha ao montar sitemap dinâmico", {
       message: error instanceof Error ? error.message : "unknown",
     });
-    return fixedRoutes({});
+    return fixedRoutes({}, homeFrequency);
   }
 }
