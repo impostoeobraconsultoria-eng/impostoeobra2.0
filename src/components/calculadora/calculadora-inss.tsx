@@ -19,6 +19,7 @@ import {
 } from "@/lib/calculadora";
 import { readAttribution, sendGaEvent } from "@/lib/analytics";
 import { DiagnosticoDownload } from "@/components/calculadora/diagnostico-download";
+import { TrackedPublicAnchor } from "@/components/analytics/tracked-anchor";
 
 type FormInput = {
   [K in keyof EntradasCalculo]: EntradasCalculo[K] extends number
@@ -658,14 +659,16 @@ function Resultado({
         >
           Nova simulação
         </button>
-        <a
+        <TrackedPublicAnchor
+          kind="whatsapp"
+          origem="resultado_calculadora"
           href={waUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="rounded-full bg-accent px-6 py-2.5 text-sm font-bold text-white hover:no-underline"
         >
           Falar no WhatsApp
-        </a>
+        </TrackedPublicAnchor>
       </div>
       <p className="mt-5 text-xs leading-5 text-muted-foreground">
         Esta é uma simulação estimada com base nos parâmetros oficiais da

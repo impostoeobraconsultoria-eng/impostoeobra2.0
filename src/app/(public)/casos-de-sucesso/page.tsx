@@ -4,20 +4,22 @@ import { PublicCaseCard } from "@/components/public/case-card";
 import { getWhatsappUrl } from "@/lib/config";
 import { getAllPublishedCases } from "@/lib/public-content";
 import { getSiteConfig } from "@/lib/site-config";
+import { TrackedPublicAnchor } from "@/components/analytics/tracked-anchor";
+import { getSeoConfig } from "@/lib/seo/config";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { JsonLd } from "@/components/seo/json-ld";
+import { getSchemaCollectionPage } from "@/lib/seo/schema";
 
 const description =
   "Veja resultados reais de clientes que regularizaram INSS de obra com nossa consultoria.";
 
-export const metadata: Metadata = {
-  title: "Casos de sucesso — Imposto & Obra Consultoria",
-  description,
-  alternates: { canonical: "/casos-de-sucesso" },
-  openGraph: {
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(await getSeoConfig(), {
     title: "Casos de sucesso — Imposto & Obra Consultoria",
     description,
-    url: "/casos-de-sucesso",
-  },
-};
+    canonical: "/casos-de-sucesso",
+  });
+}
 
 export default async function SuccessCasesPage() {
   const [cases, config] = await Promise.all([
@@ -28,22 +30,15 @@ export default async function SuccessCasesPage() {
     getSiteConfig(),
   ]);
   const whatsappUrl = await getWhatsappUrl(config.whatsapp_msg_padrao);
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
+  const schema = getSchemaCollectionPage({
     name: "Resultados dos nossos clientes",
     description,
-    url: "https://impostoeobra.com.br/casos-de-sucesso",
+    url: "/casos-de-sucesso",
     numberOfItems: cases.length,
-  };
+  });
   return (
     <main>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(schema).replace(/</g, "\\u003c"),
-        }}
-      />
+      <JsonLd data={schema} />
       <header className="border-b border-border bg-page py-20">
         <div className="site-container">
           <p className="editorial-label">Casos reais</p>
@@ -78,14 +73,16 @@ export default async function SuccessCasesPage() {
           <h2 className="max-w-3xl text-4xl font-extrabold tracking-[-.04em]">
             Sua obra também pode economizar
           </h2>
-          <a
+          <TrackedPublicAnchor
+            kind="whatsapp"
+            origem="cases_cta_final"
             className="inline-flex min-h-14 items-center bg-white px-7 font-bold text-primary"
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
             Falar no WhatsApp
-          </a>
+          </TrackedPublicAnchor>
         </div>
       </section>
     </main>

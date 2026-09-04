@@ -1483,6 +1483,33 @@ grant select on table public.diagnosticos_preliminares to authenticated;
 -- Config e bucket privado: ver SQL_REFINAMENTO_V9.sql.
 
 -- =============================================================================
+-- V10 — ANALYTICS + SEO TÉCNICO
+-- =============================================================================
+
+insert into public.config (chave, valor, descricao) values
+  ('seo_titulo_padrao','Imposto & Obra Consultoria — Regularização de INSS de Obra','Título padrão do site.'),
+  ('seo_description_padrao','Diagnóstico preliminar gratuito de redução do INSS da sua obra. Consultoria especializada em regularização previdenciária de obras de construção civil.','Meta description padrão do site.'),
+  ('seo_og_image_padrao','/images/og-default.jpg','Imagem Open Graph padrão 1200x630.'),
+  ('seo_twitter_handle','','Handle Twitter/X da empresa.'),
+  ('seo_org_nome','Imposto & Obra Consultoria','Nome no Schema.org.'),
+  ('seo_org_telefone','+55-61-99398-2653','Telefone no Schema.org.'),
+  ('seo_org_email','impostoeobraconsultoria@gmail.com','E-mail no Schema.org.'),
+  ('seo_org_endereco_cidade','Brasília','Cidade no Schema.org.'),
+  ('seo_org_endereco_uf','DF','UF no Schema.org.'),
+  ('seo_org_endereco_pais','BR','País no Schema.org.'),
+  ('seo_org_horario_atendimento','Mo-Fr 09:00-19:00','Horário de atendimento no Schema.org.'),
+  ('seo_org_area_atendimento','Brasil','Área de atendimento no Schema.org.'),
+  ('seo_org_descricao','Consultoria jurídico-tributária especializada em regularização previdenciária de obras de construção civil, com atuação nacional 100% remota.','Descrição institucional no Schema.org.'),
+  ('seo_sitemap_habilitado','true','Habilita o sitemap dinâmico.'),
+  ('seo_sitemap_changefreq_home','weekly','Frequência declarada da home no sitemap.'),
+  ('seo_sitemap_changefreq_artigos','monthly','Frequência declarada dos artigos no sitemap.'),
+  ('ga4_event_click_whatsapp','click_whatsapp','Evento de clique em WhatsApp.'),
+  ('ga4_event_click_telefone','click_telefone','Evento de clique em telefone.'),
+  ('ga4_event_click_email','click_email','Evento de clique em e-mail.'),
+  ('ga4_event_download_diagnostico','download_diagnostico','Evento de download do diagnóstico.')
+on conflict (chave) do nothing;
+
+-- =============================================================================
 -- FIM DO SCHEMA
 -- =============================================================================
 

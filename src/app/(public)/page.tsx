@@ -6,55 +6,35 @@ import { CasesSection } from "@/components/public/cases-section";
 import { getWhatsappNumber, getWhatsappUrl } from "@/lib/config";
 import { getSiteConfig } from "@/lib/site-config";
 import { getDiagnosticoHabilitado } from "@/lib/diagnostico/config";
+import { TrackedPublicAnchor } from "@/components/analytics/tracked-anchor";
+import { JsonLd } from "@/components/seo/json-ld";
+import { getSeoConfig } from "@/lib/seo/config";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { getSchemaLocalBusiness } from "@/lib/seo/schema";
 
-export const metadata: Metadata = {
-  title: "Regularize sua obra e economize INSS",
-  description:
-    "Consultoria especializada em regularização de obras e redução de INSS. Simule o imposto da sua obra e descubra quanto pode economizar.",
-  alternates: { canonical: "/" },
-};
+const homeDescription =
+  "Consultoria especializada em regularização de obras e redução de INSS. Simule o imposto da sua obra e descubra quanto pode economizar.";
 
-const professionalServiceSchema = {
-  "@context": "https://schema.org",
-  "@type": "ProfessionalService",
-  "@id": "https://impostoeobra.com.br/#organization",
-  name: "Imposto & Obra Consultoria",
-  url: "https://impostoeobra.com.br/",
-  logo: "https://impostoeobra.com.br/logo/avatar.png",
-  image: "https://impostoeobra.com.br/og-cover.png",
-  description:
-    "Consultoria tributária especializada em INSS de construção civil, CNO, SERO e regularização perante a Receita Federal.",
-  telephone: "+55-61-99398-2653",
-  email: "impostoeobraconsultoria@gmail.com",
-  taxID: "63.382.260/0001-99",
-  address: {
-    "@type": "PostalAddress",
-    addressLocality: "Brasília",
-    addressRegion: "DF",
-    addressCountry: "BR",
-  },
-  areaServed: { "@type": "Country", name: "Brasil" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(await getSeoConfig(), {
+    title: "Regularize sua obra e economize INSS",
+    description: homeDescription,
+    canonical: "/",
+  });
+}
 
 export default async function Home() {
   const config = await getSiteConfig();
-  const [whatsappUrl, whatsappNumber, diagnosticoEnabled] = await Promise.all([
+  const [whatsappUrl, whatsappNumber, diagnosticoEnabled, seo] = await Promise.all([
     getWhatsappUrl(config.whatsapp_msg_padrao),
     getWhatsappNumber(),
     getDiagnosticoHabilitado(),
+    getSeoConfig(),
   ]);
 
   return (
     <main>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(professionalServiceSchema).replace(
-            /</g,
-            "\\u003c",
-          ),
-        }}
-      />
+      <JsonLd data={getSchemaLocalBusiness(seo)} />
 
       <section className="border-b border-border bg-page">
         <div className="site-container grid min-h-[690px] lg:grid-cols-12">
@@ -180,14 +160,16 @@ export default async function Home() {
             </h2>
           </div>
           <div className="lg:col-span-4 lg:text-right">
-            <a
+            <TrackedPublicAnchor
+              kind="whatsapp"
+              origem="home_cta_final"
               className="inline-flex min-h-14 items-center justify-center bg-white px-7 font-bold text-primary"
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
               Falar no WhatsApp
-            </a>
+            </TrackedPublicAnchor>
           </div>
         </div>
       </section>

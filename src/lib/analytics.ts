@@ -41,3 +41,5 @@ export function sendGaEvent(
   ).gtag;
   gtag?.("event", name, params);
 }
+
+export { trackGA4Event } from "@/lib/analytics/ga4";

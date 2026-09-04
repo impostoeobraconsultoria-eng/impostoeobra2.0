@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { TrackedPublicAnchor } from "@/components/analytics/tracked-anchor";
 
 export function InstitutionalPage({
   eyebrow,
@@ -44,6 +45,7 @@ export function FinalCta({
   href,
   label,
   external = false,
+  analyticsOrigin,
 }: {
   title: string;
   highlight: string;
@@ -51,20 +53,34 @@ export function FinalCta({
   href: string;
   label: string;
   external?: boolean;
+  analyticsOrigin?: string;
 }) {
   return (
     <section className="my-14 border-y border-border bg-page px-6 py-12 text-center sm:px-10">
       <p className="editorial-label">{highlight}</p>
       <h2 className="!mt-4 !text-3xl !font-extrabold">{title}</h2>
       <p className="!mx-auto !mb-7 !mt-3 max-w-xl !text-base">{description}</p>
-      <a
-        className="btn-primary"
-        href={href}
-        rel={external ? "noopener noreferrer" : undefined}
-        target={external ? "_blank" : undefined}
-      >
-        {label}
-      </a>
+      {analyticsOrigin ? (
+        <TrackedPublicAnchor
+          kind="whatsapp"
+          origem={analyticsOrigin}
+          className="btn-primary"
+          href={href}
+          rel={external ? "noopener noreferrer" : undefined}
+          target={external ? "_blank" : undefined}
+        >
+          {label}
+        </TrackedPublicAnchor>
+      ) : (
+        <a
+          className="btn-primary"
+          href={href}
+          rel={external ? "noopener noreferrer" : undefined}
+          target={external ? "_blank" : undefined}
+        >
+          {label}
+        </a>
+      )}
     </section>
   );
 }

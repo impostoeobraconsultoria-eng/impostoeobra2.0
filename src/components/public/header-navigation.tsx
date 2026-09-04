@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { TrackedPublicAnchor } from "@/components/analytics/tracked-anchor";
 
 const navigation = [
   { href: "/", label: "Home" },
@@ -60,14 +61,16 @@ export function HeaderNavigation({ whatsAppUrl }: { whatsAppUrl: string }) {
           ))}
         </nav>
 
-        <a
+        <TrackedPublicAnchor
+          kind="whatsapp"
+          origem="header_desktop"
           href={whatsAppUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="ml-auto hidden bg-primary px-5 py-3 text-[13px] font-bold text-white transition hover:bg-primary-hover hover:no-underline lg:inline-flex"
         >
           Falar no WhatsApp
-        </a>
+        </TrackedPublicAnchor>
 
         <button
           type="button"
@@ -109,7 +112,9 @@ export function HeaderNavigation({ whatsAppUrl }: { whatsAppUrl: string }) {
                 {item.label}
               </Link>
             ))}
-            <a
+            <TrackedPublicAnchor
+              kind="whatsapp"
+              origem="header_mobile"
               href={whatsAppUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -117,7 +122,7 @@ export function HeaderNavigation({ whatsAppUrl }: { whatsAppUrl: string }) {
               onClick={() => setOpen(false)}
             >
               Falar no WhatsApp
-            </a>
+            </TrackedPublicAnchor>
           </nav>
         </div>
       ) : null}

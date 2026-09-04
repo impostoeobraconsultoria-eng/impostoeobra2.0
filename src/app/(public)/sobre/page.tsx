@@ -6,32 +6,38 @@ import {
   InstitutionalPage,
 } from "@/components/public/institutional-page";
 import { createPublicClient } from "@/lib/supabase/public";
+import { JsonLd } from "@/components/seo/json-ld";
+import { getSeoConfig } from "@/lib/seo/config";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { getSchemaOrganization } from "@/lib/seo/schema";
 
 const description =
   "Consultoria tributária especializada em INSS de construção civil, com equipe jurídica e atendimento 100% online em todo o Brasil.";
 
-export const metadata: Metadata = {
-  title: "Sobre a Imposto & Obra Consultoria",
-  description,
-  alternates: { canonical: "/sobre" },
-  openGraph: {
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(await getSeoConfig(), {
     title: "Sobre a Imposto & Obra Consultoria",
     description,
-    url: "/sobre",
-  },
-};
+    canonical: "/sobre",
+  });
+}
 
 export default async function SobrePage() {
-  const { data: team } = await createPublicClient()
-    .from("equipe_juridica")
-    .select("id,nome,oab,papel,descricao,foto_url")
-    .eq("publicado", true)
-    .order("ordem");
+  const [{ data: team }, seo] = await Promise.all([
+    createPublicClient()
+      .from("equipe_juridica")
+      .select("id,nome,oab,papel,descricao,foto_url")
+      .eq("publicado", true)
+      .order("ordem"),
+    getSeoConfig(),
+  ]);
   return (
-    <InstitutionalPage
-      eyebrow="Sobre nós · Atualizado em 28 de maio de 2026"
-      title="A Imposto & Obra Consultoria"
-    >
+    <>
+      <JsonLd data={getSchemaOrganization(seo)} />
+      <InstitutionalPage
+        eyebrow="Sobre nós · Atualizado em 28 de maio de 2026"
+        title="A Imposto & Obra Consultoria"
+      >
       <p className="lead">
         Somos uma consultoria tributária especializada em{" "}
         <strong>
@@ -179,6 +185,7 @@ export default async function SobrePage() {
         <Link href="/guia-inss-de-obra">guia completo do INSS de obra</Link> e{" "}
         <Link href="/artigos">nossos artigos</Link>.
       </p>
-    </InstitutionalPage>
+      </InstitutionalPage>
+    </>
   );
 }

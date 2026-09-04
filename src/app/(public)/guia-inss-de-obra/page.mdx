@@ -3,52 +3,50 @@ import {
   FinalCta,
 } from "@/components/public/institutional-page";
 import { GuideFaq } from "@/components/public/guide-faq";
+import { JsonLd } from "@/components/seo/json-ld";
+import { getSeoConfig } from "@/lib/seo/config";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { getSchemaArticle, getSchemaBreadcrumb } from "@/lib/seo/schema";
 
-export const metadata = {
-  title: "Guia completo do INSS de obra: CNO, SERO e ARO",
-  description:
-    "Guia completo para regularizar o INSS de construção civil: CNO, SERO, aferição, reduções legais, ARO, CND e averbação.",
-  alternates: { canonical: "/guia-inss-de-obra" },
-  openGraph: {
+export async function generateMetadata() {
+  return pageMetadata(await getSeoConfig(), {
     title: "Guia completo do INSS de obra: CNO, SERO e ARO",
-    description:
-      "Entenda como regularizar uma obra, reduzir o INSS legalmente e obter a CND.",
-    url: "/guia-inss-de-obra",
+    description: "Guia completo para regularizar o INSS de construção civil: CNO, SERO, aferição, reduções legais, ARO, CND e averbação.",
+    canonical: "/guia-inss-de-obra",
     type: "article",
-  },
-};
+    modifiedTime: "2026-05-28",
+  });
+}
 
-export default function Layout({ children }) {
+export default async function Layout({ children }) {
+  const seo = await getSeoConfig();
+  const schema = getSchemaArticle({
+    slug: "guia-inss-de-obra",
+    url: "/guia-inss-de-obra",
+    titulo: "Guia completo do INSS de obra: CNO, SERO e ARO",
+    description: "Guia completo para regularizar o INSS de construção civil: CNO, SERO, aferição, reduções legais, ARO, CND e averbação.",
+    image: null,
+    datePublished: null,
+    dateModified: "2026-05-28",
+    schemaType: "Article",
+  }, seo);
   return (
-    <InstitutionalPage
-      eyebrow="Guia completo · Atualizado em 28 de maio de 2026"
-      title="Guia completo do INSS de obra: CNO, SERO, ARO e como regularizar pagando o justo"
-    >
-      {children}
-    </InstitutionalPage>
+    <>
+      <JsonLd data={schema} />
+      <JsonLd data={getSchemaBreadcrumb([
+        { name: "Início", url: "/" },
+        { name: "Guia completo do INSS de obra: CNO, SERO e ARO", url: "/guia-inss-de-obra" },
+      ])} />
+      <InstitutionalPage
+        eyebrow="Guia completo · Atualizado em 28 de maio de 2026"
+        title="Guia completo do INSS de obra: CNO, SERO, ARO e como regularizar pagando o justo"
+      >
+        {children}
+      </InstitutionalPage>
+    </>
   );
 }
 
-<script
-  type="application/ld+json"
-  dangerouslySetInnerHTML={{
-    __html: JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "Article",
-      headline:
-        "Guia completo do INSS de obra: CNO, SERO, ARO e como regularizar pagando o justo",
-      description: metadata.description,
-      dateModified: "2026-05-28",
-      inLanguage: "pt-BR",
-      author: { "@type": "Organization", name: "Imposto & Obra Consultoria" },
-      publisher: {
-        "@type": "Organization",
-        name: "Imposto & Obra Consultoria",
-      },
-      mainEntityOfPage: "https://impostoeobra.com.br/guia-inss-de-obra",
-    }),
-  }}
-/>
 <div className="lead">
   Este é o guia mais completo em português sobre INSS de construção civil. Cobre
   desde o conceito básico até as estratégias avançadas de redução do valor
