@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { absoluteUrl, type SeoConfig } from "@/lib/seo/config";
+import { metadataImageUrl, type SeoConfig } from "@/lib/seo/config";
 
 export function pageMetadata(
   config: SeoConfig,
@@ -14,7 +14,7 @@ export function pageMetadata(
   },
 ): Metadata {
   const description = input.description || config.descriptionPadrao;
-  const image = absoluteUrl(input.image || config.ogImagePadrao);
+  const image = metadataImageUrl(input.image || config.ogImagePadrao);
   return {
     title: input.title,
     description,

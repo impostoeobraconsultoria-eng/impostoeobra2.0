@@ -84,3 +84,15 @@ export const getSeoConfig = unstable_cache(
 export function absoluteUrl(pathOrUrl: string) {
   return new URL(pathOrUrl, `${SITE_URL}/`).toString();
 }
+
+export function metadataImageUrl(pathOrUrl: string) {
+  try {
+    const url = new URL(pathOrUrl);
+    if (url.origin === SITE_URL) {
+      return `${url.pathname}${url.search}${url.hash}`;
+    }
+    return url.toString();
+  } catch {
+    return pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`;
+  }
+}

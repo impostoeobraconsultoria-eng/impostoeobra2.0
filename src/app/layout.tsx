@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
 import Script from "next/script";
 import { getSiteConfig } from "@/lib/site-config";
-import { absoluteUrl, getSeoConfig } from "@/lib/seo/config";
+import { getSeoConfig, metadataImageUrl } from "@/lib/seo/config";
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -11,8 +11,13 @@ const montserrat = Montserrat({
   display: "swap",
 });
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://impostoeobra.com.br";
+const metadataBase = new URL(
+  process.env.VERCEL_ENV === "production"
+    ? "https://impostoeobra.com.br"
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000",
+);
 const ga4Id = "G-8CYR5J0Z3L";
 
 export const viewport: Viewport = {
@@ -21,9 +26,9 @@ export const viewport: Viewport = {
 
 export async function generateMetadata(): Promise<Metadata> {
   const config = await getSeoConfig();
-  const image = absoluteUrl(config.ogImagePadrao);
+  const image = metadataImageUrl(config.ogImagePadrao);
   return {
-    metadataBase: new URL(siteUrl),
+    metadataBase,
     title: {
       default: config.tituloPadrao,
       template: "%s | Imposto & Obra Consultoria",
