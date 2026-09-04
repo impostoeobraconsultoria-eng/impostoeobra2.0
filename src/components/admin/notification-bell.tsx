@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import type { NotificationItem } from "@/lib/notifications";
 
 const icons = {
+  agenda_lembrete: CalendarClock,
   evento_agenda: CalendarClock,
   lead_novo: UserPlus,
   lead_parado: CircleAlert,

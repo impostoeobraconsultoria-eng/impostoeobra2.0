@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 
 export const NOTIFICATION_TYPES = [
+  "agenda_lembrete",
   "evento_agenda",
   "lead_novo",
   "vau_desatualizada",
@@ -59,11 +60,12 @@ export async function listNotifications(limit = 10) {
     : { data: [] };
   const readIds = new Set((reads ?? []).map((item) => item.notificacao_id));
   const priority: Record<string, number> = {
-    evento_agenda: 0,
-    lead_novo: 1,
-    vau_desatualizada: 2,
-    lead_parado: 3,
-    sistema: 4,
+    agenda_lembrete: 0,
+    evento_agenda: 1,
+    lead_novo: 2,
+    vau_desatualizada: 3,
+    lead_parado: 4,
+    sistema: 5,
   };
   const notifications = (data ?? [])
     .map((item) => ({ ...item, lida: readIds.has(item.id) }))
