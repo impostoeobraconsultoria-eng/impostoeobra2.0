@@ -68,7 +68,7 @@ export default async function Home() {
               </div>
               <div className="grid grid-cols-2 py-6">
                 <span className="text-sm text-brandMuted">
-                  Com nossa consultoria
+                  Com nosso diagnóstico
                 </span>
                 <strong className="text-right text-3xl font-extrabold text-primary">
                   {config.hero_exemplo_imposto_com_consultoria}
