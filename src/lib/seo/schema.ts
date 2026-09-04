@@ -1,6 +1,7 @@
 import { absoluteUrl, SITE_URL, type SeoConfig } from "@/lib/seo/config";
 
 export type SchemaArticle = {
+  url?: string;
   slug: string;
   titulo: string;
   description: string | null;
@@ -33,13 +34,26 @@ export function getSchemaLocalBusiness(config: SeoConfig) {
 }
 
 export function getSchemaOrganization(config: SeoConfig) {
-  const { openingHours: _openingHours, ...organization } =
-    getSchemaLocalBusiness(config);
-  return { ...organization, "@type": "Organization" };
+  const localBusiness = getSchemaLocalBusiness(config);
+  return {
+    "@context": localBusiness["@context"],
+    "@type": "Organization",
+    "@id": localBusiness["@id"],
+    name: localBusiness.name,
+    description: localBusiness.description,
+    url: localBusiness.url,
+    telephone: localBusiness.telephone,
+    email: localBusiness.email,
+    address: localBusiness.address,
+    areaServed: localBusiness.areaServed,
+    image: localBusiness.image,
+  };
 }
 
 export function getSchemaArticle(article: SchemaArticle, config: SeoConfig) {
-  const url = `${SITE_URL}/artigos/${article.slug}`;
+  const url = article.url
+    ? absoluteUrl(article.url)
+    : `${SITE_URL}/artigos/${article.slug}`;
   return {
     "@context": "https://schema.org",
     "@type": article.schemaType,
