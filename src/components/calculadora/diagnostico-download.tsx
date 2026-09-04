@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Download, FileText, LoaderCircle } from "lucide-react";
+import { TrackedPublicAnchor } from "@/components/analytics/tracked-anchor";
 
 type Status = "aguardando" | "consultando" | "pronto" | "demorado";
 
@@ -67,13 +68,15 @@ export function DiagnosticoDownload({ leadId }: { leadId: string | null }) {
         </div>
       </div>
       {status === "pronto" && leadId ? (
-        <a
+        <TrackedPublicAnchor
+          kind="diagnostico"
+          origem="resultado_calculadora"
           href={`/api/diagnosticos/${leadId}/download`}
           className="mt-4 inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-white hover:no-underline sm:mt-0"
         >
           <Download className="size-4" aria-hidden="true" />
           Baixar Diagnóstico Preliminar
-        </a>
+        </TrackedPublicAnchor>
       ) : (
         <span className="mt-4 inline-flex min-h-11 shrink-0 items-center gap-2 text-sm font-semibold text-primary sm:mt-0">
           <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />

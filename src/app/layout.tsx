@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
 import Script from "next/script";
 import { getSiteConfig } from "@/lib/site-config";
+import { absoluteUrl, getSeoConfig } from "@/lib/seo/config";
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -18,37 +19,37 @@ export const viewport: Viewport = {
   themeColor: "#0B76C6",
 };
 
-export function generateMetadata(): Metadata {
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getSeoConfig();
+  const image = absoluteUrl(config.ogImagePadrao);
   return {
     metadataBase: new URL(siteUrl),
     title: {
-      default: "Imposto & Obra Consultoria",
+      default: config.tituloPadrao,
       template: "%s | Imposto & Obra Consultoria",
     },
-    description:
-      "Consultoria especializada em regularização de INSS de obras de construção civil.",
+    description: config.descriptionPadrao,
     openGraph: {
       type: "website",
       locale: "pt_BR",
-      siteName: "Imposto & Obra Consultoria",
-      title: "Imposto & Obra Consultoria",
-      description:
-        "Consultoria especializada em regularização de INSS de obras de construção civil.",
+      siteName: config.orgNome,
+      title: config.tituloPadrao,
+      description: config.descriptionPadrao,
       images: [
         {
-          url: "/og-cover.png",
+          url: image,
           width: 1200,
           height: 630,
-          alt: "Imposto & Obra Consultoria",
+          alt: config.orgNome,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Imposto & Obra Consultoria",
-      description:
-        "Consultoria especializada em regularização de INSS de obras de construção civil.",
-      images: ["/og-cover.png"],
+      site: config.twitterHandle || undefined,
+      title: config.tituloPadrao,
+      description: config.descriptionPadrao,
+      images: [image],
     },
     icons: {
       icon: [

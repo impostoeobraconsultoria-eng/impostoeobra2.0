@@ -6,19 +6,19 @@ import {
 } from "@/components/public/institutional-page";
 import { getWhatsappUrl } from "@/lib/config";
 import { getSiteConfig } from "@/lib/site-config";
+import { TrackedPublicAnchor } from "@/components/analytics/tracked-anchor";
+import { getSeoConfig } from "@/lib/seo/config";
+import { pageMetadata } from "@/lib/seo/metadata";
 
 const description =
   "Fale com a Imposto & Obra Consultoria. Atendimento online em todo o Brasil para regularização e redução do INSS de obras.";
-export const metadata: Metadata = {
-  title: "Contato",
-  description,
-  alternates: { canonical: "/contato" },
-  openGraph: {
-    title: "Contato | Imposto & Obra Consultoria",
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(await getSeoConfig(), {
+    title: "Contato",
     description,
-    url: "/contato",
-  },
-};
+    canonical: "/contato",
+  });
+}
 
 export default async function ContatoPage() {
   const config = await getSiteConfig();
@@ -79,7 +79,15 @@ export default async function ContatoPage() {
             <h2 className="!m-0 !text-lg">{title}</h2>
             <p className="mt-2 break-words font-semibold text-primary">
               {href ? (
-                <a
+                <TrackedPublicAnchor
+                  kind={
+                    href.startsWith("mailto:")
+                      ? "email"
+                      : href.startsWith("tel:")
+                        ? "telefone"
+                        : "whatsapp"
+                  }
+                  origem="contato_card"
                   href={href}
                   rel={
                     href.startsWith("http") ? "noopener noreferrer" : undefined
@@ -87,7 +95,7 @@ export default async function ContatoPage() {
                   target={href.startsWith("http") ? "_blank" : undefined}
                 >
                   {value}
-                </a>
+                </TrackedPublicAnchor>
               ) : (
                 value
               )}
@@ -147,6 +155,7 @@ export default async function ContatoPage() {
         href={whatsappUrl}
         label="Fale conosco"
         external
+        analyticsOrigin="contato_cta_final"
       />
     </InstitutionalPage>
   );

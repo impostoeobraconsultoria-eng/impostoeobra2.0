@@ -5,18 +5,18 @@ import {
 } from "@/components/public/institutional-page";
 import { getWhatsappUrl } from "@/lib/config";
 import { getSiteConfig } from "@/lib/site-config";
+import { TrackedPublicAnchor } from "@/components/analytics/tracked-anchor";
+import { getSeoConfig } from "@/lib/seo/config";
+import { pageMetadata } from "@/lib/seo/metadata";
 const description =
   "Conheça o Aviso de Privacidade da Imposto & Obra Consultoria e saiba como tratamos e protegemos seus dados pessoais.";
-export const metadata: Metadata = {
-  title: "Aviso de Privacidade",
-  description,
-  alternates: { canonical: "/politica/aviso-de-privacidade" },
-  openGraph: {
-    title: "Aviso de Privacidade | Imposto & Obra Consultoria",
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(await getSeoConfig(), {
+    title: "Aviso de Privacidade",
     description,
-    url: "/politica/aviso-de-privacidade",
-  },
-};
+    canonical: "/politica/aviso-de-privacidade",
+  });
+}
 
 export default async function PrivacyPage() {
   const config = await getSiteConfig();
@@ -46,7 +46,10 @@ export default async function PrivacyPage() {
           <strong>Encarregado:</strong> {config.dpo_nome}
         </li>
         <li>
-          <strong>E-mail:</strong> <a href={`mailto:${email}`}>{email}</a>
+          <strong>E-mail:</strong>{" "}
+          <TrackedPublicAnchor kind="email" origem="privacidade_controlador" href={`mailto:${email}`}>
+            {email}
+          </TrackedPublicAnchor>
         </li>
       </ul>
       <h2>2. Dados pessoais coletados</h2>
@@ -122,7 +125,9 @@ export default async function PrivacyPage() {
       </ul>
       <p>
         Solicitações podem ser enviadas para{" "}
-        <a href={`mailto:${email}`}>{email}</a>.
+        <TrackedPublicAnchor kind="email" origem="privacidade_direitos" href={`mailto:${email}`}>
+          {email}
+        </TrackedPublicAnchor>.
       </p>
       <h2>9. Cookies e tecnologias de rastreamento</h2>
       <p>
@@ -154,6 +159,7 @@ export default async function PrivacyPage() {
         href={whatsappUrl}
         label="Fale conosco"
         external
+        analyticsOrigin="privacidade_cta_final"
       />
     </InstitutionalPage>
   );

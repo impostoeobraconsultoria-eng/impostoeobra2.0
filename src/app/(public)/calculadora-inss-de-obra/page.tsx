@@ -9,6 +9,11 @@ import {
 } from "@/lib/public-content";
 import { getSiteConfig } from "@/lib/site-config";
 import { getDiagnosticoHabilitado } from "@/lib/diagnostico/config";
+import { TrackedPublicAnchor } from "@/components/analytics/tracked-anchor";
+import { JsonLd } from "@/components/seo/json-ld";
+import { getSeoConfig } from "@/lib/seo/config";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { getSchemaFAQPage, getSchemaWebApplication } from "@/lib/seo/schema";
 
 const title =
   "Calculadora INSS de Obra — Simulador Oficial IN RFB 2021 | Imposto & Obra";
@@ -16,49 +21,14 @@ const description =
   "Calcule quanto de INSS você paga pela sua obra em 2 minutos. Simulador oficial baseado na IN RFB 2.021/2021. Descubra reduções legais.";
 const canonical = "https://impostoeobra.com.br/calculadora-inss-de-obra";
 
-export const metadata: Metadata = {
-  title: { absolute: title },
-  description,
-  alternates: { canonical },
-  openGraph: {
-    type: "website",
-    locale: "pt_BR",
-    url: canonical,
+export async function generateMetadata(): Promise<Metadata> {
+  const metadata = pageMetadata(await getSeoConfig(), {
     title,
     description,
-    images: [
-      {
-        url: "/og-cover.png",
-        width: 1200,
-        height: 630,
-        alt: "Calculadora de INSS de Obra da Imposto & Obra",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title,
-    description,
-    images: ["/og-cover.png"],
-  },
-};
-
-const applicationSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebApplication",
-  name: "Calculadora de INSS de Obra",
-  url: canonical,
-  applicationCategory: "FinanceApplication",
-  operatingSystem: "Web",
-  browserRequirements: "Requires JavaScript",
-  description,
-  offers: { "@type": "Offer", price: "0", priceCurrency: "BRL" },
-  provider: {
-    "@type": "Organization",
-    "@id": "https://impostoeobra.com.br/#organization",
-    name: "Imposto & Obra Consultoria",
-  },
-};
+    canonical,
+  });
+  return { ...metadata, title: { absolute: title } };
+}
 
 const howItWorks = [
   [
@@ -112,7 +82,7 @@ const factors = [
 
 export default async function CalculadoraPage() {
   const config = await getSiteConfig();
-  const [whatsappNumber, whatsappUrl, faq, diagnosticoEnabled] =
+  const [whatsappNumber, whatsappUrl, faq, diagnosticoEnabled, seo] =
     await Promise.all([
       getWhatsappNumber(),
       getWhatsappUrl(config.whatsapp_msg_padrao),
@@ -121,29 +91,19 @@ export default async function CalculadoraPage() {
         return [] as PublicFaq[];
       }),
       getDiagnosticoHabilitado(),
+      getSeoConfig(),
     ]);
-  const faqSchema = faq.length
-    ? {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        mainEntity: faq.map((item) => ({
-          "@type": "Question",
-          name: item.pergunta,
-          acceptedAnswer: { "@type": "Answer", text: item.resposta },
-        })),
-      }
-    : null;
+  const faqSchema = faq.length ? getSchemaFAQPage(faq) : null;
+  const applicationSchema = getSchemaWebApplication(seo, {
+    name: "Calculadora de INSS de Obra",
+    description,
+    url: canonical,
+  });
 
   return (
     <main>
       {[applicationSchema, faqSchema].filter(Boolean).map((schema, index) => (
-        <script
-          key={index}
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(schema).replace(/</g, "\\u003c"),
-          }}
-        />
+        <JsonLd key={index} data={schema as object} />
       ))}
 
       <section className="border-b border-border bg-page py-12 sm:py-16">
@@ -313,14 +273,16 @@ export default async function CalculadoraPage() {
               Quer confirmar a economia possível na sua obra?
             </h2>
           </div>
-          <a
+          <TrackedPublicAnchor
+            kind="whatsapp"
+            origem="calculadora_cta_final"
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex min-h-14 shrink-0 items-center justify-center bg-white px-7 font-bold text-primary hover:no-underline"
           >
             Fale conosco pelo WhatsApp
-          </a>
+          </TrackedPublicAnchor>
         </div>
       </section>
     </main>

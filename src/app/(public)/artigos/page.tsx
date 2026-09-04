@@ -7,21 +7,20 @@ import {
   getPublishedArticles,
   type ArticleSummary,
 } from "@/lib/articles";
+import { getSeoConfig } from "@/lib/seo/config";
+import { pageMetadata } from "@/lib/seo/metadata";
 
 export const revalidate = ARTICLES_REVALIDATE_SECONDS;
 
 const description =
   "Artigos sobre regularização de obras e INSS: CNO, SERO, aferição, redução legal, CND e Receita Federal.";
-export const metadata: Metadata = {
-  title: "Artigos sobre INSS de obras",
-  description,
-  alternates: { canonical: "/artigos" },
-  openGraph: {
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(await getSeoConfig(), {
     title: "Artigos sobre INSS de obras",
     description,
-    url: "/artigos",
-  },
-};
+    canonical: "/artigos",
+  });
+}
 
 export default async function ArticlesPage() {
   let articles: ArticleSummary[] = [];

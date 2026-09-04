@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/seo/json-ld";
 
 import { FinalCta } from "@/components/public/institutional-page";
 import {
@@ -12,6 +13,13 @@ import {
   parseArticleFaq,
   sanitizeArticleHtml,
 } from "@/lib/articles";
+import { getSeoConfig } from "@/lib/seo/config";
+import { pageMetadata } from "@/lib/seo/metadata";
+import {
+  getSchemaArticle,
+  getSchemaBreadcrumb,
+  getSchemaFAQPage,
+} from "@/lib/seo/schema";
 
 export const revalidate = ARTICLES_REVALIDATE_SECONDS;
 export const dynamicParams = true;
@@ -35,22 +43,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   const description =
     article.meta_description ?? article.subtitulo ?? undefined;
-  return {
+  return pageMetadata(await getSeoConfig(), {
     title: article.titulo,
     description,
-    alternates: { canonical: `/artigos/${article.slug}` },
-    openGraph: {
-      title: article.titulo,
-      description,
-      url: `/artigos/${article.slug}`,
-      type: "article",
-      publishedTime: article.data_publicacao ?? undefined,
-      modifiedTime: article.updated_at,
-      images: article.og_image_url
-        ? [{ url: article.og_image_url }]
-        : undefined,
-    },
-  };
+    canonical: `/artigos/${article.slug}`,
+    image: article.og_image_url,
+    type: "article",
+    publishedTime: article.data_publicacao,
+    modifiedTime: article.updated_at,
+  });
 }
 
 export default async function ArticlePage({ params }: Props) {
@@ -58,26 +59,30 @@ export default async function ArticlePage({ params }: Props) {
   if (!article) notFound();
   const faq = parseArticleFaq(article.faq);
   const related = await getRelatedArticles(article.slug, article.cluster);
+  const seo = await getSeoConfig();
   const date = article.data_publicacao
     ? new Intl.DateTimeFormat("pt-BR", {
         dateStyle: "long",
         timeZone: "America/Sao_Paulo",
       }).format(new Date(article.data_publicacao))
     : null;
-  const url = `https://impostoeobra.com.br/artigos/${article.slug}`;
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": getArticleSchemaType(article.schema_type),
-    headline: article.titulo,
-    description: article.meta_description ?? article.subtitulo,
-    image: article.og_image_url || "https://impostoeobra.com.br/og-cover.png",
-    datePublished: article.data_publicacao,
-    dateModified: article.updated_at,
-    author: { "@type": "Organization", name: "Imposto & Obra Consultoria" },
-    publisher: { "@type": "Organization", name: "Imposto & Obra Consultoria" },
-    mainEntityOfPage: url,
-    inLanguage: "pt-BR",
-  };
+  const schema = getSchemaArticle(
+    {
+      slug: article.slug,
+      titulo: article.titulo,
+      description: article.meta_description ?? article.subtitulo,
+      image: article.og_image_url,
+      datePublished: article.data_publicacao,
+      dateModified: article.updated_at,
+      schemaType: getArticleSchemaType(article.schema_type) ?? "Article",
+    },
+    seo,
+  );
+  const breadcrumb = getSchemaBreadcrumb([
+    { name: "Início", url: "/" },
+    { name: "Artigos", url: "/artigos" },
+    { name: article.titulo, url: `/artigos/${article.slug}` },
+  ]);
 
   return (
     <main className="py-14 sm:py-16">
@@ -168,25 +173,10 @@ export default async function ArticlePage({ params }: Props) {
             href="/#calculadora"
             label="Simular agora"
           />
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-          />
+          <JsonLd data={schema} />
+          <JsonLd data={breadcrumb} />
           {faq.length > 0 && (
-            <script
-              type="application/ld+json"
-              dangerouslySetInnerHTML={{
-                __html: JSON.stringify({
-                  "@context": "https://schema.org",
-                  "@type": "FAQPage",
-                  mainEntity: faq.map((item) => ({
-                    "@type": "Question",
-                    name: item.pergunta,
-                    acceptedAnswer: { "@type": "Answer", text: item.resposta },
-                  })),
-                }),
-              }}
-            />
+            <JsonLd data={getSchemaFAQPage(faq)} />
           )}
         </article>
       </div>
