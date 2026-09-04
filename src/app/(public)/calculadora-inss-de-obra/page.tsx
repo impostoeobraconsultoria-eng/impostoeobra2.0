@@ -19,7 +19,7 @@ const title =
   "Calculadora INSS de Obra — Simulador Oficial IN RFB 2021 | Imposto & Obra";
 const description =
   "Calcule quanto de INSS você paga pela sua obra em 2 minutos. Simulador oficial baseado na IN RFB 2.021/2021. Descubra reduções legais.";
-const canonical = "https://impostoeobra.com.br/calculadora-inss-de-obra";
+const canonical = "/calculadora-inss-de-obra";
 
 export async function generateMetadata(): Promise<Metadata> {
   const metadata = pageMetadata(await getSeoConfig(), {
