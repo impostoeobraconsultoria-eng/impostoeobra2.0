@@ -1,10 +1,10 @@
 import "server-only";
 
 import { getDiagnosticoConfig } from "@/lib/diagnostico/config";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClientNoCache } from "@/lib/supabase/admin";
 
 export async function criarUrlAssinadaDiagnostico(leadId: string) {
-  const admin = createAdminClient();
+  const admin = createAdminClientNoCache();
   const [{ data: diagnostico, error }, config] = await Promise.all([
     admin
       .from("diagnosticos_preliminares")
