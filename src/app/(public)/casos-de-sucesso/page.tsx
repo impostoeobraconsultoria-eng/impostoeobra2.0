@@ -7,6 +7,8 @@ import { getSiteConfig } from "@/lib/site-config";
 import { TrackedPublicAnchor } from "@/components/analytics/tracked-anchor";
 import { getSeoConfig } from "@/lib/seo/config";
 import { pageMetadata } from "@/lib/seo/metadata";
+import { JsonLd } from "@/components/seo/json-ld";
+import { getSchemaCollectionPage } from "@/lib/seo/schema";
 
 const description =
   "Veja resultados reais de clientes que regularizaram INSS de obra com nossa consultoria.";
@@ -28,22 +30,15 @@ export default async function SuccessCasesPage() {
     getSiteConfig(),
   ]);
   const whatsappUrl = await getWhatsappUrl(config.whatsapp_msg_padrao);
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
+  const schema = getSchemaCollectionPage({
     name: "Resultados dos nossos clientes",
     description,
-    url: "https://impostoeobra.com.br/casos-de-sucesso",
+    url: "/casos-de-sucesso",
     numberOfItems: cases.length,
-  };
+  });
   return (
     <main>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(schema).replace(/</g, "\\u003c"),
-        }}
-      />
+      <JsonLd data={schema} />
       <header className="border-b border-border bg-page py-20">
         <div className="site-container">
           <p className="editorial-label">Casos reais</p>

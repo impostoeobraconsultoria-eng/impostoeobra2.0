@@ -9,6 +9,8 @@ import {
 } from "@/lib/articles";
 import { getSeoConfig } from "@/lib/seo/config";
 import { pageMetadata } from "@/lib/seo/metadata";
+import { JsonLd } from "@/components/seo/json-ld";
+import { getSchemaCollectionPage } from "@/lib/seo/schema";
 
 export const revalidate = ARTICLES_REVALIDATE_SECONDS;
 
@@ -116,17 +118,13 @@ export default async function ArticlesPage() {
           href="/#calculadora"
           label="Simular agora"
         />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "CollectionPage",
-              name: "Artigos sobre INSS de obras",
-              description,
-              url: "https://impostoeobra.com.br/artigos",
-            }),
-          }}
+        <JsonLd
+          data={getSchemaCollectionPage({
+            name: "Artigos sobre INSS de obras",
+            description,
+            url: "/artigos",
+            numberOfItems: articles.length,
+          })}
         />
       </div>
     </main>

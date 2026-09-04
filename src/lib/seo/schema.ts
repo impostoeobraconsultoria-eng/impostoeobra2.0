@@ -101,3 +101,21 @@ export function getSchemaWebApplication(
     provider: { "@id": `${SITE_URL}/#organization` },
   };
 }
+
+export function getSchemaCollectionPage(input: {
+  name: string;
+  description: string;
+  url: string;
+  numberOfItems?: number;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: input.name,
+    description: input.description,
+    url: absoluteUrl(input.url),
+    ...(input.numberOfItems == null
+      ? {}
+      : { numberOfItems: input.numberOfItems }),
+  };
+}
