@@ -89,12 +89,13 @@ export default async function CustomerDetailPage({
       .limit(10),
     supabase
       .from("eventos_agenda")
-      .select("id,titulo,tipo,data_hora_inicio,status")
-      .eq("ref_tipo", "cliente")
-      .eq("ref_id", params.id)
-      .is("deleted_at", null)
-      .order("data_hora_inicio", { ascending: false })
-      .limit(10),
+      .select(
+        "id,titulo,tipo,inicio,eventos_participantes(user_id,user:users(id,nome))",
+      )
+      .eq("cliente_id", params.id)
+      .gte("inicio", new Date().toISOString())
+      .order("inicio", { ascending: true })
+      .limit(5),
     supabase.auth.getClaims(),
     supabase
       .from("produtos")
@@ -469,7 +470,13 @@ export default async function CustomerDetailPage({
               currentUserId={profile.id}
               isAdmin={profile.perfil === "admin"}
             />
-            <RelatedEvents events={(relatedEvents ?? []) as RelatedEvent[]} />
+            {String(config.agenda_habilitada ?? "true").toLowerCase() !==
+              "false" && (
+              <RelatedEvents
+                events={(relatedEvents ?? []) as RelatedEvent[]}
+                createHref={`/admin/agenda?novo=1&cliente_id=${customer.id}`}
+              />
+            )}
             <DocumentHistory
               compact
               items={(documents ?? []) as DocumentHistoryItem[]}

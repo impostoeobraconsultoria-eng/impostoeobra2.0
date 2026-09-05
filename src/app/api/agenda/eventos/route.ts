@@ -23,20 +23,25 @@ export async function GET(request: NextRequest) {
   const to = params.get("to");
   const type = params.get("tipo");
   const participant = params.get("participante");
+  const id = params.get("id");
   let query = context.supabase
     .from("eventos_agenda")
     .select(eventSelect)
     .order("inicio");
 
-  if (from) query = query.gte("inicio", from);
-  if (to) query = query.lt("inicio", to);
+  if (id) query = query.eq("id", id);
+  if (from && !id) query = query.gte("inicio", from);
+  if (to && !id) query = query.lt("inicio", to);
   if (type) {
-    const types = type.split(",").filter((item) =>
-      eventTypes.includes(item as (typeof eventTypes)[number]),
-    );
+    const types = type
+      .split(",")
+      .filter((item) =>
+        eventTypes.includes(item as (typeof eventTypes)[number]),
+      );
     if (types.length) query = query.in("tipo", types);
   }
-  if (params.get("lead_id")) query = query.eq("lead_id", params.get("lead_id")!);
+  if (params.get("lead_id"))
+    query = query.eq("lead_id", params.get("lead_id")!);
   if (params.get("cliente_id"))
     query = query.eq("cliente_id", params.get("cliente_id")!);
   if (participant)
@@ -52,10 +57,13 @@ export async function GET(request: NextRequest) {
         user_id: string;
         user: { nome: string | null } | Array<{ nome: string | null }> | null;
       }) => {
-      const related = Array.isArray(participant.user)
-        ? participant.user[0]
-        : participant.user;
-      return { user_id: participant.user_id, nome: related?.nome || "Usuário" };
+        const related = Array.isArray(participant.user)
+          ? participant.user[0]
+          : participant.user;
+        return {
+          user_id: participant.user_id,
+          nome: related?.nome || "Usuário",
+        };
       },
     ),
   }));
@@ -94,7 +102,11 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
 
-  if (parsed.data.tipo === "reuniao" && !parsed.data.lead_id && !parsed.data.cliente_id)
+  if (
+    parsed.data.tipo === "reuniao" &&
+    !parsed.data.lead_id &&
+    !parsed.data.cliente_id
+  )
     console.warn("Reunião criada sem associação", { userId: context.user.id });
 
   const rows = occurrences.map((occurrence) => ({
@@ -132,8 +144,14 @@ export async function POST(request: NextRequest) {
     await context.supabase
       .from("eventos_agenda")
       .delete()
-      .in("id", inserted.map((event) => event.id));
-    return NextResponse.json({ error: participantError.message }, { status: 400 });
+      .in(
+        "id",
+        inserted.map((event) => event.id),
+      );
+    return NextResponse.json(
+      { error: participantError.message },
+      { status: 400 },
+    );
   }
 
   return NextResponse.json(

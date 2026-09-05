@@ -29,7 +29,7 @@ export default async function AgendaPage({
       ]),
     supabase
       .from("users")
-      .select("id,nome,email")
+      .select("id,nome,email,perfil")
       .eq("ativo", true)
       .order("nome"),
     supabase
@@ -64,11 +64,18 @@ export default async function AgendaPage({
       leads={leads ?? []}
       clients={clients ?? []}
       currentUserId={currentUser.id}
+      isAdmin={currentUser.perfil === "admin"}
       defaultView={config.agenda_view_padrao || "semanal"}
       defaultReminder={Number(config.agenda_lembrete_padrao_minutos) || 15}
       dayStart={config.agenda_horario_inicio_dia || "08:00"}
       dayEnd={config.agenda_horario_fim_dia || "20:00"}
       initialEventId={searchParams?.evento}
+      initialLeadId={
+        searchParams?.novo === "1" ? searchParams.lead_id : undefined
+      }
+      initialClientId={
+        searchParams?.novo === "1" ? searchParams.cliente_id : undefined
+      }
     />
   );
 }
