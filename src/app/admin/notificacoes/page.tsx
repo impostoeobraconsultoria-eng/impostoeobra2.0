@@ -178,6 +178,7 @@ export default async function NotificationsPage({
 }
 
 const labels = {
+  agenda_lembrete: "Lembrete da agenda",
   evento_agenda: "Agenda",
   lead_novo: "Novo lead",
   lead_parado: "Lead parado",
@@ -185,6 +186,7 @@ const labels = {
   sistema: "Sistema",
 };
 const icons = {
+  agenda_lembrete: CalendarClock,
   evento_agenda: CalendarClock,
   lead_novo: UserPlus,
   lead_parado: CircleAlert,

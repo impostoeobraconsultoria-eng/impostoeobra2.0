@@ -9,10 +9,6 @@ import {
   type DocumentHistoryItem,
 } from "@/components/admin/document-history";
 import {
-  RelatedEvents,
-  type RelatedEvent,
-} from "@/components/admin/related-events";
-import {
   dateBr,
   dateExtenso,
   getConfigMap,
@@ -33,7 +29,6 @@ export default async function Page({
     { data: clients },
     { data: a },
     { data: documents },
-    { data: relatedEvents },
     { data: products },
     config,
   ] = await Promise.all([
@@ -56,14 +51,6 @@ export default async function Page({
       .eq("ref_tipo", "contrato")
       .eq("ref_id", params.id)
       .order("gerado_em", { ascending: false })
-      .limit(10),
-    s
-      .from("eventos_agenda")
-      .select("id,titulo,tipo,data_hora_inicio,status")
-      .eq("ref_tipo", "contrato")
-      .eq("ref_id", params.id)
-      .is("deleted_at", null)
-      .order("data_hora_inicio", { ascending: false })
       .limit(10),
     s.from("produtos").select("slug,nome,ativo").order("ordem"),
     getConfigMap(),
@@ -223,10 +210,6 @@ export default async function Page({
             </ol>
           </aside>
         </div>
-        <RelatedEvents
-          events={(relatedEvents ?? []) as RelatedEvent[]}
-          className="mt-6"
-        />
         <DocumentHistory items={(documents ?? []) as DocumentHistoryItem[]} />
       </div>
     </main>

@@ -301,25 +301,43 @@ create table public.eventos_agenda (
   id uuid primary key default gen_random_uuid(),
   titulo text not null,
   descricao text,
-  tipo text not null check (tipo in ('reuniao','follow_up','prazo','tarefa_interna')),
-  data_hora_inicio timestamptz not null,
-  data_hora_fim timestamptz,
+  tipo text not null check (tipo in ('reuniao','follow_up','prazo','tarefa')),
   dia_inteiro boolean not null default false,
-  lembrete_minutos integer,
+  inicio timestamptz not null,
+  fim timestamptz not null,
+  lead_id uuid references public.leads(id) on delete set null,
+  cliente_id uuid references public.clientes(id) on delete set null,
+  serie_id uuid,
+  serie_indice integer,
+  serie_total integer,
+  lembrete_minutos_antes integer check (lembrete_minutos_antes is null or lembrete_minutos_antes >= 0),
+  lembrete_disparar_em timestamptz,
+  lembrete_enviado boolean not null default false,
   lembrete_enviado_em timestamptz,
-  ref_tipo text check (ref_tipo in ('lead','cliente','contrato')),
-  ref_id uuid,
-  criado_por uuid references public.users(id) on delete set null,
-  responsavel_id uuid references public.users(id) on delete set null,
-  status text not null default 'agendado' check (status in ('agendado','concluido','cancelado')),
+  criado_por uuid not null references public.users(id) on delete restrict,
   criado_em timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  deleted_at timestamptz
+  check (fim >= inicio),
+  check (lead_id is null or cliente_id is null),
+  check (
+    (serie_id is null and serie_indice is null and serie_total is null)
+    or (serie_id is not null and serie_indice is not null and serie_total is not null)
+  )
 );
-create index idx_eventos_data on public.eventos_agenda(data_hora_inicio) where deleted_at is null;
-create index idx_eventos_ref on public.eventos_agenda(ref_tipo,ref_id) where deleted_at is null;
-create index idx_eventos_lembrete on public.eventos_agenda(data_hora_inicio,lembrete_minutos)
-  where deleted_at is null and lembrete_minutos is not null and lembrete_enviado_em is null and status='agendado';
+create index idx_eventos_agenda_por_inicio on public.eventos_agenda(inicio);
+create index idx_eventos_agenda_por_lead on public.eventos_agenda(lead_id) where lead_id is not null;
+create index idx_eventos_agenda_por_cliente on public.eventos_agenda(cliente_id) where cliente_id is not null;
+create index idx_eventos_agenda_lembrete_pendente on public.eventos_agenda(lembrete_disparar_em)
+  where lembrete_minutos_antes is not null and lembrete_enviado = false;
+create index idx_eventos_agenda_por_serie on public.eventos_agenda(serie_id) where serie_id is not null;
+
+create table public.eventos_participantes (
+  evento_id uuid not null references public.eventos_agenda(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  adicionado_em timestamptz not null default now(),
+  primary key (evento_id, user_id)
+);
+create index idx_eventos_participantes_user on public.eventos_participantes(user_id);
 
 -- Agora que clientes existe, adiciona FK em leads
 alter table public.leads
@@ -397,18 +415,20 @@ create index idx_produtos_ativos on public.produtos(ordem) where ativo = true;
 create table public.notificacoes (
   id uuid primary key default gen_random_uuid(),
   destinatario_id uuid references public.users(id) on delete cascade,
-  tipo text not null check (tipo in ('lead_novo','lead_parado','vau_desatualizada','evento_agenda','sistema')),
+  tipo text not null check (tipo in ('lead_novo','lead_parado','vau_desatualizada','evento_agenda','agenda_lembrete','sistema')),
   titulo text not null,
   mensagem text,
   link text,
   ref_tipo text,
   ref_id uuid,
+  dedupe_key text,
   lida boolean not null default false,
   lida_em timestamptz,
   criado_em timestamptz not null default now()
 );
 create index idx_notif_destinatario_naolidas on public.notificacoes(destinatario_id, criado_em desc) where lida = false;
 create index idx_notif_globais_naolidas on public.notificacoes(criado_em desc) where destinatario_id is null and lida = false;
+create unique index idx_notificacoes_dedupe_key on public.notificacoes(dedupe_key) where dedupe_key is not null;
 
 create table public.notificacoes_leituras (
   notificacao_id uuid not null references public.notificacoes(id) on delete cascade,
@@ -600,11 +620,28 @@ begin
 end;
 $$ language plpgsql;
 
+create or replace function public.eventos_agenda_calcular_lembrete()
+returns trigger language plpgsql as $$
+begin
+  if new.lembrete_minutos_antes is not null then
+    new.lembrete_disparar_em :=
+      new.inicio - (new.lembrete_minutos_antes * interval '1 minute');
+  else
+    new.lembrete_disparar_em := null;
+  end if;
+  return new;
+end;
+$$;
+
 create trigger trg_users_updated       before update on public.users        for each row execute function public.set_updated_at();
 create trigger trg_leads_updated       before update on public.leads        for each row execute function public.set_updated_at();
 create trigger trg_clientes_updated    before update on public.clientes     for each row execute function public.set_updated_at();
 create trigger trg_cliente_notas_updated before update on public.cliente_notas for each row execute function public.set_updated_at();
 create trigger trg_eventos_agenda_updated before update on public.eventos_agenda for each row execute function public.set_updated_at();
+create trigger trg_eventos_agenda_calcular_lembrete
+  before insert or update of inicio, lembrete_minutos_antes
+  on public.eventos_agenda
+  for each row execute function public.eventos_agenda_calcular_lembrete();
 create trigger trg_contratos_updated   before update on public.contratos    for each row execute function public.set_updated_at();
 create trigger trg_produtos_updated    before update on public.produtos     for each row execute function public.set_updated_at();
 create trigger trg_artigos_updated     before update on public.artigos      for each row execute function public.set_updated_at();
@@ -775,6 +812,7 @@ alter table public.leads        enable row level security;
 alter table public.clientes     enable row level security;
 alter table public.cliente_notas enable row level security;
 alter table public.eventos_agenda enable row level security;
+alter table public.eventos_participantes enable row level security;
 alter table public.contratos    enable row level security;
 alter table public.documentos_gerados enable row level security;
 alter table public.produtos     enable row level security;
@@ -870,17 +908,32 @@ create policy cliente_notas_delete_admin on public.cliente_notas
   for delete using (public.is_admin());
 
 -- -------- EVENTOS_AGENDA --------
-create policy eventos_select_active on public.eventos_agenda
-  for select using (public.is_active_user());
-create policy eventos_insert_own on public.eventos_agenda
-  for insert to authenticated with check (criado_por = public.current_active_user_id());
-create policy eventos_update_active on public.eventos_agenda
-  for update to authenticated using (public.is_active_user()) with check (public.is_active_user());
-create policy eventos_delete_admin on public.eventos_agenda
-  for delete to authenticated using (public.is_admin());
-revoke update on table public.eventos_agenda from authenticated;
-grant update (titulo,descricao,tipo,data_hora_inicio,data_hora_fim,dia_inteiro,lembrete_minutos,ref_tipo,ref_id,responsavel_id,status)
-  on table public.eventos_agenda to authenticated;
+create policy eventos_agenda_select_active on public.eventos_agenda
+  for select to authenticated using (public.is_active_user());
+create policy eventos_agenda_insert_active on public.eventos_agenda
+  for insert to authenticated
+  with check (public.is_active_user() and criado_por = public.current_active_user_id());
+create policy eventos_agenda_update_active on public.eventos_agenda
+  for update to authenticated
+  using (public.is_active_user()) with check (public.is_active_user());
+create policy eventos_agenda_delete_owner_or_admin on public.eventos_agenda
+  for delete to authenticated
+  using (
+    public.is_active_user()
+    and (criado_por = public.current_active_user_id() or public.is_admin())
+  );
+revoke all on table public.eventos_agenda from anon;
+grant select, insert, update, delete on table public.eventos_agenda to authenticated;
+
+-- -------- EVENTOS_PARTICIPANTES --------
+create policy eventos_part_select_active on public.eventos_participantes
+  for select to authenticated using (public.is_active_user());
+create policy eventos_part_insert_active on public.eventos_participantes
+  for insert to authenticated with check (public.is_active_user());
+create policy eventos_part_delete_active on public.eventos_participantes
+  for delete to authenticated using (public.is_active_user());
+revoke all on table public.eventos_participantes from anon;
+grant select, insert, delete on table public.eventos_participantes to authenticated;
 
 -- -------- CONTRATOS --------
 create policy contratos_select_active on public.contratos
@@ -1507,6 +1560,23 @@ insert into public.config (chave, valor, descricao) values
   ('ga4_event_click_telefone','click_telefone','Evento de clique em telefone.'),
   ('ga4_event_click_email','click_email','Evento de clique em e-mail.'),
   ('ga4_event_download_diagnostico','download_diagnostico','Evento de download do diagnóstico.')
+on conflict (chave) do nothing;
+
+-- =============================================================================
+-- V11 — AGENDA / CALENDÁRIO COMPARTILHADO
+-- =============================================================================
+
+insert into public.config (chave, valor, descricao) values
+  ('agenda_habilitada','true','Habilita o módulo compartilhado de Agenda.'),
+  ('agenda_lembrete_padrao_minutos','15','Antecedência padrão do lembrete, em minutos.'),
+  ('agenda_lembrete_canais','sininho,push,telegram','Canais dos lembretes da agenda.'),
+  ('agenda_lembrete_cron_frequencia_min','5','Frequência do cron de lembretes, em minutos.'),
+  ('agenda_recorrencia_max_instancias','52','Máximo de instâncias por série recorrente.'),
+  ('agenda_notificacao_titulo_lembrete','Lembrete de compromisso','Título dos lembretes da agenda.'),
+  ('agenda_notificacao_body_template','{{titulo}} — {{inicio_hora}}','Template do corpo dos lembretes da agenda.'),
+  ('agenda_view_padrao','semanal','View inicial: mensal, semanal ou lista.'),
+  ('agenda_horario_inicio_dia','08:00','Início da grade semanal.'),
+  ('agenda_horario_fim_dia','20:00','Fim da grade semanal.')
 on conflict (chave) do nothing;
 
 -- =============================================================================

@@ -91,15 +91,24 @@ export default async function AdminLayout({
           .eq("ativo", true)
           .maybeSingle()
       : { data: null };
+  const { data: agendaConfig } = await supabase
+    .from("config")
+    .select("valor")
+    .eq("chave", "agenda_habilitada")
+    .maybeSingle();
+  const baseNavigation =
+    agendaConfig?.valor?.toLowerCase() === "false"
+      ? navigation.filter((item) => item.href !== "/admin/agenda")
+      : navigation;
   const links =
     profile?.perfil === "admin"
       ? [
-          ...navigation.slice(0, 5),
+          ...baseNavigation.slice(0, 5),
           { href: "/admin/produtos", label: "Produtos", icon: PackageOpen },
-          ...navigation.slice(5),
+          ...baseNavigation.slice(5),
           ...adminNavigation,
         ]
-      : navigation;
+      : baseNavigation;
   const notificationData = profile
     ? await listNotifications(10)
     : { notifications: [], unread: 0 };

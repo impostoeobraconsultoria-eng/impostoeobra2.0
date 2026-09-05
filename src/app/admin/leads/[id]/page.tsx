@@ -87,12 +87,13 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
     supabase.from("funil_etapas").select("nome").order("ordem"),
     supabase
       .from("eventos_agenda")
-      .select("id,titulo,tipo,data_hora_inicio,status")
-      .eq("ref_tipo", "lead")
-      .eq("ref_id", params.id)
-      .is("deleted_at", null)
-      .order("data_hora_inicio", { ascending: false })
-      .limit(10),
+      .select(
+        "id,titulo,tipo,inicio,eventos_participantes(user_id,user:users(id,nome))",
+      )
+      .eq("lead_id", params.id)
+      .gte("inicio", new Date().toISOString())
+      .order("inicio", { ascending: true })
+      .limit(5),
     supabase.from("produtos").select("slug,nome,ativo").order("ordem"),
     supabase
       .from("motivos_inativacao")
@@ -630,10 +631,14 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
             </ol>
           </aside>
         </div>
-        <RelatedEvents
-          events={(relatedEvents ?? []) as RelatedEvent[]}
-          className="mt-6"
-        />
+        {String(config.agenda_habilitada ?? "true").toLowerCase() !==
+          "false" && (
+          <RelatedEvents
+            events={(relatedEvents ?? []) as RelatedEvent[]}
+            createHref={`/admin/agenda?novo=1&lead_id=${lead.id}`}
+            className="mt-6"
+          />
+        )}
         <DocumentHistory items={(documents ?? []) as DocumentHistoryItem[]} />
       </div>
     </main>
