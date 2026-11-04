@@ -25,7 +25,12 @@ export type NovaNotificacao = {
 
 export async function criarNotificacao(notification: NovaNotificacao) {
   const admin = createAdminClient();
-  const { push_titulo, push_mensagem, enviar_push = true, ...row } = notification;
+  const {
+    push_titulo,
+    push_mensagem,
+    enviar_push = true,
+    ...row
+  } = notification;
   const { data, error } = await admin
     .from("notificacoes")
     .insert({
@@ -41,7 +46,7 @@ export async function criarNotificacao(notification: NovaNotificacao) {
       .eq("dedupe_key", notification.dedupe_key)
       .single();
     if (lookupError) throw lookupError;
-    return existing;
+    return { ...existing, created: false };
   }
   if (error) throw error;
 
@@ -54,7 +59,7 @@ export async function criarNotificacao(notification: NovaNotificacao) {
         ? `${notification.ref_tipo}:${notification.ref_id}`
         : undefined,
   };
-  if (!enviar_push) return data;
+  if (!enviar_push) return { ...data, created: true };
   const pushPromise = (
     notification.destinatario_id
       ? enviarPushParaUsuario(
@@ -72,7 +77,7 @@ export async function criarNotificacao(notification: NovaNotificacao) {
     });
   });
   waitUntil(pushPromise);
-  return data;
+  return { ...data, created: true };
 }
 
 function internalAdminLink(link?: string) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isBusinessHours } from "@/lib/notification-policy";
 
 import { enviarAlertaFollowUpInativo } from "@/lib/telegram/envio";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -11,6 +12,8 @@ export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isBusinessHours())
+    return NextResponse.json({ ok: true, ignorado: "fora_do_expediente" });
 
   const admin = createAdminClient();
   const today = saoPauloDate();

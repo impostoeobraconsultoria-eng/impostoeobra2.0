@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/enviar-lembretes-agenda",
-      "schedule": "0 11 * * *"
+      "schedule": "0 12 * * *"
     },
     {
       "path": "/api/cron/notificacoes-diarias",
@@ -11,11 +11,11 @@
     },
     {
       "path": "/api/cron/telegram-follow-ups",
-      "schedule": "0 11 * * *"
+      "schedule": "0 12 * * *"
     },
     {
       "path": "/api/cron/cadencia-matinal",
-      "schedule": "0 11 * * *"
+      "schedule": "0 12 * * *"
     }
   ]
 }

@@ -736,7 +736,7 @@ function CadenceForm({ values }: { values: ConfigMap }) {
     >
       <SectionTitle
         title="Cadência comercial"
-        description="SLA de cobertura, intervalo entre tentativas e textos dos alertas operacionais."
+        description="Avisos operacionais de segunda a sexta, das 9h às 19h (Brasília). Novos leads continuam com aviso imediato a qualquer horário. Leads sem responsável geram um único resumo às 18h, se houver pendências."
       />
       <div className="grid gap-4 sm:grid-cols-2">
         <BooleanSelect
@@ -746,18 +746,15 @@ function CadenceForm({ values }: { values: ConfigMap }) {
         />
         <Input
           name="cadencia_sla_cobertura_horas_inicial"
-          label="Primeiro alerta sem cobertura (horas)"
+          label="Prazo de cobertura nos indicadores (horas)"
           type="number"
           min="1"
           max="168"
           value={values.cadencia_sla_cobertura_horas_inicial || "1"}
         />
-        <Input
+        <input
+          type="hidden"
           name="cadencia_sla_cobertura_recorrencia_horas"
-          label="Recorrência do alerta (horas)"
-          type="number"
-          min="1"
-          max="168"
           value={values.cadencia_sla_cobertura_recorrencia_horas || "1"}
         />
         <Input
@@ -780,7 +777,7 @@ function CadenceForm({ values }: { values: ConfigMap }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <BooleanSelect
           name="notif_lead_sem_cobertura"
-          label="Alertar lead sem cobertura"
+          label="Resumo às 18h de leads sem responsável"
           value={values.notif_lead_sem_cobertura}
         />
         <BooleanSelect
@@ -800,11 +797,13 @@ function CadenceForm({ values }: { values: ConfigMap }) {
         />
       </div>
       <div className="space-y-4">
-        <TextArea
+        <input
+          type="hidden"
           name="template_alerta_sem_cobertura"
-          label="Template — sem cobertura"
-          value={values.template_alerta_sem_cobertura}
-          hint="Placeholders: {primeiro_nome}, {uf}, {horas}"
+          value={
+            values.template_alerta_sem_cobertura ||
+            "Resumo de leads sem responsável"
+          }
         />
         <TextArea
           name="template_followup_hoje"

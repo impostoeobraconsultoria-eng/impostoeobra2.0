@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isBusinessHours } from "@/lib/notification-policy";
 import { sendMessage } from "@/lib/telegram/client";
 import {
   getTelegramConfig,
@@ -95,6 +96,7 @@ export async function enviarAlertaLeadNovo(lead: TelegramLead) {
 }
 
 export async function enviarAlertaFollowUpInativo(lead: TelegramInactiveLead) {
+  if (!isBusinessHours()) return false;
   const [enabled, notify, chatIdRaw] = await Promise.all([
     getTelegramConfigBoolean("telegram_habilitado"),
     getTelegramConfigBoolean("telegram_notificar_follow_up_inativo"),
@@ -149,6 +151,7 @@ export async function enviarAlertaFollowUpInativo(lead: TelegramInactiveLead) {
 }
 
 export async function enviarAlertaLeadParado(lead: TelegramStalledLead) {
+  if (!isBusinessHours()) return false;
   const [enabled, notify, chatIdRaw] = await Promise.all([
     getTelegramConfigBoolean("telegram_habilitado"),
     getTelegramConfigBoolean("telegram_notificar_lead_parado"),
@@ -196,7 +199,8 @@ export async function enviarAlertaLeadParado(lead: TelegramStalledLead) {
   return true;
 }
 
-export async function enviarAlertaCadenciaGrupo(html: string, leadId: string) {
+export async function enviarAlertaCadenciaGrupo(html: string, leadId?: string) {
+  if (!isBusinessHours()) return false;
   const [enabled, chatIdRaw, crm, baseUrl] = await Promise.all([
     getTelegramConfigBoolean("telegram_habilitado"),
     getTelegramConfig("telegram_chat_id_grupo_operacao"),
@@ -212,7 +216,7 @@ export async function enviarAlertaCadenciaGrupo(html: string, leadId: string) {
         [
           {
             text: crm,
-            url: `${baseUrl.replace(/\/$/, "")}/admin/leads/${leadId}`,
+            url: `${baseUrl.replace(/\/$/, "")}${leadId ? `/admin/leads/${leadId}` : "/admin/leads?filtro=sem_consultor"}`,
           },
         ],
       ],
@@ -226,7 +230,7 @@ export async function enviarAlertaCadenciaUsuarios(
   html: string,
   link = "/admin/leads",
 ) {
-  if (!userIds.length) return 0;
+  if (!isBusinessHours() || !userIds.length) return 0;
   const [enabled, crm, baseUrl] = await Promise.all([
     getTelegramConfigBoolean("telegram_habilitado"),
     requireTelegramConfig("telegram_btn_ver_no_crm"),

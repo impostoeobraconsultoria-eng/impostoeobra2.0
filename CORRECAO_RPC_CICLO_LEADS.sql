@@ -1,4 +1,5 @@
--- RPCs transacionais do ciclo de vida de leads (V4.1).
+-- RPCs do ciclo de vida compatíveis com a agenda V11.
+-- Cancelamento preserva o evento com título explícito e desliga seu lembrete.
 -- SECURITY INVOKER: todas as operações continuam sujeitas às RLS do usuário.
 
 create or replace function public.inativar_lead(
@@ -26,7 +27,7 @@ begin
     raise exception 'O detalhamento deve ter no máximo 500 caracteres.';
   end if;
   if coalesce(p_contato_futuro, false) and
-     (p_data_contato_futuro is null or p_data_contato_futuro <= current_date) then
+     (p_data_contato_futuro is null or p_data_contato_futuro <= (now() at time zone 'America/Sao_Paulo')::date) then
     raise exception 'A próxima tentativa deve ser a partir de amanhã.';
   end if;
 
@@ -56,8 +57,8 @@ begin
     '. Última etapa: ' || coalesce(v_lead.status, 'não informada') || '.';
 
   select id into v_evento_id from public.eventos_agenda
-   where ref_tipo = 'lead' and ref_id = p_lead_id and tipo = 'follow_up'
-     and deleted_at is null and status = 'agendado'
+   where lead_id = p_lead_id and tipo = 'follow_up'
+     and titulo like 'Retomar contato — %'
    order by criado_em desc limit 1 for update;
 
   if coalesce(p_contato_futuro, false) then
@@ -69,23 +70,24 @@ begin
     v_inicio := (p_data_contato_futuro::text || ' ' || v_horario || ' America/Sao_Paulo')::timestamptz;
     if v_evento_id is null then
       insert into public.eventos_agenda (
-        titulo, descricao, tipo, data_hora_inicio, dia_inteiro,
-        lembrete_minutos, ref_tipo, ref_id, criado_por, responsavel_id, status
+        titulo, descricao, tipo, inicio, fim, dia_inteiro,
+        lembrete_minutos_antes, lead_id, criado_por
       ) values (
-        'Retomar contato — ' || v_lead.nome, v_descricao, 'follow_up', v_inicio, false,
-        1440, 'lead', p_lead_id, v_user_id, coalesce(v_lead.responsavel_id, v_user_id), 'agendado'
+        'Retomar contato — ' || v_lead.nome, v_descricao, 'follow_up', v_inicio, v_inicio + interval '30 minutes', false,
+        1440, p_lead_id, v_user_id
       );
     else
       update public.eventos_agenda set
         titulo = 'Retomar contato — ' || v_lead.nome,
         descricao = v_descricao,
-        data_hora_inicio = v_inicio,
-        lembrete_minutos = 1440,
-        responsavel_id = coalesce(v_lead.responsavel_id, v_user_id)
+        inicio = v_inicio,
+        fim = v_inicio + interval '30 minutes',
+        lembrete_minutos_antes = 1440,
+        lembrete_enviado = false, lembrete_enviado_em = null
       where id = v_evento_id;
     end if;
   elsif v_evento_id is not null then
-    update public.eventos_agenda set status = 'cancelado' where id = v_evento_id;
+    update public.eventos_agenda set titulo = '[Cancelado] ' || titulo, lembrete_minutos_antes = null where id = v_evento_id;
   end if;
 
   insert into public.atividades (ref_tipo, ref_id, tipo, descricao, metadata_json, autor_id)
@@ -119,7 +121,7 @@ declare
 begin
   if v_user_id is null then raise exception 'Usuário não autorizado.'; end if;
   if coalesce(p_contato_futuro, false) and
-     (p_data_contato_futuro is null or p_data_contato_futuro <= current_date) then
+     (p_data_contato_futuro is null or p_data_contato_futuro <= (now() at time zone 'America/Sao_Paulo')::date) then
     raise exception 'A próxima tentativa deve ser a partir de amanhã.';
   end if;
   select * into v_lead from public.leads
@@ -135,8 +137,8 @@ begin
   where id = p_lead_id;
 
   select id into v_evento_id from public.eventos_agenda
-   where ref_tipo='lead' and ref_id=p_lead_id and tipo='follow_up'
-     and deleted_at is null and status='agendado'
+   where lead_id=p_lead_id and tipo='follow_up'
+     and titulo like 'Retomar contato — %'
    order by criado_em desc limit 1 for update;
   if coalesce(p_contato_futuro, false) then
     select valor into v_horario from public.config where chave='inativacao_reativar_horario_padrao';
@@ -144,22 +146,21 @@ begin
     v_inicio := (p_data_contato_futuro::text || ' ' || v_horario || ' America/Sao_Paulo')::timestamptz;
     if v_evento_id is null then
       insert into public.eventos_agenda (
-        titulo,descricao,tipo,data_hora_inicio,dia_inteiro,lembrete_minutos,
-        ref_tipo,ref_id,criado_por,responsavel_id,status
+        titulo,descricao,tipo,inicio,fim,dia_inteiro,lembrete_minutos_antes,
+        lead_id,criado_por
       ) values (
         'Retomar contato — ' || v_lead.nome,
         'Motivo original da inativação: ' || coalesce(v_motivo,'não informado') ||
           '. Detalhamento: ' || coalesce(v_lead.detalhamento_inativacao,'não informado') ||
           '. Última etapa: ' || coalesce(v_lead.ultima_etapa_kanban,'não informada') || '.',
-        'follow_up',v_inicio,false,1440,'lead',p_lead_id,v_user_id,
-        coalesce(v_lead.responsavel_id,v_user_id),'agendado'
+        'follow_up',v_inicio,v_inicio + interval '30 minutes',false,1440,p_lead_id,v_user_id
       );
     else
-      update public.eventos_agenda set data_hora_inicio=v_inicio, lembrete_minutos=1440
+      update public.eventos_agenda set inicio=v_inicio, fim=v_inicio + interval '30 minutes', lembrete_minutos_antes=1440, lembrete_enviado=false, lembrete_enviado_em=null
        where id=v_evento_id;
     end if;
   elsif v_evento_id is not null then
-    update public.eventos_agenda set status='cancelado' where id=v_evento_id;
+    update public.eventos_agenda set titulo='[Cancelado] ' || titulo, lembrete_minutos_antes=null where id=v_evento_id;
   end if;
   insert into public.atividades (ref_tipo,ref_id,tipo,descricao,metadata_json,autor_id)
   values ('lead',p_lead_id,'edicao_contato_futuro','Próxima tentativa de contato atualizada',
@@ -192,9 +193,9 @@ begin
     detalhamento_inativacao=null, inativado_em=null, inativado_por=null,
     contato_futuro=null, data_contato_futuro=null, updated_by=v_user_id
   where id=p_lead_id;
-  update public.eventos_agenda set status='cancelado'
-   where ref_tipo='lead' and ref_id=p_lead_id and tipo='follow_up'
-     and deleted_at is null and status='agendado';
+  update public.eventos_agenda set titulo='[Cancelado] ' || titulo, lembrete_minutos_antes=null
+   where lead_id=p_lead_id and tipo='follow_up'
+     and titulo like 'Retomar contato — %';
   insert into public.atividades (ref_tipo,ref_id,tipo,descricao,metadata_json,autor_id)
   values ('lead',p_lead_id,'lead_reativado',
     'Reativado como ' || p_etapa || '. Motivo original: ' || coalesce(v_motivo,'não informado'),
@@ -208,3 +209,16 @@ revoke execute on function public.reativar_lead(uuid,text) from public, anon;
 grant execute on function public.inativar_lead(uuid,uuid,text,boolean,date) to authenticated;
 grant execute on function public.atualizar_contato_futuro_lead(uuid,boolean,date) to authenticated;
 grant execute on function public.reativar_lead(uuid,text) to authenticated;
+
+-- Consultores podem editar/inativar/reativar leads, mas não movê-los à lixeira.
+drop policy if exists leads_update_active on public.leads;
+create policy leads_update_active on public.leads
+  for update to authenticated
+  using (
+    (select public.is_active_user())
+    and (deleted_at is null or (select public.is_admin()))
+  )
+  with check (
+    (select public.is_active_user())
+    and (deleted_at is null or (select public.is_admin()))
+  );

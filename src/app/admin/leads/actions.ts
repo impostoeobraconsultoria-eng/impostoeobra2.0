@@ -42,13 +42,23 @@ async function adminContext() {
 export async function softDeleteLead(id: string) {
   if (!z.string().uuid().safeParse(id).success)
     return { ok: false, error: "Lead inválido." };
-  const { supabase, user } = await adminContext();
-  const { error } = await supabase
+  const { supabase, user } = await context();
+  if (user.perfil !== "admin")
+    return {
+      ok: false,
+      error:
+        "Apenas administradores podem excluir leads. Para pausar o atendimento, use Inativar lead.",
+    };
+  const { data: deleted, error } = await supabase
     .from("leads")
     .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
     .eq("id", id)
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, error: error.message };
+  if (!deleted)
+    return { ok: false, error: "Lead não encontrado ou já excluído." };
   await supabase.from("atividades").insert({
     ref_tipo: "lead",
     ref_id: id,
@@ -59,6 +69,8 @@ export async function softDeleteLead(id: string) {
   revalidatePath("/admin");
   revalidatePath("/admin/leads");
   revalidatePath("/admin/leads/lixeira");
+  revalidatePath("/admin/leads/inativos");
+  revalidatePath(`/admin/leads/${id}`);
   return { ok: true };
 }
 

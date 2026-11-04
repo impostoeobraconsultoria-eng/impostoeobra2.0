@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
   const now = new Date();
-  // O cron roda às 8h. A janela de 8 dias cobre integralmente lembretes de
+  // O cron diário roda às 9h (Brasília). A janela de 8 dias cobre integralmente lembretes de
   // "1 semana antes", mesmo quando o evento ocorre mais tarde no dia.
   const reminderWindowEnd = new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000);
   const [{ data: candidates, error }, { data: users }, { data: configs }] =

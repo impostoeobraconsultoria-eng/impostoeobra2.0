@@ -175,6 +175,11 @@ export default async function LeadsPage({ searchParams }: Props) {
           </section>
         )}
         <LeadsBoard
+          key={JSON.stringify([
+            requested.filter,
+            requested.responsible,
+            initialStatus,
+          ])}
           initialLeads={(leads ?? []) as LeadRecord[]}
           users={users ?? []}
           stages={stages}

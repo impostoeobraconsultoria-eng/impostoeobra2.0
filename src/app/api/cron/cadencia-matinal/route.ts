@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isBusinessHours } from "@/lib/notification-policy";
 
 import {
   getCadenciaConfig,
@@ -18,6 +19,8 @@ export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isBusinessHours())
+    return NextResponse.json({ ok: true, ignorado: "fora_do_expediente" });
   const config = await getCadenciaConfig();
   if (!config.habilitada || !config.notificarFollowupHoje)
     return NextResponse.json({ ok: true, desabilitado: true, enviados: 0 });

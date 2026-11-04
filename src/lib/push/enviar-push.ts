@@ -1,6 +1,10 @@
 import "server-only";
 
 import webpush from "web-push";
+import {
+  notificationAllowed,
+  notificationTtl,
+} from "@/lib/notification-policy";
 
 import type { NotificationType } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -39,6 +43,7 @@ async function sendPush(
   type: NotificationType,
   userId?: string,
 ) {
+  if (!notificationAllowed(type)) return { sent: 0, skipped: true };
   const vapidSubject = process.env.VAPID_SUBJECT;
   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
@@ -122,13 +127,14 @@ async function sendPush(
   await Promise.all(
     subscriptions.map(async (subscription) => {
       try {
+        if (!notificationAllowed(type)) return;
         await webpush.sendNotification(
           {
             endpoint: subscription.endpoint,
             keys: { p256dh: subscription.p256dh, auth: subscription.auth },
           },
           encryptedPayload,
-          { TTL: 86_400, urgency: "high" },
+          { TTL: notificationTtl(type), urgency: "high" },
         );
         sent += 1;
         const { error: updateError } = await admin

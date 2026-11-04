@@ -11,7 +11,6 @@ export type LeadListFilter = (typeof LEAD_LIST_FILTERS)[number];
 export function normalizeLeadListFilters({
   filter,
   responsible,
-  isAdmin,
   currentUserId,
 }: {
   filter?: string;
@@ -22,14 +21,14 @@ export function normalizeLeadListFilters({
   const validFilter = LEAD_LIST_FILTERS.includes(filter as LeadListFilter)
     ? (filter as LeadListFilter)
     : undefined;
-  if (!isAdmin)
-    return {
-      filter: "meus" as const,
-      responsible: currentUserId || undefined,
-    };
   return {
     filter: validFilter,
-    responsible: isUuid(responsible) ? responsible : undefined,
+    responsible:
+      validFilter === "meus"
+        ? currentUserId || undefined
+        : isUuid(responsible)
+          ? responsible
+          : undefined,
   };
 }
 

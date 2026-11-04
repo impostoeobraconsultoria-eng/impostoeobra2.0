@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  isBusinessHours,
+  isCoverageSummaryTime,
+} from "@/lib/notification-policy";
 
 import {
   datePtBr,
@@ -36,6 +40,8 @@ export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isBusinessHours())
+    return NextResponse.json({ ok: true, ignorado: "fora_do_expediente" });
 
   const admin = createAdminClient();
   const config = await getCadenciaConfig();
@@ -63,77 +69,32 @@ export async function GET(request: NextRequest) {
   let decidirAlertados = 0;
   let erros = 0;
 
-  if (config.notificarSemCobertura) {
-    const threshold = new Date(
-      now.getTime() - config.slaInicialHoras * 3_600_000,
-    ).toISOString();
-    const { data: uncovered, error } = await admin
+  if (config.notificarSemCobertura && isCoverageSummaryTime(now)) {
+    // Um único resumo por dia, incluindo leads recentes e com contato já registrado.
+    const { count, error } = await admin
       .from("leads")
-      .select(
-        "id,nome,uf,data_hora,responsavel_id,tentativa_atual,proxima_tentativa_em,cadencia_finalizada_em,ultimo_alerta_cobertura_h",
-      )
+      .select("id", { count: "exact", head: true })
       .is("deleted_at", null)
       .is("convertido_em", null)
       .eq("status_ativacao", "ativo")
-      .is("responsavel_id", null)
-      .is("contato_inicial_em", null)
-      .lte("data_hora", threshold)
-      .limit(500);
+      .is("responsavel_id", null);
     if (error) throw error;
-    for (const lead of (uncovered ?? []) as CadenceLead[]) {
-      const hours = Math.max(
-        0,
-        Math.floor((now.getTime() - Date.parse(lead.data_hora)) / 3_600_000),
-      );
-      const last = lead.ultimo_alerta_cobertura_h;
-      if (
-        hours < config.slaInicialHoras ||
-        (last != null && hours - last < config.slaRecorrenciaHoras)
-      )
-        continue;
-      const html = renderCadenciaTemplate(config.templateSemCobertura, {
-        primeiro_nome: firstName(lead.nome),
-        uf: lead.uf || "—",
-        horas: hours,
+    if (count && count > 0) {
+      const mensagem = `${count} lead(s) ativo(s) ainda sem responsável. Distribuam os atendimentos antes do encerramento do expediente às 19h.`;
+      const notification = await criarNotificacao({
+        tipo: "sistema",
+        titulo: "Fechamento: leads sem responsável",
+        mensagem,
+        link: "/admin/leads?filtro=sem_consultor",
+        ref_tipo: "cadencia_resumo_cobertura",
+        dedupe_key: `cadencia_resumo_cobertura:${today}`,
       });
-      try {
-        await criarNotificacao({
-          tipo: "sistema",
-          titulo: "Lead sem cobertura",
-          mensagem: plainTextFromTemplate(html),
-          link: `/admin/leads/${lead.id}`,
-          ref_tipo: "cadencia_sem_cobertura",
-          ref_id: lead.id,
+      if (notification.created) {
+        await enviarAlertaCadenciaGrupo(mensagem).catch((error) => {
+          erros += 1;
+          console.error("Falha no Telegram do resumo de cobertura", error);
         });
-        await enviarAlertaCadenciaGrupo(html, lead.id).catch((telegramError) =>
-          console.error("Falha no Telegram de cobertura", {
-            leadId: lead.id,
-            error:
-              telegramError instanceof Error
-                ? telegramError.message
-                : "erro desconhecido",
-          }),
-        );
-        const { error: updateError } = await admin
-          .from("leads")
-          .update({ ultimo_alerta_cobertura_h: hours })
-          .eq("id", lead.id)
-          .or(
-            last == null
-              ? "ultimo_alerta_cobertura_h.is.null"
-              : `ultimo_alerta_cobertura_h.eq.${last}`,
-          );
-        if (updateError) throw updateError;
-        coberturaAlertados += 1;
-      } catch (notificationError) {
-        erros += 1;
-        console.error("Falha no alerta de cobertura", {
-          leadId: lead.id,
-          error:
-            notificationError instanceof Error
-              ? notificationError.message
-              : "erro desconhecido",
-        });
+        coberturaAlertados = count;
       }
     }
   }
