@@ -10,6 +10,7 @@ import { gerarDiagnosticoPreliminar } from "@/lib/diagnostico/gerar";
 export const runtime = "nodejs";
 
 const MAX_BODY_BYTES = 32 * 1024;
+const DUPLICATE_WINDOW_HOURS = 24;
 
 export async function POST(request: NextRequest) {
   const contentLength = Number(request.headers.get("content-length") ?? 0);
@@ -58,6 +59,20 @@ export async function POST(request: NextRequest) {
   void _website;
   void _telefone;
   const admin = createAdminClient();
+  const recentDuplicate = await findRecentDuplicate(
+    admin,
+    phone.data.telefoneNormalizado,
+  );
+  if (recentDuplicate) {
+    console.info("Simulação duplicada ignorada", {
+      existingLeadId: recentDuplicate.id,
+      origem: "simulador",
+    });
+    return NextResponse.json(
+      { ok: true, created: false, duplicate: true },
+      { status: 200 },
+    );
+  }
   const matches = await findRecurrences(
     admin,
     phone.data.telefoneNormalizado,
@@ -155,7 +170,10 @@ export async function POST(request: NextRequest) {
   }
 
   console.info("Lead registrado", { id: data.id, origem: "simulador" });
-  return NextResponse.json({ ok: true, id: data.id }, { status: 201 });
+  return NextResponse.json(
+    { ok: true, created: true, id: data.id },
+    { status: 201 },
+  );
 }
 
 function firstName(name: string) {
@@ -222,3 +240,30 @@ async function findRecurrences(
     ),
   };
 }
+
+async function findRecentDuplicate(
+  admin: ReturnType<typeof createAdminClient>,
+  phone: string,
+) {
+  const since = new Date(
+    Date.now() - DUPLICATE_WINDOW_HOURS * 60 * 60 * 1000,
+  ).toISOString();
+  const { data, error } = await admin
+    .from("leads")
+    .select("id")
+    .eq("telefone_normalizado", phone)
+    .eq("origem", "simulador")
+    .is("deleted_at", null)
+    .gte("data_hora", since)
+    .order("data_hora", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error("Falha ao verificar duplicidade recente", {
+      code: error.code,
+    });
+    return null;
+  }
+  return data;
+}
+

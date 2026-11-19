@@ -208,19 +208,28 @@ export function CalculadoraInss({
         }),
       });
       const body: unknown = await response.json().catch(() => null);
-      const leadId =
+      const created =
+        body && typeof body === "object" && "created" in body
+          ? (body as { created?: unknown }).created
+          : null;
+      const returnedLeadId =
         body && typeof body === "object" && "id" in body
           ? (body as { id?: unknown }).id
           : null;
-      if (!response.ok || typeof leadId !== "string")
+      if (!response.ok || typeof created !== "boolean")
         throw new Error("Resposta inválida ao registrar lead");
-      setLeadId(leadId);
-      sendGaEvent(eventNames.generateLead, {
-        lead_id: leadId,
-        value: r.economia || 0,
-        currency: "BRL",
-        ...(pageLocation ? { page_location: pageLocation } : {}),
-      });
+      if (created) {
+        if (typeof returnedLeadId !== "string")
+          throw new Error("Lead criado sem identificador");
+        setLeadId(returnedLeadId);
+        sendGaEvent(eventNames.generateLead, {
+          lead_id: returnedLeadId,
+          transaction_id: returnedLeadId,
+          value: r.economia || 0,
+          currency: "BRL",
+          ...(pageLocation ? { page_location: pageLocation } : {}),
+        });
+      }
     } catch (error) {
       console.error("Erro ao enviar lead", error);
       setErro(
@@ -703,3 +712,4 @@ function ResultCard({
     </div>
   );
 }
+

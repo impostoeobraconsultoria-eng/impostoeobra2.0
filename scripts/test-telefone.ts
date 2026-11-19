@@ -13,10 +13,14 @@ const cases = [
   ["999999999", "Informe o DDD."],
   ["019999999999", "DDD inválido."],
   ["61899998877", "Número de celular deve começar com 9."],
+  ["61999999999", "Informe um número de WhatsApp válido."],
+  ["61912345678", "Informe um número de WhatsApp válido."],
+  ["61987654321", "Informe um número de WhatsApp válido."],
 ] as const;
 for (const [input, message] of cases) {
   const result = parseBrazilianMobile(input);
   assert.equal(result.ok, false, input);
   if (!result.ok) assert.equal(result.error, message);
 }
-console.log("Telefone BR: 6 cenários aprovados.");
+console.log("Telefone BR: 9 cenários aprovados.");
+
