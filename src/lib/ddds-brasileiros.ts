@@ -95,6 +95,11 @@ export function parseBrazilianMobile(
   const whatsapp = digits.slice(2);
   if (!whatsapp.startsWith("9"))
     return { ok: false, error: "Número de celular deve começar com 9." };
+  if (isObviouslyFakeMobile(whatsapp))
+    return {
+      ok: false,
+      error: "Informe um número de WhatsApp válido.",
+    };
   return {
     ok: true,
     data: {
@@ -106,7 +111,18 @@ export function parseBrazilianMobile(
   };
 }
 
+function isObviouslyFakeMobile(number: string) {
+  if (/^(\d)\1{8}$/.test(number)) return true;
+  return new Set([
+    "912345678",
+    "987654321",
+    "900000000",
+    "999998888",
+  ]).has(number);
+}
+
 export function formatBrazilianMobile(ddd?: unknown, number?: unknown) {
   const parsed = parseBrazilianMobile(`${ddd ?? ""}${number ?? ""}`);
   return parsed.ok ? parsed.data.formatted : "";
 }
+
