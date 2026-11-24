@@ -51,11 +51,11 @@ export default async function Home() {
               Consultoria tributária especializada
             </p>
             <h1 className="mt-6 max-w-4xl text-[44px] font-extrabold leading-[.98] tracking-[-.055em] text-text sm:text-[58px] lg:text-[70px]">
-              Regularize o INSS da sua obra no CPF e emita a CND pagando apenas o que a lei exige.
+              Regularize o INSS da sua obra no CPF e avance até a CND.
             </h1>
             <p className="mt-8 max-w-2xl text-lg leading-8 text-brandMuted sm:text-xl">
-              Analisamos CNO, SERO, documentação e reduções aplicáveis para
-              conduzir a regularização da sua obra até a emissão da CND.
+              Conferimos CNO, SERO, documentos e reduções aplicáveis para você
+              pagar apenas o que a lei exige e concluir a regularização.
             </p>
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               <a className="btn-primary" href="#calculadora">
