@@ -16,9 +16,9 @@ import { pageMetadata } from "@/lib/seo/metadata";
 import { getSchemaFAQPage, getSchemaWebApplication } from "@/lib/seo/schema";
 
 const title =
-  "Calculadora INSS de Obra — Simulador Oficial IN RFB 2021 | Imposto & Obra";
+  "Calculadora de INSS de Obra para Pessoa Física | Imposto & Obra";
 const description =
-  "Calcule quanto de INSS você paga pela sua obra em 2 minutos. Simulador oficial baseado na IN RFB 2.021/2021. Descubra reduções legais.";
+  "Simule o INSS de uma obra vinculada ao CPF com os parâmetros da IN RFB 2.021/2021 e identifique reduções que dependem de análise documental.";
 const canonical = "/calculadora-inss-de-obra";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const howItWorks = [
   [
     "Informe as características da obra",
-    "Selecione responsável, destinação, tipo, categoria, materiais e UF.",
+    "Informe destinação, tipo, categoria, materiais e UF da obra vinculada ao CPF.",
   ],
   [
     "Preencha as áreas",
@@ -50,7 +50,7 @@ const howItWorks = [
 ] as const;
 
 const inputs = [
-  "Responsável, destinação e tipo da obra",
+  "Destinação e tipo da obra vinculada ao CPF",
   "Categoria da construção e estado (UF)",
   "Uso de concreto usinado ou pré-fabricados",
   "Áreas de construção, reforma, demolição e piscina",
@@ -110,12 +110,12 @@ export default async function CalculadoraPage() {
         <div className="site-container">
           <p className="editorial-label">Simulação gratuita em 2 minutos</p>
           <h1 className="mt-5 max-w-5xl text-4xl font-extrabold leading-tight tracking-[-.045em] text-text sm:text-5xl">
-            Calculadora de INSS de Obra — Simulador Oficial da IN RFB 2.021/2021
+            Calculadora de INSS de Obra para Pessoa Física
           </h1>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-brandMuted">
-            Simule o INSS que você teria de pagar pela sua obra e descubra
-            quanto pode reduzir legalmente. Estimativa em 2 minutos, sem
-            cadastro para simular.
+            Simule o INSS estimado da obra vinculada ao seu CPF e identifique
+            reduções que podem ser confirmadas na análise dos documentos. O
+            cálculo usa os parâmetros da IN RFB nº 2.021/2021.
           </p>
           <Link
             className="mt-5 inline-flex text-sm font-bold text-primary"
