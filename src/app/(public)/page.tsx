@@ -11,6 +11,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { getSeoConfig } from "@/lib/seo/config";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { getSchemaLocalBusiness } from "@/lib/seo/schema";
+import { getCachedVau } from "@/lib/vau";
 
 const homeDescription =
   "Consultoria para pessoas físicas: regularize o INSS da obra, confira reduções legais e avance até a emissão da CND.";
@@ -25,12 +26,19 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function Home() {
   const config = await getSiteConfig();
-  const [whatsappUrl, whatsappNumber, diagnosticoEnabled, seo] = await Promise.all([
+  const [whatsappUrl, whatsappNumber, diagnosticoEnabled, seo, vauRows] = await Promise.all([
     getWhatsappUrl(config.whatsapp_msg_padrao),
     getWhatsappNumber(),
     getDiagnosticoHabilitado(),
     getSeoConfig(),
+    getCachedVau().catch(() => []),
   ]);
+  const vauVigencia = formatVigencia(
+    vauRows.find((row) => row.vigencia)?.vigencia ?? null,
+  );
+  const heroExampleDescription = config.hero_exemplo_descricao
+    .replace(/\s*Simulação com VAU.+$/i, "")
+    .trim();
 
   return (
     <main>
@@ -84,7 +92,8 @@ export default async function Home() {
             </p>
             <p className="mt-1 font-semibold text-text">de economia estimada</p>
             <p className="mt-5 text-sm leading-6 text-brandMuted">
-              {config.hero_exemplo_descricao}
+              {heroExampleDescription}
+              {vauVigencia ? ` Simulação com VAU de ${vauVigencia}.` : ""}
             </p>
           </aside>
         </div>
@@ -255,4 +264,16 @@ export default async function Home() {
       </section>
     </main>
   );
+}
+
+
+function formatVigencia(value: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("pt-BR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
 }
