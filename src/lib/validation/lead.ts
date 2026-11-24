@@ -18,7 +18,7 @@ export const leadSchema = z
     gclid: attribution,
     fbclid: attribution,
     referrer: z.string().trim().max(2000).nullable().optional(),
-    resp: z.enum(["Pessoa Física", "Pessoa Jurídica"]),
+    resp: z.literal("Pessoa Física"),
     dest: z.enum([
       "Residencial Unifamiliar",
       "Residencial Multifamiliar",
