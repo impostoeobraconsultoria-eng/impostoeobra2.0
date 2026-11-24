@@ -13,7 +13,7 @@ import { pageMetadata } from "@/lib/seo/metadata";
 import { getSchemaLocalBusiness } from "@/lib/seo/schema";
 
 const homeDescription =
-  "Consultoria especializada em regularização de obras e redução de INSS. Simule o imposto da sua obra e descubra quanto pode economizar.";
+  "Consultoria para pessoas físicas: regularize o INSS da obra, confira reduções legais e avance até a emissão da CND.";
 
 export async function generateMetadata(): Promise<Metadata> {
   return pageMetadata(await getSeoConfig(), {
@@ -43,17 +43,21 @@ export default async function Home() {
               Consultoria tributária especializada
             </p>
             <h1 className="mt-6 max-w-4xl text-[44px] font-extrabold leading-[.98] tracking-[-.055em] text-text sm:text-[58px] lg:text-[70px]">
-              Sua obra regularizada. Seu imposto reduzido.
+              Regularize o INSS da sua obra no CPF e emita a CND pagando apenas o que a lei exige.
             </h1>
             <p className="mt-8 max-w-2xl text-lg leading-8 text-brandMuted sm:text-xl">
-              Estratégia jurídica e tributária para regularizar o INSS da sua
-              construção com segurança, agilidade e a máxima redução prevista em
-              lei.
+              Analisamos CNO, SERO, documentação e reduções aplicáveis para
+              conduzir a regularização da sua obra até a emissão da CND.
             </p>
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               <a className="btn-primary" href="#calculadora">
-                Simular minha obra
+                Simular gratuitamente
               </a>
+            </div>
+            <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold text-brandMuted">
+              <span>Exclusivo para obras de pessoa física</span>
+              <span>Análise individual</span>
+              <span>Atendimento nacional</span>
             </div>
           </div>
 
@@ -119,6 +123,82 @@ export default async function Home() {
               >
                 Ver página completa da calculadora →
               </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-border bg-page py-20">
+        <div className="site-container grid gap-10 lg:grid-cols-12">
+          <div className="lg:col-span-5">
+            <p className="editorial-label">Aviso da Receita Federal</p>
+            <h2 className="editorial-title mt-5">
+              Recebeu um aviso para regularizar a obra?
+            </h2>
+          </div>
+          <div className="lg:col-span-7 lg:border-l lg:border-border lg:pl-14">
+            <p className="max-w-2xl text-lg leading-8 text-brandMuted">
+              Antes de concluir o SERO ou aceitar o primeiro valor apurado,
+              confira o CNO, as áreas, as datas e os documentos da obra. Mesmo
+              com o prazo correndo ou já vencido, a situação precisa ser
+              analisada individualmente antes da regularização.
+            </p>
+            <Link
+              className="mt-8 inline-flex border-b-2 border-primary pb-1 font-bold text-primary"
+              href="/artigos/aviso-regularizacao-obra-receita-federal"
+            >
+              Entender o aviso e os próximos passos →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-border bg-white py-20">
+        <div className="site-container">
+          <p className="editorial-label">Da simulação à certidão</p>
+          <h2 className="editorial-title mt-5">O caminho até a CND</h2>
+          <div className="mt-9 grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ["1", "Diagnóstico", "Conferimos a situação da obra e os documentos disponíveis."],
+              ["2", "CNO e enquadramento", "Revisamos cadastro, áreas, destinação e período da construção."],
+              ["3", "Cálculo no SERO", "Aplicamos os parâmetros e reduções admitidos para o caso."],
+              ["4", "DCTFWeb", "Orientamos a transmissão e a emissão do DARF aplicável."],
+              ["5", "Regularização", "Acompanhamos o pagamento ou parcelamento, quando necessário."],
+              ["6", "Emissão da CND", "Concluímos o processo com a certidão da obra regularizada."],
+            ].map(([number, name, explanation]) => (
+              <article key={number} className="bg-page p-6">
+                <span className="text-sm font-extrabold text-accent">{number}</span>
+                <h3 className="mt-3 font-extrabold text-text">{name}</h3>
+                <p className="mt-3 text-sm leading-6 text-brandMuted">
+                  {explanation}
+                </p>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-16 grid gap-10 lg:grid-cols-12">
+            <div className="lg:col-span-4">
+              <p className="editorial-label">Análise individual</p>
+              <h2 className="editorial-title mt-5">
+                O que pode alterar o valor?
+              </h2>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:col-span-8">
+              {[
+                ["Área equivalente", "A natureza e as áreas da obra mudam a base utilizada no cálculo."],
+                ["Fator social", "Obras de pessoa física podem ter percentuais próprios conforme a área."],
+                ["Concreto e pré-moldados", "Notas fiscais podem gerar reduções quando cumprem os requisitos."],
+                ["Contribuições anteriores", "Valores já declarados podem ser considerados após conferência."],
+                ["Data da obra", "Períodos antigos exigem análise documental e das regras de decadência."],
+                ["Enquadramento correto", "Erros no CNO ou na classificação podem aumentar a apuração."],
+              ].map(([name, explanation]) => (
+                <article key={name} className="border border-border p-5">
+                  <h3 className="font-extrabold text-text">{name}</h3>
+                  <p className="mt-2 text-sm leading-6 text-brandMuted">
+                    {explanation}
+                  </p>
+                </article>
+              ))}
             </div>
           </div>
         </div>
