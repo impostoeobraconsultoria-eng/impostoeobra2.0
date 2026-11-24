@@ -6,7 +6,17 @@ export async function PATCH() {
   const { supabase, profile } = await getCurrentNotificationUser();
   if (!profile)
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-  const { data } = await supabase.from("notificacoes").select("id").limit(500);
+  // Marque o mesmo conjunto recente que alimenta o contador do sino.
+  const { data, error: notificationsError } = await supabase
+    .from("notificacoes")
+    .select("id")
+    .order("criado_em", { ascending: false })
+    .limit(200);
+  if (notificationsError)
+    return NextResponse.json(
+      { error: notificationsError.message },
+      { status: 500 },
+    );
   const rows = (data ?? []).map((item) => ({
     notificacao_id: item.id,
     usuario_id: profile.id,
