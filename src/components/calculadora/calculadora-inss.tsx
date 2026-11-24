@@ -9,7 +9,6 @@ import {
   DESTINACOES,
   formatBRL,
   percEquivalencia,
-  RESPONSAVEIS,
   TIPOS_OBRA,
   UFS,
   VAU_HARDCODED,
@@ -38,7 +37,7 @@ const obraKeys = [
 ] as const;
 
 const initial: FormInput = {
-  resp: "",
+  resp: "Pessoa Física",
   dest: "",
   tipo: "",
   categoria: "",
@@ -95,22 +94,28 @@ export function CalculadoraInss({
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<ResultadoCalculo | null>(null);
   const [tabela, setTabela] = useState<Record<string, number[]>>(VAU_HARDCODED);
-  const [periodo, setPeriodo] = useState(VAU_PERIODO);
+  const [periodo, setPeriodo] = useState<string | null>(null);
+  const [vauStatus, setVauStatus] = useState<"loading" | "live" | "fallback">(
+    "loading",
+  );
   const [sending, setSending] = useState(false);
   const [leadId, setLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2000);
+    const timer = setTimeout(() => controller.abort(), 8000);
     fetch("/api/vau", { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((body) => {
-        if (body?.data) {
-          setTabela(body.data);
-          if (body.vigencia) setPeriodo(formatVigencia(body.vigencia));
-        }
+        if (!body?.data || !body.vigencia) return Promise.reject();
+        setTabela(body.data);
+        setPeriodo(formatVigencia(body.vigencia));
+        setVauStatus("live");
       })
-      .catch(() => {})
+      .catch(() => {
+        setPeriodo(VAU_PERIODO);
+        setVauStatus("fallback");
+      })
       .finally(() => clearTimeout(timer));
     return () => {
       clearTimeout(timer);
@@ -255,13 +260,20 @@ export function CalculadoraInss({
             Simular agora o seu INSS
           </h2>
           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
-            VAU {periodo}
+            VAU {periodo ?? "atualizando…"}
           </span>
         </div>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Calcule uma estimativa do imposto da sua obra e saiba até quanto pode
           reduzir.
         </p>
+        {vauStatus === "fallback" ? (
+          <p className="mt-2 text-xs leading-5 text-amber-700">
+            A tabela atual não pôde ser carregada agora. A simulação usará a
+            referência de segurança de {VAU_PERIODO}; confirme o resultado com
+            nossa equipe.
+          </p>
+        ) : null}
       </div>
       <ol
         className="mb-8 grid grid-cols-4 gap-2"
@@ -288,21 +300,16 @@ export function CalculadoraInss({
         <div>
           <h3 className="mb-5 text-lg font-bold">1. Informações da obra</h3>
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Responsável pela obra">
-              <select
-                className={inputClass}
-                value={input.resp}
-                onChange={(e) =>
-                  update("resp", e.target.value as EntradasCalculo["resp"])
-                }
+            <Field
+              label="Responsável pela obra"
+              hint="A Imposto & Obra atende exclusivamente obras vinculadas a CPF."
+            >
+              <div
+                className={`${inputClass} flex items-center font-semibold text-text`}
+                role="status"
               >
-                <option value="">— Selecione —</option>
-                {RESPONSAVEIS.map((x) => (
-                  <option key={x} value={x}>
-                    {x}
-                  </option>
-                ))}
-              </select>
+                Pessoa Física (CPF)
+              </div>
             </Field>
             <Field label="Destinação">
               <select
