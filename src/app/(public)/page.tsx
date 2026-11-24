@@ -99,6 +99,7 @@ export default async function Home() {
         </div>
       </section>
 
+      <span id="calc" className="block scroll-mt-24" aria-hidden="true" />
       <section
         className="border-b border-border bg-white py-20"
         id="calculadora"
