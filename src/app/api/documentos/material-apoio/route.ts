@@ -23,6 +23,15 @@ export async function POST(request: Request) {
     const parsed = bodySchema.safeParse(await request.json());
     if (!parsed.success)
       return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
+    if (
+      parsed.data.params.multa_status === "identificadas" &&
+      Number(parsed.data.params.multas) <= 0
+    ) {
+      return NextResponse.json(
+        { error: "Informe o valor das multas identificadas." },
+        { status: 400 },
+      );
+    }
     const { data: lead } = await createAdminClient()
       .from("leads")
       .select("id,nome")

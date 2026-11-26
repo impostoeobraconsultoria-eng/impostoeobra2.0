@@ -8,6 +8,11 @@ import {
   LoaderCircle,
   X,
 } from "lucide-react";
+import {
+  calculateMaterialSupport,
+  MATERIAL_SUPPORT_EXTERNAL_SIMULATOR,
+  type MultaStatus,
+} from "@/lib/material-support";
 
 type Values = Record<string, string | number>;
 type Modal = "material" | "proposta" | "contrato" | null;
@@ -23,16 +28,6 @@ const proposalFields = [
   ["data_extenso", "Data por extenso"],
   ["valor_obra_concluida", "Valor — obra concluída"],
   ["valor_obra_andamento", "Valor — obra em andamento"],
-] as const;
-
-const materialFields = [
-  ["cliente", "Cliente"],
-  ["area_construcao", "Área de construção"],
-  ["imposto_direto", "Imposto direto"],
-  ["imposto_reduzido", "Imposto reduzido"],
-  ["multas", "Multas"],
-  ["parcelas", "Parcelas"],
-  ["area_piscina", "Área de piscina"],
 ] as const;
 
 const contractGroups = [
@@ -223,10 +218,8 @@ export function DocumentActions({
               </p>
             )}
             {modal === "material" && (
-              <SimpleForm
-                fields={materialFields}
+              <MaterialSupportForm
                 values={materialDefaults!}
-                button="Gerar PDF"
                 pending={pending}
                 onSubmit={openMaterial}
               />
@@ -287,6 +280,194 @@ export function DocumentActions({
         </div>
       )}
     </>
+  );
+}
+
+function MaterialSupportForm({
+  values,
+  pending,
+  onSubmit,
+}: {
+  values: Values;
+  pending: boolean;
+  onSubmit: (form: FormData) => void;
+}) {
+  const [impostoDireto, setImpostoDireto] = useState(
+    Number(values.imposto_direto ?? 0),
+  );
+  const [impostoReduzido, setImpostoReduzido] = useState(
+    Number(values.imposto_reduzido ?? 0),
+  );
+  const [multaStatus, setMultaStatus] = useState<MultaStatus>(
+    (values.multa_status as MultaStatus) || "nao_apuradas",
+  );
+  const [multas, setMultas] = useState(Number(values.multas ?? 0));
+  const calculo = calculateMaterialSupport({
+    impostoDireto,
+    impostoReduzido,
+    multaStatus,
+    multasInformadas: multas,
+  });
+  const currency = new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+
+  return (
+    <form
+      className="mt-6 space-y-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit(new FormData(event.currentTarget));
+      }}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="field">
+          Cliente
+          <input
+            className="input"
+            name="cliente"
+            defaultValue={values.cliente ?? ""}
+          />
+        </label>
+        <label className="field">
+          Situação da obra
+          <select
+            className="input"
+            name="obra_status"
+            defaultValue={values.obra_status ?? "concluida"}
+          >
+            <option value="concluida">Obra concluída</option>
+            <option value="em_andamento">Obra em andamento</option>
+          </select>
+        </label>
+        <MaterialNumberField
+          name="area_construcao"
+          label="Área de construção (m²)"
+          value={Number(values.area_construcao ?? 0)}
+        />
+        <MaterialNumberField
+          name="area_piscina"
+          label="Área de piscina (m²)"
+          value={Number(values.area_piscina ?? 0)}
+        />
+        <MaterialNumberField
+          name="imposto_direto"
+          label="INSS sem redução (R$)"
+          value={impostoDireto}
+          onChange={setImpostoDireto}
+        />
+        <MaterialNumberField
+          name="imposto_reduzido"
+          label="INSS reduzido (R$)"
+          value={impostoReduzido}
+          onChange={setImpostoReduzido}
+        />
+      </div>
+      <p className="rounded-xl bg-blue-50 p-3 text-sm text-slate-600">
+        Os valores de INSS são editáveis. Confira a estimativa no{" "}
+        <a
+          href={MATERIAL_SUPPORT_EXTERNAL_SIMULATOR}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-bold text-primary underline"
+        >
+          Simulador de DISO
+        </a>{" "}
+        antes de gerar o documento.
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="field">
+          Situação das multas
+          <select
+            className="input"
+            name="multa_status"
+            value={multaStatus}
+            onChange={(event) =>
+              setMultaStatus(event.target.value as MultaStatus)
+            }
+          >
+            <option value="nao_apuradas">Não apuradas</option>
+            <option value="nao_identificadas">Não identificadas</option>
+            <option value="identificadas">Identificadas</option>
+          </select>
+        </label>
+        {multaStatus === "identificadas" && (
+          <MaterialNumberField
+            name="multas"
+            label="Valor das multas identificadas (R$)"
+            value={multas}
+            min={0.01}
+            required
+            onChange={setMultas}
+          />
+        )}
+      </div>
+      <div className="grid gap-3 rounded-2xl border bg-slate-50 p-4 text-sm sm:grid-cols-3">
+        <div>
+          <span className="text-slate-500">Economia estimada</span>
+          <strong className="mt-1 block text-base">
+            {currency.format(calculo.economia)} (
+            {calculo.economiaPct.toFixed(0)}%)
+          </strong>
+        </div>
+        <div>
+          <span className="text-slate-500">À vista</span>
+          <strong className="mt-1 block text-base">
+            {currency.format(calculo.totalAVista)}
+          </strong>
+        </div>
+        <div>
+          <span className="text-slate-500">Parcelado após vencimento</span>
+          <strong className="mt-1 block text-base">
+            {calculo.parcelas}x de {currency.format(calculo.valorParcela)}
+          </strong>
+        </div>
+      </div>
+      <p className="text-xs leading-relaxed text-slate-500">
+        O cenário parcelado inclui separadamente a multa de mora de 20% e não a
+        soma novamente às multas informadas. Os juros Selic futuros não estão
+        incluídos e serão definidos pela Receita Federal na consolidação.
+      </p>
+      <SubmitButton label="Gerar PDF" pending={pending} />
+    </form>
+  );
+}
+
+function MaterialNumberField({
+  name,
+  label,
+  value,
+  min = 0,
+  required = false,
+  onChange,
+}: {
+  name: string;
+  label: string;
+  value: number;
+  min?: number;
+  required?: boolean;
+  onChange?: (value: number) => void;
+}) {
+  return (
+    <label className="field">
+      {label}
+      <input
+        className="input"
+        name={name}
+        type="number"
+        min={min}
+        step="0.01"
+        value={onChange ? value : undefined}
+        defaultValue={onChange ? undefined : value}
+        required={required}
+        onChange={
+          onChange
+            ? (event) => onChange(Math.max(0, event.target.valueAsNumber || 0))
+            : undefined
+        }
+      />
+    </label>
   );
 }
 

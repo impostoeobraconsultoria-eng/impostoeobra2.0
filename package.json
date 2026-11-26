@@ -11,6 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:calculadora": "node --no-warnings --experimental-strip-types scripts/test-calculadora.ts",
+    "test:material-support": "node --no-warnings --experimental-strip-types scripts/test-material-support.ts",
     "test:telefone": "node --no-warnings --experimental-strip-types scripts/test-telefone.ts",
     "test:lembretes": "node --no-warnings --experimental-strip-types scripts/test-lembretes-agenda.ts",
     "test:cadencia": "node --no-warnings --experimental-strip-types scripts/test-cadencia-filtros.ts",

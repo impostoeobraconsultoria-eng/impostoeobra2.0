@@ -152,8 +152,9 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
     area_construcao: Number(lead.area_total ?? lead.a_construcao ?? 0),
     imposto_direto: Number(lead.inss_direto ?? 0),
     imposto_reduzido: Number(lead.inss_reduzido ?? 0),
+    multa_status: "nao_apuradas",
     multas: 0,
-    parcelas: 5,
+    obra_status: "concluida",
     area_piscina:
       Number(lead.a_pcoberta ?? 0) + Number(lead.a_pdescoberta ?? 0),
   };
