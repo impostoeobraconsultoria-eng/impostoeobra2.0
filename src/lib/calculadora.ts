@@ -171,6 +171,36 @@ export function fatorSocial(area: number) {
   return 90;
 }
 
+export function hojeNaCalculadora(agora = new Date()) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(agora);
+}
+
+export function estimarDecadencia(
+  inicio: string,
+  fim: string,
+  hoje = hojeNaCalculadora(),
+) {
+  if (!inicio || !fim || inicio > fim || fim > hoje) return null;
+  const competencia = (data: string) =>
+    Number(data.slice(0, 4)) * 12 + Number(data.slice(5, 7)) - 1;
+  // Manual do Sero, itens 20 e 20.1. Frações de mês contam como um mês.
+  const corte = (Number(hoje.slice(0, 4)) - 5) * 12;
+  const primeiroMes = competencia(inicio);
+  const ultimoMes = competencia(fim);
+  const meses = ultimoMes - primeiroMes + 1;
+  const mesesDecadentes = Math.max(0, Math.min(meses, corte - primeiroMes));
+  return {
+    meses,
+    mesesDecadentes,
+    fracaoNaoDecadente: (meses - mesesDecadentes) / meses,
+  };
+}
+
 export function calcularInss(
   entrada: EntradasCalculo,
   tabela = VAU_HARDCODED,

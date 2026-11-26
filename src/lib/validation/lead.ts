@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseBrazilianMobile } from "@/lib/ddds-brasileiros";
+import { hojeNaCalculadora } from "@/lib/calculadora";
 
 const nonNegativeNumber = z.number().finite().nonnegative().max(1_000_000_000);
 const attribution = z.string().trim().max(1000).nullable().optional();
@@ -18,6 +19,8 @@ export const leadSchema = z
     gclid: attribution,
     fbclid: attribution,
     referrer: z.string().trim().max(2000).nullable().optional(),
+    obra_inicio: z.iso.date().optional(),
+    obra_fim: z.iso.date().optional(),
     resp: z.literal("Pessoa Física"),
     dest: z.enum([
       "Residencial Unifamiliar",
@@ -89,6 +92,24 @@ export const leadSchema = z
   })
   .strict()
   .superRefine((lead, context) => {
+    const hoje = hojeNaCalculadora();
+    for (const campo of ["obra_inicio", "obra_fim"] as const) {
+      const data = lead[campo];
+      if (data && (data < "1900-01-01" || data > hoje)) {
+        context.addIssue({
+          code: "custom",
+          message: "Data da obra fora do intervalo válido.",
+          path: [campo],
+        });
+      }
+    }
+    if (lead.obra_inicio && lead.obra_fim && lead.obra_inicio > lead.obra_fim) {
+      context.addIssue({
+        code: "custom",
+        message: "A conclusão deve ser igual ou posterior ao início.",
+        path: ["obra_fim"],
+      });
+    }
     const phone = parseBrazilianMobile(lead.telefone);
     if (!phone.ok)
       context.addIssue({

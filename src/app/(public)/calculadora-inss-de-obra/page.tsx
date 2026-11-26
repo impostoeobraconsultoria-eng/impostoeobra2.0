@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const howItWorks = [
   [
     "Informe as características da obra",
-    "Informe destinação, tipo, categoria, materiais e UF da obra vinculada ao CPF.",
+    "Para obras de pessoa física, selecione destinação, tipo, categoria, materiais e UF. Se souber, informe as datas de início e conclusão.",
   ],
   [
     "Preencha as áreas",

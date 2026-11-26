@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import { calcularInss, type EntradasCalculo } from "../src/lib/calculadora.ts";
+import {
+  calcularInss,
+  estimarDecadencia,
+  hojeNaCalculadora,
+  type EntradasCalculo,
+} from "../src/lib/calculadora.ts";
 
 const base: EntradasCalculo = {
   resp: "Pessoa Física",
@@ -15,6 +20,28 @@ const base: EntradasCalculo = {
   a_pcoberta: 0,
   a_pdescoberta: 0,
 };
+
+const hoje = "2026-11-26";
+assert.equal(estimarDecadencia("", "", hoje), null);
+assert.equal(estimarDecadencia("2020-12-31", "", hoje), null);
+assert.equal(estimarDecadencia("", "2020-12-31", hoje), null);
+assert.equal(estimarDecadencia("2021-01-01", "2020-12-31", hoje), null);
+assert.equal(estimarDecadencia("2026-11-01", "2026-11-27", hoje), null);
+assert.deepEqual(estimarDecadencia("2020-12-01", "2020-12-31", hoje), {
+  meses: 1,
+  mesesDecadentes: 1,
+  fracaoNaoDecadente: 0,
+});
+assert.deepEqual(estimarDecadencia("2020-12-31", "2021-01-01", hoje), {
+  meses: 2,
+  mesesDecadentes: 1,
+  fracaoNaoDecadente: 0.5,
+});
+assert.equal(
+  estimarDecadencia("2021-01-01", "2021-01-01", hoje)?.fracaoNaoDecadente,
+  1,
+);
+assert.equal(hojeNaCalculadora(new Date("2027-01-01T02:59:59Z")), "2026-12-31");
 const cases = [
   ["A", { ...base, a_construcao: 200 }, [12378.56, 9283.92, 3094.64]],
   ["B", { ...base, a_construcao: 500 }, [69629.41, 61892.81, 7736.6]],

@@ -53,6 +53,8 @@ export async function POST(request: NextRequest) {
     timestamp: _timestamp,
     website: _website,
     telefone: _telefone,
+    obra_inicio,
+    obra_fim,
     ...lead
   } = parsed.data;
   void _timestamp;
@@ -82,6 +84,19 @@ export async function POST(request: NextRequest) {
     .from("leads")
     .insert({
       ...lead,
+      ...(obra_inicio || obra_fim
+        ? {
+            observacoes: [
+              "Datas da obra informadas na simulação",
+              obra_inicio &&
+                `Início: ${obra_inicio.split("-").reverse().join("/")}`,
+              obra_fim &&
+                `Conclusão: ${obra_fim.split("-").reverse().join("/")}`,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          }
+        : {}),
       ddd: phone.data.ddd,
       whatsapp: phone.data.whatsapp,
       telefone_normalizado: phone.data.telefoneNormalizado,
@@ -266,4 +281,3 @@ async function findRecentDuplicate(
   }
   return data;
 }
-

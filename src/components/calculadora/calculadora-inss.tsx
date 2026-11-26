@@ -7,7 +7,9 @@ import {
   CATEGORIAS,
   calcularInss,
   DESTINACOES,
+  estimarDecadencia,
   formatBRL,
+  hojeNaCalculadora,
   percEquivalencia,
   TIPOS_OBRA,
   UFS,
@@ -21,13 +23,13 @@ import { DiagnosticoDownload } from "@/components/calculadora/diagnostico-downlo
 import { TrackedPublicAnchor } from "@/components/analytics/tracked-anchor";
 
 type FormInput = {
-  [K in keyof EntradasCalculo]: EntradasCalculo[K] extends number
-    ? string
-    : EntradasCalculo[K] | "";
+  [K in Exclude<
+    keyof EntradasCalculo,
+    "resp"
+  >]: EntradasCalculo[K] extends number ? string : EntradasCalculo[K] | "";
 };
 
 const obraKeys = [
-  "resp",
   "dest",
   "tipo",
   "categoria",
@@ -37,7 +39,6 @@ const obraKeys = [
 ] as const;
 
 const initial: FormInput = {
-  resp: "Pessoa Física",
   dest: "",
   tipo: "",
   categoria: "",
@@ -88,6 +89,8 @@ export function CalculadoraInss({
 }) {
   const [step, setStep] = useState(1);
   const [input, setInput] = useState(initial);
+  const [obraInicio, setObraInicio] = useState("");
+  const [obraFim, setObraFim] = useState("");
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
@@ -100,6 +103,8 @@ export function CalculadoraInss({
   );
   const [sending, setSending] = useState(false);
   const [leadId, setLeadId] = useState<string | null>(null);
+  const hoje = hojeNaCalculadora();
+  const decadencia = estimarDecadencia(obraInicio, obraFim, hoje);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -125,7 +130,7 @@ export function CalculadoraInss({
   const camposObraValidos = obraKeys.every((key) => input[key] !== "");
   const calculoInput = useMemo(
     (): EntradasCalculo => ({
-      resp: input.resp as EntradasCalculo["resp"],
+      resp: "Pessoa Física",
       dest: input.dest as EntradasCalculo["dest"],
       tipo: input.tipo as EntradasCalculo["tipo"],
       categoria: input.categoria as EntradasCalculo["categoria"],
@@ -166,6 +171,34 @@ export function CalculadoraInss({
     }
     if (next === 3 && areas.bruta <= 0) {
       setErro("A soma das áreas deve ser maior que zero.");
+      return;
+    }
+    if (next === 3 && input.dest === "Casa Popular" && areas.bruta > 70) {
+      setErro(
+        "Para o Sero, Casa Popular tem área total de até 70 m². Volte e revise a destinação da obra.",
+      );
+      return;
+    }
+    if (
+      step === 1 &&
+      next === 2 &&
+      [obraInicio, obraFim].some(
+        (data) => data && (data < "1900-01-01" || data > hoje),
+      )
+    ) {
+      setErro("Informe datas válidas, sem usar datas futuras.");
+      return;
+    }
+    if (
+      step === 1 &&
+      next === 2 &&
+      obraInicio &&
+      obraFim &&
+      obraInicio > obraFim
+    ) {
+      setErro(
+        "A data de conclusão deve ser igual ou posterior à data de início.",
+      );
       return;
     }
     setStep(next);
@@ -209,6 +242,8 @@ export function CalculadoraInss({
           email: email.trim() || null,
           ...readAttribution(),
           ...calculoInput,
+          ...(obraInicio ? { obra_inicio: obraInicio } : {}),
+          ...(obraFim ? { obra_fim: obraFim } : {}),
           ...r,
         }),
       });
@@ -244,9 +279,12 @@ export function CalculadoraInss({
       setSending(false);
     }
   };
-  const waUrl = resultado
-    ? `https://api.whatsapp.com/send?phone=${encodeURIComponent(whatsappNumber)}&text=${encodeURIComponent(resultado.economia > 0 ? `Olá, me chamo ${nome}!\n\nSimulei o INSS da minha obra no site.\nINSS sem deduções: ${formatBRL(resultado.inss_direto)}\nINSS estimado com deduções: ${formatBRL(resultado.inss_reduzido)}\nEconomia potencial: ${formatBRL(resultado.economia)}\n\nGostaria de um orçamento para regularizar a obra.` : `Olá, me chamo ${nome}!\n\nSimulei o INSS da minha obra no site.\nValor estimado pela norma: ${formatBRL(resultado.inss_direto)}\n\nNão declarei concreto usinado nem pré-fabricado na simulação, mas gostaria de saber se há outros benefícios fiscais aplicáveis ao meu caso. Pode me ajudar?`)}`
-    : "#";
+  const waUrl =
+    resultado && decadencia && decadencia.mesesDecadentes > 0
+      ? `https://api.whatsapp.com/send?phone=${encodeURIComponent(whatsappNumber)}&text=${encodeURIComponent(`Olá, me chamo ${nome}! A simulação indicou um possível período decadente. Gostaria de confirmar a documentação e a estimativa para minha obra.`)}`
+      : resultado
+        ? `https://api.whatsapp.com/send?phone=${encodeURIComponent(whatsappNumber)}&text=${encodeURIComponent(resultado.economia > 0 ? `Olá, me chamo ${nome}!\n\nSimulei o INSS da minha obra no site.\nINSS sem deduções: ${formatBRL(resultado.inss_direto)}\nINSS estimado com deduções: ${formatBRL(resultado.inss_reduzido)}\nEconomia potencial: ${formatBRL(resultado.economia)}\n\nGostaria de um orçamento para regularizar a obra.` : `Olá, me chamo ${nome}!\n\nSimulei o INSS da minha obra no site.\nValor estimado pela norma: ${formatBRL(resultado.inss_direto)}\n\nNão declarei concreto usinado nem pré-fabricado na simulação, mas gostaria de saber se há outros benefícios fiscais aplicáveis ao meu caso. Pode me ajudar?`)}`
+        : "#";
 
   return (
     <section
@@ -304,12 +342,12 @@ export function CalculadoraInss({
               label="Responsável pela obra"
               hint="A Imposto & Obra atende exclusivamente obras vinculadas a CPF."
             >
-              <div
-                className={`${inputClass} flex items-center font-semibold text-text`}
-                role="status"
-              >
-                Pessoa Física (CPF)
-              </div>
+              <input
+                className={inputClass}
+                type="text"
+                value="Pessoa Física (CPF)"
+                readOnly
+              />
             </Field>
             <Field label="Destinação">
               <select
@@ -366,9 +404,9 @@ export function CalculadoraInss({
               label="Usou concreto usinado?"
               hint={
                 <>
-                  💡 95% das obras urbanas usam concreto usinado pelo menos na
-                  fundação ou laje. Na dúvida, marque <strong>Sim</strong> —
-                  nossa equipe valida com as notas fiscais.
+                  Marque <strong>Sim</strong> se puder confirmar o uso de
+                  concreto usinado. A equipe pode conferir as notas fiscais
+                  depois.
                 </>
               }
             >
@@ -421,6 +459,36 @@ export function CalculadoraInss({
                   </option>
                 ))}
               </select>
+            </Field>
+          </div>
+          <p className="mb-2 mt-6 text-sm text-muted-foreground">
+            Se souber, informe as datas da construção, ampliação, reforma ou
+            demolição que você está simulando. Elas ajudam a estimar o período
+            fora do prazo de cobrança.
+          </p>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Data de início (opcional)">
+              <input
+                className={inputClass}
+                type="date"
+                min="1900-01-01"
+                max={hoje}
+                value={obraInicio}
+                onChange={(e) => setObraInicio(e.target.value)}
+              />
+            </Field>
+            <Field
+              label="Data de conclusão (opcional)"
+              hint="Deixe em branco se a obra ainda não terminou ou se você não souber."
+            >
+              <input
+                className={inputClass}
+                type="date"
+                min={obraInicio || "1900-01-01"}
+                max={hoje}
+                value={obraFim}
+                onChange={(e) => setObraFim(e.target.value)}
+              />
             </Field>
           </div>
           <Actions next={() => go(2)} disabled={!camposObraValidos} />
@@ -517,11 +585,14 @@ export function CalculadoraInss({
       {step === 4 && resultado ? (
         <Resultado
           resultado={resultado}
+          decadencia={decadencia}
           waUrl={waUrl}
           leadId={leadId}
           diagnosticoEnabled={diagnosticoEnabled}
           restart={() => {
             setInput(initial);
+            setObraInicio("");
+            setObraFim("");
             setNome("");
             setTelefone("");
             setEmail("");
@@ -580,17 +651,21 @@ function Actions({
 }
 function Resultado({
   resultado,
+  decadencia,
   waUrl,
   leadId,
   diagnosticoEnabled,
   restart,
 }: {
   resultado: ResultadoCalculo;
+  decadencia: ReturnType<typeof estimarDecadencia>;
   waUrl: string;
   leadId: string | null;
   diagnosticoEnabled: boolean;
   restart: () => void;
 }) {
+  const comDecadencia =
+    decadencia && decadencia.mesesDecadentes > 0 ? decadencia : null;
   const detail = [
     [
       "Área equivalente (cálculo)",
@@ -621,41 +696,66 @@ function Resultado({
   return (
     <div>
       <h3 className="mb-5 text-lg font-bold">Resultado da simulação</h3>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div
+        className={
+          resultado.economia > 0 ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"
+        }
+      >
         <ResultCard
           red
           title="❌ INSS sem deduções"
           value={resultado.inss_direto}
-          sub="Valor cheio pelo cálculo SERO"
+          sub="Estimativa antes de deduções e decadência"
         />
-        <ResultCard
-          title="✅ INSS estimado com deduções"
-          value={resultado.inss_reduzido}
-          sub="Com aproveitamentos típicos"
-        />
+        {resultado.economia > 0 && (
+          <ResultCard
+            title="INSS estimado com deduções"
+            value={resultado.inss_reduzido}
+            sub="Considera os abatimentos informados"
+          />
+        )}
       </div>
-      <div className="my-5 rounded-xl bg-primary p-5 text-center text-white">
-        <p className="text-sm font-semibold">Economia estimada</p>
-        <p className="mt-1 text-3xl font-extrabold">
-          {formatBRL(resultado.economia)}
-        </p>
-      </div>
-      {resultado.economia <= 0 ? (
-        <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
-          <strong>Sua simulação mostrou R$ 0 de economia direta.</strong>
-          <p className="mt-2">
-            Isso acontece porque você declarou que não há concreto usinado nem
-            pré-fabricado na obra — mecanismos previstos no{" "}
-            <strong>art. 32 §3º</strong> e no <strong>art. 26 §2º</strong> da IN
-            RFB nº 2.021/2021.
+      {comDecadencia ? (
+        <div className="my-5 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm leading-6 text-emerald-950">
+          <h4 className="font-bold">
+            Estimativa com{" "}
+            {comDecadencia.fracaoNaoDecadente === 0
+              ? "decadência total"
+              : "decadência parcial"}
+          </h4>
+          <p className="my-2 text-3xl font-extrabold">
+            {formatBRL(
+              resultado.inss_reduzido * comDecadencia.fracaoNaoDecadente,
+            )}
           </p>
-          <p className="mt-2">
-            A norma prevê <strong>outras deduções</strong> que dependem de
-            análise documental. Fale com a nossa equipe para uma análise
-            gratuita do seu caso.
+          <p>
+            {comDecadencia.mesesDecadentes} de {comDecadencia.meses} meses podem
+            estar fora do prazo de cobrança. O resultado depende da comprovação
+            das datas e da confirmação no Sero.
           </p>
         </div>
-      ) : null}
+      ) : (
+        <div className="my-5 rounded-xl bg-secondary p-5 text-sm leading-6">
+          {resultado.economia > 0 ? (
+            <p>
+              <strong>Economia estimada com os abatimentos informados:</strong>{" "}
+              {formatBRL(resultado.economia)}
+            </p>
+          ) : null}
+          {!decadencia ? (
+            <p>
+              Obras antigas podem ter parte ou todo o valor fora do prazo de
+              cobrança. Nossa equipe pode verificar as datas e os documentos com
+              você.
+            </p>
+          ) : (
+            <p>
+              As datas informadas não indicam período decadente. A análise dos
+              documentos pode identificar outros créditos aplicáveis.
+            </p>
+          )}
+        </div>
+      )}
       <dl className="divide-y divide-border border-y border-border">
         {detail.map(([label, value]) => (
           <div
@@ -668,6 +768,12 @@ function Resultado({
         ))}
       </dl>
       {diagnosticoEnabled && <DiagnosticoDownload leadId={leadId} />}
+      {diagnosticoEnabled && leadId && comDecadencia && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          O PDF detalha a estimativa-base. O cenário por decadência está no
+          resultado acima.
+        </p>
+      )}
       <div className="mt-7 flex flex-wrap justify-end gap-3">
         <button
           onClick={restart}
@@ -719,4 +825,3 @@ function ResultCard({
     </div>
   );
 }
-
