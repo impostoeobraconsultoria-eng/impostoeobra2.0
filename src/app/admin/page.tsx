@@ -18,6 +18,8 @@ import {
 import type { ContactPerformancePoint } from "@/components/admin/grafico-performance-contato";
 import type { ConsultantLeadSlice } from "@/components/admin/grafico-leads-por-consultor";
 import { getCadenciaConfig, saoPauloDateKey } from "@/lib/cadencia/config";
+import { LeadPeriodChart } from "@/components/admin/grafico-leads-periodo";
+import { chartPeriod, leadChartData } from "@/lib/dashboard-lead-periods";
 
 type AdminPageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -75,66 +77,97 @@ function dateKey(value: string | Date) {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
-function LeadsLineChart({
+function LeadPeriodPanel({
+  period,
+  otherPeriod,
+  today,
   values,
+  monthly = false,
 }: {
-  values: { day: string; count: number }[];
+  period: ReturnType<typeof chartPeriod>;
+  otherPeriod: ReturnType<typeof chartPeriod>;
+  today: string;
+  values: Awaited<ReturnType<typeof leadChartData>>;
+  monthly?: boolean;
 }) {
-  const max = Math.max(1, ...values.map((value) => value.count));
-  const points = values
-    .map(
-      (value, index) =>
-        `${(index / Math.max(1, values.length - 1)) * 100},${100 - (value.count / max) * 88}`,
-    )
-    .join(" ");
+  const prefix = monthly ? "mensal" : "diario";
+  const otherPrefix = monthly ? "diario" : "mensal";
+  const inputType = monthly ? "month" : "date";
+  const latest = monthly ? today.slice(0, 7) : today;
+  const inputClass =
+    "rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900";
+
   return (
-    <div className="mt-7">
-      <svg
-        viewBox="0 0 100 105"
-        preserveAspectRatio="none"
-        className="h-52 w-full overflow-visible"
-        role="img"
-        aria-label="Gráfico de linha de leads recebidos por dia"
+    <article
+      id={prefix}
+      className="min-w-0 scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+    >
+      <h2 className="text-lg font-bold">
+        {monthly ? "Leads e conversões por mês" : "Leads recebidos por dia"}
+      </h2>
+      {monthly && (
+        <p className="text-sm text-slate-500">
+          Cada série usa a data do próprio evento: entrada do lead ou conversão
+          em cliente.
+        </p>
+      )}
+      <form
+        action={`/admin#${prefix}`}
+        className="mt-4 flex flex-wrap items-end gap-3 text-sm"
       >
-        {[25, 50, 75, 100].map((y) => (
-          <line
-            key={y}
-            x1="0"
-            x2="100"
-            y1={y}
-            y2={y}
-            stroke="#e2e8f0"
-            strokeWidth="0.5"
-          />
-        ))}
-        <polyline
-          points={points}
-          fill="none"
-          stroke="#0071e3"
-          strokeWidth="2"
-          vectorEffect="non-scaling-stroke"
-          strokeLinejoin="round"
-          strokeLinecap="round"
+        <input
+          type="hidden"
+          name={`${otherPrefix}_inicio`}
+          value={otherPeriod.from}
         />
-        {values.map((value, index) => (
-          <circle
-            key={value.day}
-            cx={(index / Math.max(1, values.length - 1)) * 100}
-            cy={100 - (value.count / max) * 88}
-            r="1.2"
-            fill="#0071e3"
-          >
-            <title>{`${shortDate.format(new Date(`${value.day}T12:00:00`))}: ${value.count} leads`}</title>
-          </circle>
-        ))}
-      </svg>
-      <div className="mt-2 flex justify-between text-xs text-slate-400">
-        <span>{shortDate.format(new Date(`${values[0]?.day}T12:00:00`))}</span>
-        <span>
-          {shortDate.format(new Date(`${values.at(-1)?.day}T12:00:00`))}
-        </span>
-      </div>
-    </div>
+        <input
+          type="hidden"
+          name={`${otherPrefix}_fim`}
+          value={otherPeriod.to}
+        />
+        <label className="grid gap-1 font-medium">
+          Início
+          <input
+            name={`${prefix}_inicio`}
+            type={inputType}
+            defaultValue={period.from}
+            max={latest}
+            required
+            className={inputClass}
+          />
+        </label>
+        <label className="grid gap-1 font-medium">
+          Fim
+          <input
+            name={`${prefix}_fim`}
+            type={inputType}
+            defaultValue={period.to}
+            max={latest}
+            required
+            className={inputClass}
+          />
+        </label>
+        <button
+          className="rounded-lg bg-primary px-4 py-2 font-semibold text-white"
+          type="submit"
+        >
+          Aplicar período
+        </button>
+      </form>
+      {period.invalid && (
+        <p role="alert" className="mt-3 text-sm text-amber-800">
+          Período inválido. Selecione até {monthly ? "60 meses" : "366 dias"},
+          com o início até a data final.
+        </p>
+      )}
+      {values ? (
+        <LeadPeriodChart values={values} monthly={monthly} />
+      ) : (
+        <p role="alert" className="mt-5 text-sm text-slate-600">
+          Não foi possível carregar o gráfico.
+        </p>
+      )}
+    </article>
   );
 }
 
@@ -152,13 +185,19 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           .eq("ativo", true)
           .maybeSingle()
       : { data: null };
+  const now = new Date();
+  const today = saoPauloDateKey(now);
+  const dailyPeriod = chartPeriod(searchParams, today, false);
+  const monthlyPeriod = chartPeriod(searchParams, today, true);
   const { previousMonthStart, monthStart, nextMonth, thirtyDaysAgo } =
-    periods();
+    periods(now);
   const [
     currentResult,
     previousResult,
     allLeadsResult,
-    chartResult,
+    conversionsResult,
+    dailyChart,
+    monthlyChart,
     contractsResult,
     stagesResult,
     goalResult,
@@ -169,18 +208,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   ] = await Promise.all([
     supabase
       .from("leads")
-      .select("id,status", { count: "exact" })
+      .select("id", { count: "exact", head: true })
       .is("deleted_at", null)
-      .is("convertido_em", null)
-      .eq("status_ativacao", "ativo")
       .gte("data_hora", monthStart)
       .lt("data_hora", nextMonth),
     supabase
       .from("leads")
       .select("id", { count: "exact", head: true })
       .is("deleted_at", null)
-      .is("convertido_em", null)
-      .eq("status_ativacao", "ativo")
       .gte("data_hora", previousMonthStart)
       .lt("data_hora", monthStart),
     supabase
@@ -191,12 +226,16 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .eq("status_ativacao", "ativo"),
     supabase
       .from("leads")
-      .select("data_hora")
+      .select("id,clientes!fk_leads_cliente_id!inner(id)", {
+        count: "exact",
+        head: true,
+      })
       .is("deleted_at", null)
-      .is("convertido_em", null)
-      .eq("status_ativacao", "ativo")
-      .gte("data_hora", thirtyDaysAgo)
-      .order("data_hora"),
+      .is("clientes.deleted_at", null)
+      .gte("convertido_em", monthStart)
+      .lt("convertido_em", nextMonth),
+    leadChartData(supabase, dailyPeriod, false),
+    leadChartData(supabase, monthlyPeriod, true),
     supabase
       .from("contratos")
       .select("id,valor_total")
@@ -227,7 +266,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     currentResult.error,
     previousResult.error,
     allLeadsResult.error,
-    chartResult.error,
+    conversionsResult.error,
     contractsResult.error,
     stagesResult.error,
     cadenceLeadsResult.error,
@@ -240,19 +279,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     );
 
   const stages = (stagesResult.data ?? []) as Stage[];
-  const closed = new Set(
-    stages.filter((stage) => stage.e_fechada).map((stage) => stage.nome),
-  );
-  const current = currentResult.data ?? [];
-  const currentCount = currentResult.count ?? current.length;
+  const currentCount = currentResult.count ?? 0;
   const previousCount = previousResult.count ?? 0;
   const variation = previousCount
     ? ((currentCount - previousCount) / previousCount) * 100
     : currentCount
       ? 100
       : 0;
-  const closedCount = current.filter((lead) => closed.has(lead.status)).length;
-  const conversion = currentCount ? (closedCount / currentCount) * 100 : 0;
+  const closedCount = conversionsResult.count;
+  const conversion =
+    currentCount && closedCount !== null && !currentResult.error
+      ? (closedCount / currentCount) * 100
+      : null;
   const contracts = contractsResult.data ?? [];
   const revenue = contracts.reduce(
     (sum, contract) => sum + Number(contract.valor_total ?? 0),
@@ -279,23 +317,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const biggestDrop = Math.max(0, ...funnel.map((stage) => stage.drop));
   const maxStage = Math.max(1, ...funnel.map((stage) => stage.count));
 
-  const daily = new Map<string, number>();
-  for (let index = 0; index < 30; index += 1) {
-    const day = new Date(thirtyDaysAgo);
-    day.setUTCDate(day.getUTCDate() + index);
-    daily.set(dateKey(day), 0);
-  }
-  for (const lead of chartResult.data ?? []) {
-    const key = dateKey(lead.data_hora);
-    daily.set(key, (daily.get(key) ?? 0) + 1);
-  }
-  const chart = Array.from(daily, ([day, count]) => ({ day, count }));
   const cadenceLeads = (cadenceLeadsResult.data ?? []) as CadenceLead[];
   const mine = profile
     ? cadenceLeads.filter((lead) => lead.responsavel_id === profile.id)
     : [];
-  const today = saoPauloDateKey();
-  const now = new Date();
   const allMetrics = cadenceMetrics(
     cadenceLeads,
     profile?.id ?? null,
@@ -319,8 +344,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     },
     {
       label: "Taxa de conversão",
-      value: `${conversion.toFixed(1).replace(".", ",")}%`,
-      detail: `${closedCount} de ${currentCount} leads fechados`,
+      value:
+        conversion === null
+          ? "—"
+          : `${conversion.toFixed(1).replace(".", ",")}%`,
+      detail:
+        closedCount === null || currentResult.error
+          ? "Dados indisponíveis"
+          : `${closedCount} convertidos / ${currentCount} recebidos no mês`,
       icon: Target,
     },
     {
@@ -395,13 +426,19 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           consultantSlices={consultantSlices}
         />
         <section className="mt-6 grid grid-cols-1 gap-8">
-          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold">Leads nos últimos 30 dias</h2>
-            <p className="text-sm text-slate-500">
-              Novos contatos recebidos por dia
-            </p>
-            <LeadsLineChart values={chart} />
-          </article>
+          <LeadPeriodPanel
+            period={dailyPeriod}
+            otherPeriod={monthlyPeriod}
+            today={today}
+            values={dailyChart}
+          />
+          <LeadPeriodPanel
+            period={monthlyPeriod}
+            otherPeriod={dailyPeriod}
+            today={today}
+            values={monthlyChart}
+            monthly
+          />
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold">Funil de conversão</h2>
             <p className="text-sm text-slate-500">
@@ -446,7 +483,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </div>
           </article>
         </section>
-        {validGoal && (
+        {validGoal && closedCount !== null && (
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
